@@ -1,0 +1,412 @@
+openapi: 3.1.0
+info:
+  title: Marketing Value Creator (MVC) API
+  version: "1.0.0"
+  description: |
+    Enterprise generative AI campaign planning platform for Nova Electronics Corp.
+    Orchestrates 4 specialized sub-agents ([P1] Market Sensing, [P2] Strategy & Brief,
+    [P3] Creative Content, [P4] Performance & Insights) with Human-in-the-Loop (HITL) review gates.
+servers:
+  - url: /
+    description: Current host
+security:
+  - googleOAuth: []
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "healthy" }
+                  service: { type: string, example: "mvc-orchestrator" }
+                  timestamp: { type: string, format: date-time }
+
+  /meta:
+    get:
+      summary: Service metadata and models
+      operationId: getMeta
+      security: []
+      responses:
+        "200":
+          description: Service metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string, example: "Marketing Value Creator" }
+                  version: { type: string, example: "1.0.0" }
+                  region: { type: string, example: "asia-northeast3" }
+                  models:
+                    type: object
+                    properties:
+                      orchestrator: { type: string, example: "gemini-3.1-pro" }
+                      sub_agents: { type: string, example: "gemini-3.5-flash-lite" }
+                      creative_image: { type: string, example: "imagen-3.0-generate-002" }
+
+  /api/v1/campaigns:
+    post:
+      summary: Start a new multi-agent campaign planning DAG
+      operationId: createCampaign
+      description: Initializes a campaign workflow and initiates P1 (Market Sensing). Returns session details or streams SSE events.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+      responses:
+        "200":
+          description: Campaign initialized or SSE stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/CampaignStreamEvent'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignSessionResponse'
+        "400":
+          description: Invalid request or Model Armor prompt rejection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized / invalid Google OAuth ID token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/campaigns/{sessionId}:
+    get:
+      summary: Get current campaign session state and deliverables
+      operationId: getCampaignSession
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session state details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignSessionResponse'
+        "404":
+          description: Campaign session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/campaigns/{sessionId}/approve:
+    post:
+      summary: Submit human-in-the-loop review approval or revision feedback
+      operationId: approveOrReviseCampaignStage
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StageApprovalRequest'
+      responses:
+        "200":
+          description: Stage transition processed or SSE stream of next stage execution
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/CampaignStreamEvent'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignSessionResponse'
+        "400":
+          description: Invalid stage state or feedback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    googleOAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Google OAuth 2.0 OIDC ID Token
+
+  schemas:
+    CreateCampaignRequest:
+      type: object
+      required:
+        - brandName
+        - productName
+        - campaignObjective
+        - targetAudience
+        - budgetAmount
+        - currency
+      properties:
+        brandName:
+          type: string
+          example: "Nova Electronics Corp"
+        productName:
+          type: string
+          example: "Galaxy S27 Ultra"
+        campaignObjective:
+          type: string
+          example: "Black Friday Global Campaign targeting premium tech enthusiasts with AI camera features."
+        targetAudience:
+          type: string
+          example: "Tech-savvy professionals and mobile photographers aged 25-45."
+        budgetAmount:
+          type: number
+          example: 1000000.0
+        currency:
+          type: string
+          default: "USD"
+          example: "USD"
+        channels:
+          type: array
+          items:
+            type: string
+          example: ["Digital Video", "Paid Search", "Social Media", "Retail Display"]
+        stream:
+          type: boolean
+          default: true
+          description: Whether to return response as Server-Sent Events (SSE)
+
+    StageApprovalRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: ["approve", "revise"]
+          description: "'approve' advances to next stage; 'revise' re-executes current stage with feedback"
+        feedback:
+          type: string
+          description: Marketer text feedback for revision
+          example: "Please emphasize trade-in discounts more prominently in the brief and visual prompt."
+        stream:
+          type: boolean
+          default: true
+
+    CampaignSessionResponse:
+      type: object
+      required:
+        - sessionId
+        - status
+        - currentStage
+        - brandName
+        - productName
+        - createdAt
+        - updatedAt
+      properties:
+        sessionId:
+          type: string
+          example: "camp-9f8a3c21"
+        status:
+          type: string
+          enum: ["INITIALIZING", "RUNNING", "PAUSED_FOR_REVIEW", "COMPLETED", "FAILED"]
+          example: "PAUSED_FOR_REVIEW"
+        currentStage:
+          type: string
+          enum: ["MARKET_SENSING", "STRATEGY_BRIEF", "CREATIVE_CONTENT", "PERFORMANCE_INSIGHTS", "COMPLETED"]
+          example: "MARKET_SENSING"
+        brandName:
+          type: string
+        productName:
+          type: string
+        campaignObjective:
+          type: string
+        budgetAmount:
+          type: number
+        currency:
+          type: string
+        deliverables:
+          type: object
+          properties:
+            marketSensing:
+              $ref: '#/components/schemas/MarketSensingDeliverable'
+            campaignBrief:
+              $ref: '#/components/schemas/CampaignBriefDeliverable'
+            creativeContent:
+              $ref: '#/components/schemas/CreativeContentDeliverable'
+            performanceInsights:
+              $ref: '#/components/schemas/PerformanceInsightsDeliverable'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CampaignStreamEvent:
+      type: object
+      required:
+        - event
+        - stage
+        - data
+      properties:
+        event:
+          type: string
+          enum: ["stage_started", "agent_thinking", "artifact_generated", "stage_paused_for_review", "stage_completed", "campaign_completed", "error"]
+        stage:
+          type: string
+        sessionId:
+          type: string
+        data:
+          type: object
+
+    MarketSensingDeliverable:
+      type: object
+      required:
+        - targetMarket
+        - consumerTrends
+        - competitiveAnalysis
+        - sentimentOverview
+        - strategicOpportunities
+      properties:
+        targetMarket: { type: string }
+        consumerTrends:
+          type: array
+          items: { type: string }
+        competitiveAnalysis:
+          type: array
+          items:
+            type: object
+            required: [competitor, strengths, vulnerabilities]
+            properties:
+              competitor: { type: string }
+              strengths: { type: array, items: { type: string } }
+              vulnerabilities: { type: array, items: { type: string } }
+        sentimentOverview:
+          type: object
+          required: [positiveThemes, frictionPoints, overallSentimentScore]
+          properties:
+            positiveThemes: { type: array, items: { type: string } }
+            frictionPoints: { type: array, items: { type: string } }
+            overallSentimentScore: { type: number }
+        strategicOpportunities:
+          type: array
+          items: { type: string }
+
+    CampaignBriefDeliverable:
+      type: object
+      required:
+        - campaignTitle
+        - coreValueProposition
+        - targetPersonas
+        - messagingPillars
+        - toneAndVoice
+      properties:
+        campaignTitle: { type: string }
+        coreValueProposition: { type: string }
+        targetPersonas:
+          type: array
+          items:
+            type: object
+            required: [name, demographics, primaryNeeds, barriers]
+            properties:
+              name: { type: string }
+              demographics: { type: string }
+              primaryNeeds: { type: array, items: { type: string } }
+              barriers: { type: array, items: { type: string } }
+        messagingPillars:
+          type: array
+          items:
+            type: object
+            required: [pillar, keyMessage, proofPoints]
+            properties:
+              pillar: { type: string }
+              keyMessage: { type: string }
+              proofPoints: { type: array, items: { type: string } }
+        toneAndVoice:
+          type: array
+          items: { type: string }
+
+    CreativeContentDeliverable:
+      type: object
+      required:
+        - visualConceptTitle
+        - visualPromptUsed
+        - assetUrl
+        - headlineCopy
+        - bodyCopy
+        - callToAction
+      properties:
+        visualConceptTitle: { type: string }
+        visualPromptUsed: { type: string }
+        assetUrl:
+          type: string
+          description: GCS URI or HTTP URL of generated marketing image
+        headlineCopy: { type: string }
+        bodyCopy: { type: string }
+        callToAction: { type: string }
+        aspectRatio: { type: string, default: "16:9" }
+        generationTimestamp: { type: string, format: date-time }
+
+    PerformanceInsightsDeliverable:
+      type: object
+      required:
+        - totalBudget
+        - currency
+        - channelAllocations
+        - projectedKpis
+        - expectedRoas
+        - recommendations
+      properties:
+        totalBudget: { type: number }
+        currency: { type: string }
+        channelAllocations:
+          type: array
+          items:
+            type: object
+            required: [channel, allocationAmount, percentage, rationale]
+            properties:
+              channel: { type: string }
+              allocationAmount: { type: number }
+              percentage: { type: number }
+              rationale: { type: string }
+        projectedKpis:
+          type: object
+          required: [estimatedImpressions, estimatedClicks, estimatedConversions, projectedCtr]
+          properties:
+            estimatedImpressions: { type: integer }
+            estimatedClicks: { type: integer }
+            estimatedConversions: { type: integer }
+            projectedCtr: { type: number }
+        expectedRoas: { type: number }
+        recommendations:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - traceId
+      properties:
+        error: { type: string }
+        message: { type: string }
+        traceId: { type: string }
+        detail: { type: object }

@@ -1,0 +1,12 @@
+{
+  "enforce-ponytail-review": {
+    "enabled": true,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "uv run python .agents/scripts/check_review_needed.py",
+        "timeout": 15
+      }
+    ]
+  }
+}

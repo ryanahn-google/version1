@@ -1,0 +1,15 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "galaxy_s27_black_friday_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: Galaxy S27 Ultra\nObjective: Black Friday Global Campaign targeting premium tech enthusiasts with AI camera features.\nTarget Audience: Tech-savvy professionals and mobile photographers aged 25-45."
+          }
+        ]
+      }
+    }
+  ]
+}

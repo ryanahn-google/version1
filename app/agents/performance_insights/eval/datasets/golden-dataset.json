@@ -1,0 +1,15 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "galaxy_s27_black_friday_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $1,000,000 USD\nSelected Channels: Digital Video, Paid Search, Social Media, Retail Display\nCampaign Objective: Black Friday Global Campaign for Galaxy S27 Ultra."
+          }
+        ]
+      }
+    }
+  ]
+}

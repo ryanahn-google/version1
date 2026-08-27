@@ -1,0 +1,15 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "galaxy_s27_black_friday_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title 'Illuminate the Night with Galaxy S27 Ultra'. Core Value Prop: Pro-grade 200MP sensor with AI nightography. Target: Urban creators. Tone: Sleek, Cinematic, Visionary."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "galaxy_s27_black_friday_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is Global urban tech hubs. Consumer Trends include on-device generative AI photography and trade-in upgrades. Competitors: Alpha Phone 17 Pro. Strategic Opportunity: Highlight instant low-light zoom and trade-in credits.\nCampaign Goal: Black Friday launch for Galaxy S27 Ultra."
+          }
+        ]
+      }
+    }
+  ]
+}
