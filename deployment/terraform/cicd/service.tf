@@ -107,7 +107,7 @@ resource "google_vertex_ai_reasoning_engine" "subagents" {
     }
   }
 
-  display_name = "${var.project_name}-${each.value.agent_name}-${each.value.env_key}"
+  display_name = each.value.agent_name
   description  = "${each.value.agent_name} subagent on Agent Runtime"
   region       = var.region
   project      = each.value.project_id
@@ -324,22 +324,22 @@ resource "google_cloud_run_v2_service" "app" {
 
       env {
         name  = "A2A_P1_URL"
-        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_market_sensing"].name}/api/a2a/market_sensing"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/projects/${data.google_project.project[each.key].number}/locations/${var.region}/reasoningEngines/${google_vertex_ai_reasoning_engine.subagents["${each.key}_market_sensing"].name}/api/a2a/market_sensing"
       }
 
       env {
         name  = "A2A_P2_URL"
-        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_strategy_brief"].name}/api/a2a/strategy_brief"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/projects/${data.google_project.project[each.key].number}/locations/${var.region}/reasoningEngines/${google_vertex_ai_reasoning_engine.subagents["${each.key}_strategy_brief"].name}/api/a2a/strategy_brief"
       }
 
       env {
         name  = "A2A_P3_URL"
-        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_creative_content"].name}/api/a2a/creative_content"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/projects/${data.google_project.project[each.key].number}/locations/${var.region}/reasoningEngines/${google_vertex_ai_reasoning_engine.subagents["${each.key}_creative_content"].name}/api/a2a/creative_content"
       }
 
       env {
         name  = "A2A_P4_URL"
-        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_performance_insights"].name}/api/a2a/performance_insights"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/projects/${data.google_project.project[each.key].number}/locations/${var.region}/reasoningEngines/${google_vertex_ai_reasoning_engine.subagents["${each.key}_performance_insights"].name}/api/a2a/performance_insights"
       }
     }
 
