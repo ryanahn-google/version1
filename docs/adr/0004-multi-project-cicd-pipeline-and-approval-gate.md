@@ -1,0 +1,65 @@
+# ADR-0004: Multi-Project CI/CD Pipeline with Cloud Build Native Approval Gate
+
+- **Status**: Accepted
+- **Date**: 2026-08-28
+- **Deciders**: Ryan Ahn (FDE Lead), Engineering Approver
+- **Related**: [docs/design/TDD.md](../design/TDD.md), [deployment/terraform/cicd/build_triggers.tf](../../deployment/terraform/cicd/build_triggers.tf)
+
+## Context
+The Marketing Value Creator (MVC) v1.0 requires automated testing, container builds, and deployment across distinct environments (Staging and Production).
+Key enterprise requirements include:
+1. **Strict Environment Isolation**: Production workloads and databases must not share GCP project boundaries, IAM permissions, or network namespaces with Staging or CI/CD runners.
+2. **Automated Verification Before Promotion**: Staging must undergo automated load testing (Locust) to verify end-to-end API and SSE chat streaming resilience before code is allowed near Production.
+3. **Production Approval Gate**: Deployment to Production must never be fully automatic; an authorized operator must explicitly inspect verification results and approve deployment.
+4. **Tooling Overhead**: Minimizing operational footprint by avoiding heavy CD pipelines (e.g. Google Cloud Deploy with Skaffold) when Cloud Build native capabilities fulfill all contractual commitments.
+
+## Decision
+We implement a **3-Project CI/CD Hub-and-Spoke Topology** using Google Cloud Build 2nd Gen and Cloud Build Triggers:
+
+1. **Project Separation**:
+   - `capstone-cicd`: Central build runner, container image repository (`version1-repo` in Artifact Registry), and GitHub 2nd Gen Connection (`git-version1`).
+   - `capstone-staging-506811`: Fully isolated Staging environment.
+   - `capstone-prod-506811`: Fully isolated Production environment.
+
+2. **Automated Three-Trigger Pipeline**:
+   - `pr-version1` (`.cloudbuild/pr_checks.yaml`): Triggered on Pull Requests to `main`. Executes `pytest tests/unit` and `pytest tests/integration` to gate merge approval.
+   - `cd-version1` (`.cloudbuild/staging.yaml`): Triggered on push or merge to `main`.
+     1. Builds the Python 3.13 container image and pushes to `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1:$SHORT_SHA`.
+     2. Deploys to Staging Cloud Run (`version1`) via `agents-cli deploy`.
+     3. Extracts the Staging Cloud Run service URL and generates an internal OIDC authentication token.
+     4. Executes a 30-second headless Locust load test (`tests/load_test/load_test.py`) against `/apps/app/users/.../sessions` and `/run_sse`.
+     5. Exports load test HTML and CSV reports to `gs://capstone-staging-506811-version1-logs/load-test-results/`.
+     6. Invokes the Production deployment trigger (`deploy-version1`) via `gcloud beta builds triggers run deploy-version1`.
+   - `deploy-version1` (`.cloudbuild/deploy-to-prod.yaml`): Configured with a Cloud Build Native Approval Gate:
+     ```hcl
+     approval_config {
+       approval_required = true
+     }
+     ```
+     Enters a `PENDING` state until an authorized engineer clicks **Approve** in the Cloud Build Console, deploying the verified container image to `capstone-prod-506811`.
+
+## Alternatives Considered
+
+### Alternative A: Google Cloud Deploy with Skaffold
+Provision Cloud Deploy Delivery Pipelines and Targets with Skaffold manifest rendering.
+- *Why it was attractive*: Built-in multi-target promotion UI and automated metric-based canary rollbacks.
+- *Why it lost*: Required introducing `skaffold.yaml` configuration layers and replacing the lightweight `agents-cli deploy` standard ADK workflow. Cloud Build's native `approval_config` provides the required human gate with zero added operational dependencies.
+
+### Alternative B: Single GCP Project with Namespace Tagging
+Deploy both Staging and Production workloads within a single GCP project, partitioned by service suffixes (`version1-staging`, `version1-prod`).
+- *Why it lost*: Violates enterprise blast radius isolation. A shared project risks accidental credential leakage, IAM privilege escalation, and noisy-neighbor quota exhaustion between test and prod.
+
+## Consequences
+
+### Positive
+- Complete physical blast radius isolation between build runner, staging, and production environments.
+- Immutable container artifact promotion: the exact image digest tested in Staging is promoted to Production without rebuilding.
+- Built-in automated performance gate via Locust ensures defective revisions are caught before human approval.
+- Simple, auditable manual promotion via Cloud Build Console.
+
+### Negative / Accepted Trade-offs
+- Production releases do not support automatic multi-step canary traffic shifting (e.g. 10% -> 50% -> 100%); traffic routes 100% to the newly approved Cloud Run revision upon approval.
+- Rollback requires re-running a previous build trigger or splitting traffic in Cloud Run Console.
+
+## Conditions to Revisit
+- If business requirements mandate automated multi-step canary rollouts with automated metric-based rollback, migrate deployment stages to Google Cloud Deploy.
