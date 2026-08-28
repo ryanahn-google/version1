@@ -33,6 +33,11 @@ except ImportError:
     from agent import creative_content_agent as sub_agent
 
 try:
+    from .session_service import get_subagent_session_service
+except ImportError:
+    from session_service import get_subagent_session_service
+
+try:
     from .reasoning_engine_adapter import attach_reasoning_engine_routes
 except ImportError:
     from reasoning_engine_adapter import attach_reasoning_engine_routes
@@ -43,11 +48,11 @@ AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager initializing A2A runner and endpoints."""
-    from google.adk.sessions import InMemorySessionService
+    session_service = get_subagent_session_service()
 
     runner = Runner(
         app=adk_app,
-        session_service=InMemorySessionService(),
+        session_service=session_service,
         auto_create_session=True,
     )
     app.state.runner = runner

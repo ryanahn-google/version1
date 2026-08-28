@@ -19,7 +19,10 @@ import json
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, encoders, responses
-from google.adk.sessions import InMemorySessionService
+try:
+    from .session_service import get_subagent_session_service
+except ImportError:
+    from session_service import get_subagent_session_service
 from vertexai.agent_engines.templates.adk import AdkApp
 
 
@@ -38,7 +41,7 @@ def attach_reasoning_engine_routes(app: FastAPI, adk_app: Any) -> None:
         if runtime is None:
             runtime = AdkApp(
                 app=adk_app,
-                session_service_builder=lambda: InMemorySessionService(),
+                session_service_builder=get_subagent_session_service,
                 artifact_service_builder=None,
                 instrumentor_builder=_no_op_instrumentor,
             )

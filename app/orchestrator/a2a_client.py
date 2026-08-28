@@ -54,19 +54,24 @@ class A2ASubAgentClient:
         self.p4_url = p4_url or os.environ.get("A2A_P4_URL")
 
     async def _call_remote_a2a(
-        self, endpoint_url: str, prompt_text: str
+        self, endpoint_url: str, prompt_text: str, context_id: str | None = None
     ) -> dict[str, Any]:
         """Dispatch JSON-RPC call to remote Agent Runtime A2A endpoint."""
+        message_dict: dict[str, Any] = {
+            "role": "user",
+            "parts": [{"text": prompt_text}],
+            "messageId": str(uuid.uuid4()),
+        }
+        params: dict[str, Any] = {"message": message_dict}
+        if context_id:
+            sanitized_cid = re.sub(r"[^A-Za-z0-9_-]", "-", context_id)
+            message_dict["contextId"] = sanitized_cid
+            params["contextId"] = sanitized_cid
+
         payload = {
             "jsonrpc": "2.0",
             "method": "message/send",
-            "params": {
-                "message": {
-                    "role": "user",
-                    "parts": [{"text": prompt_text}],
-                    "messageId": str(uuid.uuid4()),
-                }
-            },
+            "params": params,
             "id": f"mvc-task-{uuid.uuid4().hex[:8]}",
         }
         headers = {"Content-Type": "application/json", "A2A-Version": "0.3"}
@@ -115,7 +120,12 @@ class A2ASubAgentClient:
                     return {"raw_response": result_text}
 
     async def run_market_sensing(
-        self, brand_name: str, product_name: str, objective: str, audience: str
+        self,
+        brand_name: str,
+        product_name: str,
+        objective: str,
+        audience: str,
+        context_id: str | None = None,
     ) -> MarketSensingDeliverable:
         """Run [P1] Market Sensing Agent."""
         prompt = (
@@ -127,7 +137,7 @@ class A2ASubAgentClient:
         if self.p1_url:
             logger.info("Calling remote [P1] A2A endpoint: %s", self.p1_url)
             try:
-                data = await self._call_remote_a2a(self.p1_url, prompt)
+                data = await self._call_remote_a2a(self.p1_url, prompt, context_id=context_id)
                 return MarketSensingDeliverable.model_validate(data)
             except Exception as e:
                 logger.warning("Remote [P1] A2A call failed: %s. Falling back to local agent execution.", e)
@@ -181,6 +191,7 @@ class A2ASubAgentClient:
         objective: str,
         market_sensing: MarketSensingDeliverable,
         feedback: str | None = None,
+        context_id: str | None = None,
     ) -> CampaignBriefDeliverable:
         """Run [P2] Strategy & Brief Agent."""
         if self.p2_url:
@@ -192,7 +203,7 @@ class A2ASubAgentClient:
                 f"Feedback: {feedback or 'None'}"
             )
             try:
-                data = await self._call_remote_a2a(self.p2_url, prompt)
+                data = await self._call_remote_a2a(self.p2_url, prompt, context_id=context_id)
                 return CampaignBriefDeliverable.model_validate(data)
             except Exception as e:
                 logger.warning("Remote [P2] A2A call failed: %s. Falling back to local agent execution.", e)
@@ -251,6 +262,7 @@ class A2ASubAgentClient:
         self,
         brief: CampaignBriefDeliverable,
         feedback: str | None = None,
+        context_id: str | None = None,
     ) -> CreativeContentDeliverable:
         """Run [P3] Creative Content Agent."""
         if self.p3_url:
@@ -260,7 +272,7 @@ class A2ASubAgentClient:
                 f"Feedback: {feedback or 'None'}"
             )
             try:
-                data = await self._call_remote_a2a(self.p3_url, prompt)
+                data = await self._call_remote_a2a(self.p3_url, prompt, context_id=context_id)
                 return CreativeContentDeliverable.model_validate(data)
             except Exception as e:
                 logger.warning("Remote [P3] A2A call failed: %s. Falling back to local agent execution.", e)
@@ -291,6 +303,7 @@ class A2ASubAgentClient:
         currency: str,
         channels: list[str],
         brief: CampaignBriefDeliverable,
+        context_id: str | None = None,
     ) -> PerformanceInsightsDeliverable:
         """Run [P4] Performance & Insights Agent."""
         if self.p4_url:
@@ -301,7 +314,7 @@ class A2ASubAgentClient:
                 f"Brief: {brief.model_dump_json()}"
             )
             try:
-                data = await self._call_remote_a2a(self.p4_url, prompt)
+                data = await self._call_remote_a2a(self.p4_url, prompt, context_id=context_id)
                 return PerformanceInsightsDeliverable.model_validate(data)
             except Exception as e:
                 logger.warning("Remote [P4] A2A call failed: %s. Falling back to local agent execution.", e)

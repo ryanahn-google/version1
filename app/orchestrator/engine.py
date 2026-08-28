@@ -69,6 +69,7 @@ class CampaignOrchestrationEngine:
             product_name=request.productName,
             objective=request.campaignObjective,
             audience=request.targetAudience,
+            context_id=f"{session_id}-p1",
         )
         updated = await self.repo.update_session(
             session_id=session_id,
@@ -111,6 +112,7 @@ class CampaignOrchestrationEngine:
                 product_name=request.productName,
                 objective=request.campaignObjective,
                 audience=request.targetAudience,
+                context_id=f"{session_id}-p1",
             )
 
             updated_session = await self.repo.update_session(
@@ -209,6 +211,7 @@ class CampaignOrchestrationEngine:
                     session.productName,
                     session.campaignObjective,
                     "General",
+                    context_id=f"{session_id}-p1-rev",
                 )
                 await self.repo.update_session(
                     session_id,
@@ -231,6 +234,7 @@ class CampaignOrchestrationEngine:
                     session.campaignObjective,
                     session.deliverables.marketSensing,
                     feedback=feedback,
+                    context_id=f"{session_id}-p2-rev",
                 )
                 await self.repo.update_session(
                     session_id,
@@ -248,7 +252,7 @@ class CampaignOrchestrationEngine:
 
             elif current_stage == CampaignStage.CREATIVE_CONTENT:
                 deliv3 = await self.a2a.run_creative_content(
-                    session.deliverables.campaignBrief, feedback=feedback
+                    session.deliverables.campaignBrief, feedback=feedback, context_id=f"{session_id}-p3-rev"
                 )
                 await self.repo.update_session(
                     session_id,
@@ -292,6 +296,7 @@ class CampaignOrchestrationEngine:
                 session.productName,
                 session.campaignObjective,
                 session.deliverables.marketSensing,
+                context_id=f"{session_id}-p2",
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -332,7 +337,7 @@ class CampaignOrchestrationEngine:
                 )
             )
             deliv_p3 = await self.a2a.run_creative_content(
-                session.deliverables.campaignBrief
+                session.deliverables.campaignBrief, context_id=f"{session_id}-p3"
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -377,6 +382,7 @@ class CampaignOrchestrationEngine:
                 session.currency,
                 session.channels,
                 session.deliverables.campaignBrief,
+                context_id=f"{session_id}-p4",
             )
             updated = await self.repo.update_session(
                 session_id,
