@@ -3141,7 +3141,7 @@ wheels = [
 ]
 
 [[package]]
-name = "v1"
+name = "version1"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
