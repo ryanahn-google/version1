@@ -125,7 +125,7 @@ substitutions:
 logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:
   env:
-    - 'UV_PYTHON=3.12'
+    - 'UV_PYTHON=3.13'
     - 'CI=true'
   substitutionOption: ALLOW_LOOSE
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
