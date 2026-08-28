@@ -32,6 +32,11 @@ except ImportError:
     from agent import app as adk_app
     from agent import market_sensing_agent as sub_agent
 
+try:
+    from .reasoning_engine_adapter import attach_reasoning_engine_routes
+except ImportError:
+    from reasoning_engine_adapter import attach_reasoning_engine_routes
+
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -70,3 +75,5 @@ app: FastAPI = get_fast_api_app(
 async def health_check():
     """Liveness health check endpoint."""
     return {"status": "healthy", "agent": adk_app.name}
+
+attach_reasoning_engine_routes(app, adk_app=adk_app)

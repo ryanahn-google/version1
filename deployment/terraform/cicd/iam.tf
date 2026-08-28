@@ -73,9 +73,6 @@ resource "google_project_iam_member" "cicd_run_invoker_artifact_registry_reader"
 }
 
 
-
-
-
 # Special assignment: Allow the CICD SA to create tokens
 resource "google_service_account_iam_member" "cicd_run_invoker_token_creator" {
   service_account_id = google_service_account.cicd_runner_sa.name
@@ -90,3 +87,21 @@ resource "google_service_account_iam_member" "cicd_run_invoker_account_user" {
   member             = "serviceAccount:${resource.google_service_account.cicd_runner_sa.email}"
   depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
+
+# 5. Allow Vertex AI Reasoning Engine service agent to act as app SA
+resource "google_service_account_iam_member" "aiplatform_sa_user" {
+  for_each           = local.deploy_project_ids
+  service_account_id = google_service_account.app_sa[each.key].name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:service-${data.google_project.projects[each.key].number}@gcp-sa-aiplatform.iam.gserviceaccount.com"
+  depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
+
+resource "google_service_account_iam_member" "aiplatform_sa_token_creator" {
+  for_each           = local.deploy_project_ids
+  service_account_id = google_service_account.app_sa[each.key].name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.projects[each.key].number}@gcp-sa-aiplatform.iam.gserviceaccount.com"
+  depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
+
