@@ -18,6 +18,7 @@ import json
 import logging
 import os
 from typing import Any
+import uuid
 
 import aiohttp
 
@@ -57,9 +58,10 @@ class A2ASubAgentClient:
                 "message": {
                     "role": "user",
                     "parts": [{"text": prompt_text}],
+                    "messageId": str(uuid.uuid4()),
                 }
             },
-            "id": "mvc-task-1",
+            "id": f"mvc-task-{uuid.uuid4().hex[:8]}",
         }
         headers = {"Content-Type": "application/json", "A2A-Version": "1.0"}
 
@@ -82,12 +84,10 @@ class A2ASubAgentClient:
             ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
-                result_text = (
-                    data.get("result", {})
-                    .get("message", {})
-                    .get("parts", [{}])[0]
-                    .get("text", "{}")
-                )
+                res = data.get("result", {})
+                msg = res.get("status", {}).get("message") or res.get("message", {})
+                parts = msg.get("parts", [{}])
+                result_text = parts[0].get("text", "{}") if parts else "{}"
                 try:
                     return json.loads(result_text)
                 except Exception:

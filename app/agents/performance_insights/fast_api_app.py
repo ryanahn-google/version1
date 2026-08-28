@@ -38,8 +38,11 @@ AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager initializing A2A runner and endpoints."""
+    from google.adk.sessions import InMemorySessionService
+
     runner = Runner(
         app=adk_app,
+        session_service=InMemorySessionService(),
         auto_create_session=True,
     )
     app.state.runner = runner
