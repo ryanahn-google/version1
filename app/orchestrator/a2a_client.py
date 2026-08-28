@@ -41,11 +41,17 @@ logger = logging.getLogger(__name__)
 class A2ASubAgentClient:
     """Client for executing P1-P4 agents via remote A2A JSON-RPC or local module execution."""
 
-    def __init__(self) -> None:
-        self.p1_url = os.environ.get("A2A_P1_URL")
-        self.p2_url = os.environ.get("A2A_P2_URL")
-        self.p3_url = os.environ.get("A2A_P3_URL")
-        self.p4_url = os.environ.get("A2A_P4_URL")
+    def __init__(
+        self,
+        p1_url: str | None = None,
+        p2_url: str | None = None,
+        p3_url: str | None = None,
+        p4_url: str | None = None,
+    ) -> None:
+        self.p1_url = p1_url or os.environ.get("A2A_P1_URL")
+        self.p2_url = p2_url or os.environ.get("A2A_P2_URL")
+        self.p3_url = p3_url or os.environ.get("A2A_P3_URL")
+        self.p4_url = p4_url or os.environ.get("A2A_P4_URL")
 
     async def _call_remote_a2a(
         self, endpoint_url: str, prompt_text: str
