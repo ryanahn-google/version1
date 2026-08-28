@@ -47,7 +47,7 @@ Base = declarative_base()
 
 
 def utcnow():
-    return datetime.now(UTC)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class CampaignSessionModel(Base):
@@ -203,6 +203,13 @@ class SessionRepository:
     def _to_schema(self, model: CampaignSessionModel) -> CampaignSessionResponse:
         """Convert database model to Pydantic schema."""
         deliv_dict = model.deliverables or {}
+        created_at = model.created_at
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
+        updated_at = model.updated_at
+        if updated_at and updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=UTC)
+
         return CampaignSessionResponse(
             sessionId=model.session_id,
             tenantId=model.tenant_id,
@@ -221,8 +228,8 @@ class SessionRepository:
                 performanceInsights=deliv_dict.get("performanceInsights"),
             ),
             revisionCount=model.revision_count,
-            createdAt=model.created_at,
-            updatedAt=model.updated_at,
+            createdAt=created_at,
+            updatedAt=updated_at,
         )
 
 
