@@ -21,6 +21,8 @@ WORKDIR /code
 COPY ./pyproject.toml ./README.md ./uv.lock* ./
 
 COPY ./app ./app
+# Ensure subagents are completely excluded from Cloud Run container (deployed to Agent Runtime)
+RUN rm -rf ./app/agents
 
 RUN uv sync --frozen
 

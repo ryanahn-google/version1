@@ -202,10 +202,13 @@ resource "google_cloud_run_v2_service" "app" {
   name                = var.project_name
   location            = var.region
   project             = each.value
+  description         = "Marketing Value Creator (MVC) Root Orchestrator service communicating with subagents via A2A on Vertex AI Agent Runtime"
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
   labels = {
-    "created-by"                  = "adk"
+    "created-by" = "adk"
+    "service"    = "mvc-orchestrator"
+    "role"       = "orchestrator"
   }
 
   template {

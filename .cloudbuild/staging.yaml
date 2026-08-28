@@ -14,7 +14,7 @@
 
 steps:
 
-  # Build and Push
+  # Build and Push Orchestrator (Subagents strictly excluded from image)
   - name: "gcr.io/cloud-builders/docker"
     id: build-image
     entrypoint: /bin/bash
@@ -26,7 +26,7 @@ steps:
           .
         docker push $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:$SHORT_SHA
 
-  # Deploy P1-P4 Sub-Agents to Vertex AI Agent Runtime
+  # Deploy P1-P4 Sub-Agents exclusively to Vertex AI Agent Runtime
   - name: "gcr.io/cloud-builders/gcloud"
     id: deploy-subagents-staging
     entrypoint: /bin/bash
@@ -35,13 +35,14 @@ steps:
       - |
         curl -LsSf https://astral.sh/uv/0.11.7/install.sh | sh
         export PATH="$$HOME/.local/bin:$$PATH"
-        echo "Deploying P1-P4 Sub-Agents to Agent Runtime..."
+        echo "Deploying P1-P4 Sub-Agents exclusively to Vertex AI Agent Runtime..."
         for agent in market_sensing strategy_brief creative_content performance_insights; do
           echo "Deploying $$agent to Agent Runtime..."
           (cd app/agents/$$agent && uvx google-agents-cli@1.3.1 deploy --project ${_STAGING_PROJECT_ID} --region ${_REGION} --no-wait) || true
           sleep 5
         done
 
+  # Deploy Orchestrator to Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     id: deploy-staging
     entrypoint: /bin/bash
