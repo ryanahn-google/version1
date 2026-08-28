@@ -37,6 +37,7 @@ steps:
         uvx google-agents-cli@1.3.1 deploy \
           --project ${_PROD_PROJECT_ID} \
           --region ${_REGION} \
+          --service-name version1 \
           --image $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:$SHORT_SHA \
           --update-env-vars="OTEL_RESOURCE_ATTRIBUTES=service.version=$COMMIT_SHA"
 
