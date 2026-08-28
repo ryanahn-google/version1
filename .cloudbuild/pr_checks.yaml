@@ -44,7 +44,7 @@ steps:
         export PATH="$$HOME/.local/bin:$$PATH"
         uv run pytest tests/integration
 
-logsBucket: gs://${PROJECT_ID}-v1-logs/build-logs
+logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:
   env:
     - 'UV_PYTHON=3.13'

@@ -44,7 +44,7 @@ substitutions:
   _PROD_PROJECT_ID: YOUR_PROD_PROJECT_ID
   _REGION: asia-northeast3
 
-logsBucket: gs://${PROJECT_ID}-v1-logs/build-logs
+logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:
   env:
     - 'UV_PYTHON=3.12'

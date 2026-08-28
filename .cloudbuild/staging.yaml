@@ -47,7 +47,7 @@ steps:
     args:
       - "-c"
       - |
-        echo $(gcloud run services describe v1 \
+        echo $(gcloud run services describe version1 \
         --region ${_REGION} --project ${_STAGING_PROJECT_ID} --format="value(status.url)") > staging_url.txt
 
   # Fetch ID Token
@@ -99,7 +99,7 @@ steps:
       - "builds"
       - "triggers"
       - "run"
-      - "deploy-v1"
+      - "deploy-version1"
       - "--region"
       - "$LOCATION"
       - "--project"
@@ -122,7 +122,7 @@ substitutions:
   _STAGING_PROJECT_ID: YOUR_STAGING_PROJECT_ID
   _REGION: asia-northeast3
 
-logsBucket: gs://${PROJECT_ID}-v1-logs/build-logs
+logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:
   env:
     - 'UV_PYTHON=3.12'
