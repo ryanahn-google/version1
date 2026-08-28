@@ -69,7 +69,7 @@ class A2ASubAgentClient:
             },
             "id": f"mvc-task-{uuid.uuid4().hex[:8]}",
         }
-        headers = {"Content-Type": "application/json", "A2A-Version": "1.0"}
+        headers = {"Content-Type": "application/json", "A2A-Version": "0.3"}
 
         # Attach Google OAuth Bearer token if running against Google Cloud endpoints
         try:
@@ -91,9 +91,24 @@ class A2ASubAgentClient:
                 resp.raise_for_status()
                 data = await resp.json()
                 res = data.get("result", {})
-                msg = res.get("status", {}).get("message") or res.get("message", {})
-                parts = msg.get("parts", [{}])
-                result_text = parts[0].get("text", "{}") if parts else "{}"
+
+                result_text = "{}"
+                if "artifacts" in res and res["artifacts"]:
+                    parts = res["artifacts"][0].get("parts", [])
+                    if parts:
+                        result_text = parts[0].get("text", "{}")
+                elif "history" in res and res["history"]:
+                    for h in reversed(res["history"]):
+                        if h.get("role") == "agent":
+                            parts = h.get("parts", [])
+                            if parts:
+                                result_text = parts[0].get("text", "{}")
+                                break
+                else:
+                    msg = res.get("status", {}).get("message") or res.get("message", {})
+                    parts = msg.get("parts", [{}])
+                    result_text = parts[0].get("text", "{}") if parts else "{}"
+
                 try:
                     return json.loads(result_text)
                 except Exception:
