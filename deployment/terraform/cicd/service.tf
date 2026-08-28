@@ -205,6 +205,7 @@ resource "google_cloud_run_v2_service" "app" {
   description         = "Marketing Value Creator (MVC) Root Orchestrator service communicating with subagents via A2A on Vertex AI Agent Runtime"
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = true
   labels = {
     "created-by" = "adk"
     "service"    = "mvc-orchestrator"
