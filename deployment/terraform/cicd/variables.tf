@@ -15,7 +15,7 @@
 variable "project_name" {
   type        = string
   description = "Project name used as a base for resource naming"
-  default     = "v1"
+  default     = "version1"
 }
 
 variable "prod_project_id" {

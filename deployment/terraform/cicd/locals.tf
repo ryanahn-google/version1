@@ -23,6 +23,8 @@ locals {
     "cloudtrace.googleapis.com",
     "telemetry.googleapis.com",
     "sqladmin.googleapis.com",
+    "secretmanager.googleapis.com",
+    "iam.googleapis.com",
   ]
 
   deploy_project_services = [
@@ -38,7 +40,8 @@ locals {
     "telemetry.googleapis.com",
     "sqladmin.googleapis.com",
     "secretmanager.googleapis.com",
-    "modelarmor.googleapis.com"
+    "modelarmor.googleapis.com",
+    "compute.googleapis.com"
   ]
 
   deploy_project_ids = {

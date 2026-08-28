@@ -14,36 +14,14 @@
 
 resource "google_model_armor_template" "mvc_guardrails" {
   for_each    = local.deploy_project_ids
-  location    = "global"
+  location    = var.region
   template_id = "${var.project_name}-guardrails"
   project     = each.value
 
   filter_config {
-    pi_and_jailbreak_filter_settings {
-      filter_enforcement = "ENABLED"
-      confidence_level   = "MEDIUM_AND_ABOVE"
-    }
-
-    malicious_uri_filter_settings {
-      filter_enforcement = "ENABLED"
-    }
-
-    rai_settings {
-      rai_filters {
-        filter_type      = "HATE_SPEECH"
-        confidence_level = "MEDIUM_AND_ABOVE"
-      }
-      rai_filters {
-        filter_type      = "HARASSMENT"
-        confidence_level = "MEDIUM_AND_ABOVE"
-      }
-      rai_filters {
-        filter_type      = "SEXUALLY_EXPLICIT"
-        confidence_level = "MEDIUM_AND_ABOVE"
-      }
-      rai_filters {
-        filter_type      = "DANGEROUS_CONTENT"
-        confidence_level = "MEDIUM_AND_ABOVE"
+    sdp_settings {
+      basic_config {
+        filter_enforcement = "ENABLED"
       }
     }
   }

@@ -235,8 +235,8 @@ resource "google_cloud_run_v2_service" "app" {
 
     vpc_access {
       network_interfaces {
-        network    = "default"
-        subnetwork = "asia-northeast3-subnet"
+        network    = google_compute_network.custom_vpc[each.key].name
+        subnetwork = google_compute_subnetwork.custom_subnet[each.key].name
       }
       egress = "ALL_TRAFFIC"
     }
