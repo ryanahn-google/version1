@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "cloud_run_service_urls" {
-  description = "Cloud Run service URLs by environment"
-  value       = { for k, v in google_cloud_run_v2_service.app : k => v.uri }
-}
+FROM python:3.13-slim
 
-output "cloud_run_service_names" {
-  description = "Cloud Run service names by environment"
-  value       = { for k, v in google_cloud_run_v2_service.app : k => v.name }
-}
+RUN pip install --no-cache-dir uv==0.8.13
 
-output "subagent_reasoning_engine_names" {
-  description = "Sub-agent Reasoning Engine resource names by environment"
-  value       = { for k, v in google_vertex_ai_reasoning_engine.subagents : k => v.name }
-}
+WORKDIR /code
 
+COPY ./pyproject.toml ./
+COPY ./ ./
+
+RUN uv pip install --system -r <(uv pip compile pyproject.toml)
+
+EXPOSE 8080
+
+CMD ["uv", "run", "uvicorn", "fast_api_app:app", "--host", "0.0.0.0", "--port", "8080"]

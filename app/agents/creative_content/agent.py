@@ -19,7 +19,10 @@ from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
-from app.schemas.deliverables import CreativeContentDeliverable
+try:
+    from app.schemas.deliverables import CreativeContentDeliverable
+except ImportError:
+    from schemas.deliverables import CreativeContentDeliverable
 
 MODEL = "gemini-3.5-flash-lite"
 IMAGE_MODEL = "imagen-3.0-generate-002"

@@ -96,6 +96,106 @@ resource "google_secret_manager_secret_version" "db_password" {
   secret_data = random_password.db_password[each.key].result
 }
 
+# Vertex AI Reasoning Engine Sub-Agents (P1-P4) on Agent Runtime
+resource "google_vertex_ai_reasoning_engine" "subagents" {
+  for_each = {
+    for pair in setproduct(keys(local.deploy_project_ids), local.subagent_names) :
+    "${pair[0]}_${pair[1]}" => {
+      env_key    = pair[0]
+      project_id = local.deploy_project_ids[pair[0]]
+      agent_name = pair[1]
+    }
+  }
+
+  display_name = "${var.project_name}-${each.value.agent_name}-${each.value.env_key}"
+  description  = "${each.value.agent_name} subagent on Agent Runtime"
+  region       = var.region
+  project      = each.value.project_id
+
+  spec {
+    agent_framework = "google-adk"
+    service_account = google_service_account.app_sa[each.value.env_key].email
+
+    deployment_spec {
+      min_instances         = 0
+      max_instances         = 5
+      container_concurrency = 8
+
+      resource_limits = {
+        cpu    = "1"
+        memory = "4Gi"
+      }
+
+      env {
+        name  = "LOGS_BUCKET_NAME"
+        value = google_storage_bucket.logs_data_bucket[each.value.project_id].name
+      }
+
+      env {
+        name  = "GOOGLE_CLOUD_LOCATION"
+        value = "global"
+      }
+
+      env {
+        name  = "GOOGLE_GENAI_USE_VERTEXAI"
+        value = "True"
+      }
+
+      env {
+        name  = "OTEL_SERVICE_NAME"
+        value = "${var.project_name}-${each.value.agent_name}"
+      }
+
+      env {
+        name  = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
+        value = "NO_CONTENT"
+      }
+
+      env {
+        name  = "ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS"
+        value = "false"
+      }
+
+      env {
+        name  = "OTEL_SEMCONV_STABILITY_OPT_IN"
+        value = "gen_ai_latest_experimental"
+      }
+
+      env {
+        name  = "OTEL_INSTRUMENTATION_GENAI_UPLOAD_FORMAT"
+        value = "jsonl"
+      }
+
+      env {
+        name  = "OTEL_INSTRUMENTATION_GENAI_COMPLETION_HOOK"
+        value = "upload"
+      }
+
+      env {
+        name  = "OTEL_INSTRUMENTATION_GENAI_UPLOAD_BASE_PATH"
+        value = "gs://${google_storage_bucket.logs_data_bucket[each.value.project_id].name}/completions"
+      }
+    }
+
+    source_code_spec {
+      inline_source {
+        source_archive = local.dummy_source_b64
+      }
+      image_spec {}
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      spec[0].container_spec,
+      spec[0].source_code_spec,
+      spec[0].deployment_spec,
+    ]
+  }
+
+  depends_on = [google_project_service.deploy_project_services]
+}
+
 resource "google_cloud_run_v2_service" "app" {
   for_each = local.deploy_project_ids
 
@@ -221,6 +321,26 @@ resource "google_cloud_run_v2_service" "app" {
         name  = "OTEL_INSTRUMENTATION_GENAI_UPLOAD_BASE_PATH"
         value = "gs://${google_storage_bucket.logs_data_bucket[each.value].name}/completions"
       }
+
+      env {
+        name  = "A2A_P1_URL"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_market_sensing"].name}/api/a2a/market_sensing"
+      }
+
+      env {
+        name  = "A2A_P2_URL"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_strategy_brief"].name}/api/a2a/strategy_brief"
+      }
+
+      env {
+        name  = "A2A_P3_URL"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_creative_content"].name}/api/a2a/creative_content"
+      }
+
+      env {
+        name  = "A2A_P4_URL"
+        value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/${google_vertex_ai_reasoning_engine.subagents["${each.key}_performance_insights"].name}/api/a2a/performance_insights"
+      }
     }
 
     service_account                = google_service_account.app_sa[each.key].email
@@ -267,5 +387,6 @@ resource "google_cloud_run_v2_service" "app" {
     google_project_service.deploy_project_services,
     google_sql_user.db_user,
     google_secret_manager_secret_version.db_password,
+    google_vertex_ai_reasoning_engine.subagents,
   ]
 }

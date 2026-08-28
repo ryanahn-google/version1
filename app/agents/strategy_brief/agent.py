@@ -19,7 +19,10 @@ from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
-from app.schemas.deliverables import CampaignBriefDeliverable
+try:
+    from app.schemas.deliverables import CampaignBriefDeliverable
+except ImportError:
+    from schemas.deliverables import CampaignBriefDeliverable
 
 MODEL = "gemini-3.5-flash-lite"
 

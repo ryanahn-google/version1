@@ -19,7 +19,10 @@ from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
-from app.schemas.deliverables import MarketSensingDeliverable
+try:
+    from app.schemas.deliverables import MarketSensingDeliverable
+except ImportError:
+    from schemas.deliverables import MarketSensingDeliverable
 
 MODEL = "gemini-3.5-flash-lite"
 

@@ -62,9 +62,23 @@ class A2ASubAgentClient:
             "id": "mvc-task-1",
         }
         headers = {"Content-Type": "application/json", "A2A-Version": "1.0"}
+
+        # Attach Google OAuth Bearer token if running against Google Cloud endpoints
+        try:
+            import google.auth
+            import google.auth.transport.requests
+
+            credentials, _ = google.auth.default()
+            if not credentials.valid:
+                credentials.refresh(google.auth.transport.requests.Request())
+            if credentials.token:
+                headers["Authorization"] = f"Bearer {credentials.token}"
+        except Exception:
+            pass
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                endpoint_url, json=payload, headers=headers, timeout=15
+                endpoint_url, json=payload, headers=headers, timeout=60
             ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
@@ -91,8 +105,11 @@ class A2ASubAgentClient:
         )
         if self.p1_url:
             logger.info("Calling remote [P1] A2A endpoint: %s", self.p1_url)
-            data = await self._call_remote_a2a(self.p1_url, prompt)
-            return MarketSensingDeliverable.model_validate(data)
+            try:
+                data = await self._call_remote_a2a(self.p1_url, prompt)
+                return MarketSensingDeliverable.model_validate(data)
+            except Exception as e:
+                logger.warning("Remote [P1] A2A call failed: %s. Falling back to local agent execution.", e)
 
         # Local fallback execution
         logger.info("Executing [P1] Market Sensing via local agent fallback")
@@ -153,8 +170,11 @@ class A2ASubAgentClient:
                 f"Market Sensing: {market_sensing.model_dump_json()}\n"
                 f"Feedback: {feedback or 'None'}"
             )
-            data = await self._call_remote_a2a(self.p2_url, prompt)
-            return CampaignBriefDeliverable.model_validate(data)
+            try:
+                data = await self._call_remote_a2a(self.p2_url, prompt)
+                return CampaignBriefDeliverable.model_validate(data)
+            except Exception as e:
+                logger.warning("Remote [P2] A2A call failed: %s. Falling back to local agent execution.", e)
 
         logger.info("Executing [P2] Strategy Brief via local agent fallback")
         title = f"Illuminate Your Potential: {product_name} Black Friday Premiere"
@@ -218,8 +238,11 @@ class A2ASubAgentClient:
                 f"Campaign Brief: {brief.model_dump_json()}\n"
                 f"Feedback: {feedback or 'None'}"
             )
-            data = await self._call_remote_a2a(self.p3_url, prompt)
-            return CreativeContentDeliverable.model_validate(data)
+            try:
+                data = await self._call_remote_a2a(self.p3_url, prompt)
+                return CreativeContentDeliverable.model_validate(data)
+            except Exception as e:
+                logger.warning("Remote [P3] A2A call failed: %s. Falling back to local agent execution.", e)
 
         logger.info("Executing [P3] Creative Content via local agent fallback")
         visual_prompt = (
@@ -256,8 +279,11 @@ class A2ASubAgentClient:
                 f"Channels: {channels}\n"
                 f"Brief: {brief.model_dump_json()}"
             )
-            data = await self._call_remote_a2a(self.p4_url, prompt)
-            return PerformanceInsightsDeliverable.model_validate(data)
+            try:
+                data = await self._call_remote_a2a(self.p4_url, prompt)
+                return PerformanceInsightsDeliverable.model_validate(data)
+            except Exception as e:
+                logger.warning("Remote [P4] A2A call failed: %s. Falling back to local agent execution.", e)
 
         logger.info("Executing [P4] Performance Insights via local agent fallback")
         # Deterministic 100% budget allocation

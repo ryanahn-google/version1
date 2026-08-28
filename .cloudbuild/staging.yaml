@@ -26,6 +26,21 @@ steps:
           .
         docker push $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:$SHORT_SHA
 
+  # Deploy P1-P4 Sub-Agents to Vertex AI Agent Runtime
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: deploy-subagents-staging
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        curl -LsSf https://astral.sh/uv/0.11.7/install.sh | sh
+        export PATH="$$HOME/.local/bin:$$PATH"
+        echo "Deploying P1-P4 Sub-Agents to Agent Runtime..."
+        (cd app/agents/market_sensing && uvx google-agents-cli@1.3.1 deploy --project ${_STAGING_PROJECT_ID} --region ${_REGION} --no-wait) || true
+        (cd app/agents/strategy_brief && uvx google-agents-cli@1.3.1 deploy --project ${_STAGING_PROJECT_ID} --region ${_REGION} --no-wait) || true
+        (cd app/agents/creative_content && uvx google-agents-cli@1.3.1 deploy --project ${_STAGING_PROJECT_ID} --region ${_REGION} --no-wait) || true
+        (cd app/agents/performance_insights && uvx google-agents-cli@1.3.1 deploy --project ${_STAGING_PROJECT_ID} --region ${_REGION} --no-wait) || true
+
   - name: "gcr.io/cloud-builders/gcloud"
     id: deploy-staging
     entrypoint: /bin/bash

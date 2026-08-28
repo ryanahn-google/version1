@@ -55,5 +55,13 @@ locals {
     var.staging_project_id
   ]
 
+  dummy_source_b64 = trimspace(file("${path.module}/../shared/dummy_source.b64"))
+
+  subagent_names = [
+    "market_sensing",
+    "strategy_brief",
+    "creative_content",
+    "performance_insights"
+  ]
 }
 

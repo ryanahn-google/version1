@@ -1,0 +1,16 @@
+[project]
+name = "market-sensing"
+version = "0.1.0"
+description = "A2A Sub-Agent: market_sensing"
+dependencies = [
+    "google-adk[gcp,otel-gcp]>=2.5.0,<3.0.0",
+    "a2a-sdk[http-server]>=1.0,<2",
+    "fastapi>=0.115.8,<1.0.0",
+    "uvicorn~=0.34.0",
+    "pydantic>=2.0.0",
+]
+requires-python = ">=3.13"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
