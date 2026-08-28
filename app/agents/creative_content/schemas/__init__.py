@@ -12,50 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pydantic v2 data models for Marketing Value Creator (MVC)."""
+"""Pydantic v2 data models for sub-agent deliverables."""
 
-from app.schemas.campaign import (
-    ApprovalAction,
-    CampaignDeliverables,
-    CampaignSessionResponse,
-    CampaignStage,
-    CampaignStatus,
-    CampaignStreamEvent,
-    CreateCampaignRequest,
-    StageApprovalRequest,
-)
-from app.schemas.deliverables import (
-    CampaignBriefDeliverable,
-    ChannelAllocation,
-    CompetitorAnalysis,
-    CreativeContentDeliverable,
-    MarketSensingDeliverable,
-    MessagingPillar,
-    PerformanceInsightsDeliverable,
-    ProjectedKPIs,
-    SentimentOverview,
-    TargetPersona,
-)
-from app.schemas.errors import ErrorResponse
+try:
+    from .deliverables import (
+        CampaignBriefDeliverable,
+        ChannelAllocation,
+        CompetitorAnalysis,
+        CreativeContentDeliverable,
+        MarketSensingDeliverable,
+        MessagingPillar,
+        PerformanceInsightsDeliverable,
+        ProjectedKPIs,
+        SentimentOverview,
+        TargetPersona,
+    )
+except ImportError:
+    from deliverables import (
+        CampaignBriefDeliverable,
+        ChannelAllocation,
+        CompetitorAnalysis,
+        CreativeContentDeliverable,
+        MarketSensingDeliverable,
+        MessagingPillar,
+        PerformanceInsightsDeliverable,
+        ProjectedKPIs,
+        SentimentOverview,
+        TargetPersona,
+    )
 
 __all__ = [
-    "ApprovalAction",
     "CampaignBriefDeliverable",
-    "CampaignDeliverables",
-    "CampaignSessionResponse",
-    "CampaignStage",
-    "CampaignStatus",
-    "CampaignStreamEvent",
     "ChannelAllocation",
     "CompetitorAnalysis",
-    "CreateCampaignRequest",
     "CreativeContentDeliverable",
-    "ErrorResponse",
     "MarketSensingDeliverable",
     "MessagingPillar",
     "PerformanceInsightsDeliverable",
     "ProjectedKPIs",
     "SentimentOverview",
-    "StageApprovalRequest",
     "TargetPersona",
 ]
