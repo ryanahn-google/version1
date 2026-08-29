@@ -164,11 +164,13 @@ async def test_full_campaign_dag_golden_scenario():
         assert session_data["status"] == CampaignStatus.COMPLETED.value
         assert session_data["currentStage"] == CampaignStage.COMPLETED.value
 
-        # Verify P3 assetUrl was committed to GCS / fallback URL upon approval
+        # Verify P3 assetUrl was committed to GCS and points to the tokenized /visual endpoint upon approval
         committed_p3 = session_data["deliverables"]["creativeContent"]
         assert committed_p3 is not None
         assert "/draft-image" not in committed_p3["assetUrl"]
-        assert committed_p3["assetUrl"].startswith("http")
+        assert committed_p3["assetUrl"] == f"/api/v1/campaigns/{session_id}/visual"
+        assert committed_p3.get("storageUri") is not None
+        assert committed_p3["storageUri"].startswith("http")
 
         p4_deliv = session_data["deliverables"]["performanceInsights"]
         assert p4_deliv is not None

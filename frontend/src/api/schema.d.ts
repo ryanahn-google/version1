@@ -144,6 +144,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{sessionId}/visual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Access campaign visual via 307 redirect to V4 Signed URL or in-memory draft */
+        get: operations["getCampaignVisual"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{sessionId}/visual-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get ephemeral V4 Signed URL token for campaign visual */
+        get: operations["getCampaignVisualToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{sessionId}/approve": {
         parameters: {
             query?: never;
@@ -289,6 +323,8 @@ export interface components {
             visualPromptUsed: string;
             /** @description GCS URI or HTTP URL of generated marketing image */
             assetUrl: string;
+            /** @description Direct gs:// or https:// GCS storage URI of committed asset */
+            storageUri?: string | null;
             headlineCopy: string;
             bodyCopy: string;
             callToAction: string;
@@ -637,6 +673,81 @@ export interface operations {
                 };
             };
             /** @description Campaign session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCampaignVisual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image binary stream (for in-memory draft or streaming fallback) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Temporary redirect to Google Cloud Storage V4 Signed URL */
+            307: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Visual asset or campaign not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCampaignVisualToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ephemeral V4 Signed URL token and expiration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example https://storage.googleapis.com/bucket/path?X-Goog-Signature=... */
+                        signedUrl?: string;
+                        /** @example 3600 */
+                        expiresIn?: number;
+                    };
+                };
+            };
+            /** @description Visual asset or campaign not found */
             404: {
                 headers: {
                     [name: string]: unknown;

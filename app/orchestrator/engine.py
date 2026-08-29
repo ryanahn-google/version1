@@ -513,7 +513,10 @@ class CampaignOrchestrationEngine:
                 session_id, user_id=session.userId or user_id
             )
             if committed_gcs_url and session.deliverables.creativeContent:
-                session.deliverables.creativeContent.assetUrl = committed_gcs_url
+                session.deliverables.creativeContent.storageUri = committed_gcs_url
+                session.deliverables.creativeContent.assetUrl = (
+                    f"/api/v1/campaigns/{session_id}/visual"
+                )
                 await self.repo.update_session(
                     session_id,
                     deliverables={

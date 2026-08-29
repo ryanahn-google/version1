@@ -16,9 +16,12 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import uuid
+from collections.abc import Iterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -138,3 +141,107 @@ def save_visual_marketing_asset(
 
     logger.warning("GCS upload unavailable or unconfigured. Returning fallback URL.")
     return FALLBACK_ASSET_URL
+
+
+def extract_blob_path_from_gcs_url(url: str, bucket_name: str | None = None) -> str:
+    """Extract object blob path from a gs:// or https://storage.googleapis.com URL."""
+    if not url:
+        return ""
+    if url.startswith("gs://"):
+        parts = url[5:].split("/", 1)
+        return parts[1] if len(parts) == 2 else url
+
+    prefix = "https://storage.googleapis.com/"
+    if url.startswith(prefix):
+        path_without_prefix = url[len(prefix) :]
+        parts = path_without_prefix.split("/", 1)
+        if len(parts) == 2:
+            # If bucket_name matches first part, strip it
+            if bucket_name and parts[0] == bucket_name:
+                return parts[1]
+            return parts[1]
+    return url
+
+
+def generate_v4_signed_url(
+    blob_path: str,
+    bucket_name: str | None = None,
+    expiration_minutes: int = 60,
+) -> str | None:
+    """Generate ephemeral Google Cloud V4 Signed URL for direct browser download.
+
+    Uses the service account's token creator credentials (roles/iam.serviceAccountTokenCreator)
+    via IAM signBlob API without requiring a local private key file.
+    """
+    project, default_bucket, _ = _resolve_project_and_bucket()
+    target_bucket = bucket_name or default_bucket
+    if not target_bucket:
+        return None
+
+    clean_blob_path = extract_blob_path_from_gcs_url(blob_path, target_bucket)
+
+    try:
+        from google.auth.transport.requests import Request
+        from google.cloud import storage
+
+        client = storage.Client(project=project)
+        bucket = client.bucket(target_bucket)
+        blob = bucket.blob(clean_blob_path)
+
+        credentials = client._credentials
+        if hasattr(credentials, "refresh") and (
+            not credentials.valid or not getattr(credentials, "token", None)
+        ):
+            try:
+                credentials.refresh(Request())
+            except Exception as ref_exc:
+                logger.debug("Credentials refresh skipped/failed: %s", ref_exc)
+
+        sa_email = getattr(
+            credentials, "service_account_email", None
+        ) or os.environ.get("SERVICE_ACCOUNT_EMAIL")
+        token = getattr(credentials, "token", None)
+
+        signed_url_kwargs: dict[str, Any] = {
+            "version": "v4",
+            "expiration": datetime.timedelta(minutes=expiration_minutes),
+            "method": "GET",
+        }
+        if sa_email and token:
+            signed_url_kwargs["service_account_email"] = sa_email
+            signed_url_kwargs["access_token"] = token
+
+        signed_url = blob.generate_signed_url(**signed_url_kwargs)
+        logger.info(
+            "Generated V4 signed URL for blob '%s' in bucket '%s' (expires in %dm).",
+            clean_blob_path,
+            target_bucket,
+            expiration_minutes,
+        )
+        return signed_url
+    except Exception as exc:
+        logger.warning(
+            "GCS V4 Signed URL generation failed for '%s' (%s).", clean_blob_path, exc
+        )
+        return None
+
+
+def stream_gcs_blob(
+    blob_path: str,
+    bucket_name: str | None = None,
+    chunk_size: int = 64 * 1024,
+) -> Iterator[bytes]:
+    """Zero-memory socket-to-socket chunked stream fallback directly from GCS."""
+    project, default_bucket, _ = _resolve_project_and_bucket()
+    target_bucket = bucket_name or default_bucket
+    clean_blob_path = extract_blob_path_from_gcs_url(blob_path, target_bucket)
+
+    from google.cloud import storage
+
+    client = storage.Client(project=project)
+    bucket = client.bucket(target_bucket)
+    blob = bucket.blob(clean_blob_path)
+
+    with blob.open("rb") as f:
+        while chunk := f.read(chunk_size):
+            yield chunk

@@ -15,7 +15,7 @@
 """Unit tests for creative_content GCS-only asset storage."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -81,3 +81,205 @@ def test_save_visual_marketing_asset_fallback_without_local_write(
     assert url == FALLBACK_ASSET_URL
     assert not os.path.exists("static/generated")
     assert not os.path.exists("static")
+
+
+def test_extract_blob_path_from_gcs_url() -> None:
+    """Verify blob path extraction from https and gs URLs."""
+    from app.agents.creative_content.storage_service import (
+        extract_blob_path_from_gcs_url,
+    )
+
+    https_url = (
+        "https://storage.googleapis.com/test-bucket/users/u123/campaigns/s1/img.png"
+    )
+    assert (
+        extract_blob_path_from_gcs_url(https_url, "test-bucket")
+        == "users/u123/campaigns/s1/img.png"
+    )
+
+    gs_url = "gs://test-bucket/campaigns/s1/img.png"
+    assert (
+        extract_blob_path_from_gcs_url(gs_url, "test-bucket") == "campaigns/s1/img.png"
+    )
+
+
+def test_generate_v4_signed_url_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify V4 Signed URL generation with service account credentials."""
+    from app.agents.creative_content.storage_service import generate_v4_signed_url
+
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
+
+    fake_client = MagicMock()
+    fake_bucket = MagicMock()
+    fake_blob = MagicMock()
+    fake_client.bucket.return_value = fake_bucket
+    fake_bucket.blob.return_value = fake_blob
+
+    fake_creds = MagicMock()
+    fake_creds.service_account_email = "test-sa@example.com"
+    fake_creds.token = "mock-bearer-token"
+    fake_creds.valid = True
+    fake_client._credentials = fake_creds
+
+    expected_signed = "https://storage.googleapis.com/test-bucket/img.png?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Signature=abcd"
+    fake_blob.generate_signed_url.return_value = expected_signed
+
+    with patch("google.cloud.storage.Client", return_value=fake_client):
+        signed_url = generate_v4_signed_url(
+            blob_path="img.png",
+            bucket_name="test-bucket",
+            expiration_minutes=30,
+        )
+
+    assert signed_url == expected_signed
+    fake_blob.generate_signed_url.assert_called_once()
+    call_kwargs = fake_blob.generate_signed_url.call_args[1]
+    assert call_kwargs["version"] == "v4"
+    assert call_kwargs["service_account_email"] == "test-sa@example.com"
+    assert call_kwargs["access_token"] == "mock-bearer-token"
+
+
+def test_get_campaign_visual_307_redirect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify GET /api/v1/campaigns/{sessionId}/visual returns 307 redirect to V4 signed URL."""
+    from starlette.testclient import TestClient
+
+    from app.fast_api_app import app
+    from app.schemas.campaign import (
+        CampaignDeliverables,
+        CampaignSessionResponse,
+        CampaignStage,
+        CampaignStatus,
+    )
+    from app.schemas.deliverables import CreativeContentDeliverable
+    from app.settings import get_settings
+
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
+    get_settings.cache_clear()
+
+    mock_deliverables = CampaignDeliverables(
+        creativeContent=CreativeContentDeliverable(
+            visualConceptTitle="Concept A",
+            visualPromptUsed="Prompt",
+            assetUrl="/api/v1/campaigns/sess-visual-test/visual",
+            storageUri="https://storage.googleapis.com/test-bucket/users/u1/campaigns/sess-visual-test/visual.png",
+            headlineCopy="Headline",
+            bodyCopy="Body",
+            callToAction="CTA",
+        )
+    )
+    mock_session = CampaignSessionResponse(
+        sessionId="sess-visual-test",
+        userId="u1",
+        brandName="Brand",
+        productName="Product",
+        campaignObjective="Awareness",
+        budgetAmount=1000.0,
+        currency="USD",
+        currentStage=CampaignStage.PERFORMANCE_INSIGHTS,
+        status=CampaignStatus.PAUSED_FOR_REVIEW,
+        deliverables=mock_deliverables,
+    )
+
+    fake_repo = MagicMock()
+    fake_repo.get_session = AsyncMock(return_value=mock_session)
+
+    expected_signed = "https://storage.googleapis.com/test-bucket/users/u1/campaigns/sess-visual-test/visual.png?signed=true"
+
+    from app.fast_api_app import get_session_repo
+
+    app.dependency_overrides[get_session_repo] = lambda: fake_repo
+
+    try:
+        with (
+            patch(
+                "app.agents.creative_content.storage_service.generate_v4_signed_url",
+                return_value=expected_signed,
+            ),
+            TestClient(app) as client,
+        ):
+            response = client.get(
+                "/api/v1/campaigns/sess-visual-test/visual", follow_redirects=False
+            )
+
+        assert response.status_code == 307
+        assert response.headers["location"] == expected_signed
+        assert "max-age=3600" in response.headers["cache-control"]
+    finally:
+        app.dependency_overrides.pop(get_session_repo, None)
+
+
+def test_get_campaign_visual_token_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify GET /api/v1/campaigns/{sessionId}/visual-token returns JSON token."""
+    from starlette.testclient import TestClient
+
+    from app.fast_api_app import app
+    from app.schemas.campaign import (
+        CampaignDeliverables,
+        CampaignSessionResponse,
+        CampaignStage,
+        CampaignStatus,
+    )
+    from app.schemas.deliverables import CreativeContentDeliverable
+    from app.settings import get_settings
+
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
+    get_settings.cache_clear()
+
+    mock_deliverables = CampaignDeliverables(
+        creativeContent=CreativeContentDeliverable(
+            visualConceptTitle="Concept A",
+            visualPromptUsed="Prompt",
+            assetUrl="/api/v1/campaigns/sess-visual-test/visual",
+            storageUri="https://storage.googleapis.com/test-bucket/users/u1/campaigns/sess-visual-test/visual.png",
+            headlineCopy="Headline",
+            bodyCopy="Body",
+            callToAction="CTA",
+        )
+    )
+    mock_session = CampaignSessionResponse(
+        sessionId="sess-visual-test",
+        userId="u1",
+        brandName="Brand",
+        productName="Product",
+        campaignObjective="Awareness",
+        budgetAmount=1000.0,
+        currency="USD",
+        currentStage=CampaignStage.PERFORMANCE_INSIGHTS,
+        status=CampaignStatus.PAUSED_FOR_REVIEW,
+        deliverables=mock_deliverables,
+    )
+
+    fake_repo = MagicMock()
+    fake_repo.get_session = AsyncMock(return_value=mock_session)
+
+    expected_signed = "https://storage.googleapis.com/test-bucket/users/u1/campaigns/sess-visual-test/visual.png?signed=true"
+
+    from app.fast_api_app import get_session_repo
+
+    app.dependency_overrides[get_session_repo] = lambda: fake_repo
+
+    try:
+        with (
+            patch(
+                "app.agents.creative_content.storage_service.generate_v4_signed_url",
+                return_value=expected_signed,
+            ),
+            TestClient(app) as client,
+        ):
+            response = client.get("/api/v1/campaigns/sess-visual-test/visual-token")
+
+        assert response.status_code == 200
+        json_data = response.json()
+        assert json_data["signedUrl"] == expected_signed
+        assert json_data["expiresIn"] == 3600
+    finally:
+        app.dependency_overrides.pop(get_session_repo, None)

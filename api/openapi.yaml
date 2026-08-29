@@ -208,6 +208,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/campaigns/{sessionId}/visual:
+    get:
+      summary: Access campaign visual via 307 redirect to V4 Signed URL or in-memory draft
+      operationId: getCampaignVisual
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "307":
+          description: Temporary redirect to Google Cloud Storage V4 Signed URL
+          headers:
+            Location:
+              schema:
+                type: string
+                description: V4 Signed URL on storage.googleapis.com
+        "200":
+          description: Image binary stream (for in-memory draft or streaming fallback)
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Visual asset or campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/campaigns/{sessionId}/visual-token:
+    get:
+      summary: Get ephemeral V4 Signed URL token for campaign visual
+      operationId: getCampaignVisualToken
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ephemeral V4 Signed URL token and expiration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signedUrl:
+                    type: string
+                    example: "https://storage.googleapis.com/bucket/path?X-Goog-Signature=..."
+                  expiresIn:
+                    type: integer
+                    example: 3600
+        "404":
+          description: Visual asset or campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/campaigns/{sessionId}/approve:
     post:
       summary: Submit human-in-the-loop review approval or revision feedback
@@ -474,6 +537,10 @@ components:
         assetUrl:
           type: string
           description: GCS URI or HTTP URL of generated marketing image
+        storageUri:
+          type: string
+          nullable: true
+          description: Direct gs:// or https:// GCS storage URI of committed asset
         headlineCopy: { type: string }
         bodyCopy: { type: string }
         callToAction: { type: string }
