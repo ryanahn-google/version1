@@ -108,9 +108,16 @@ class SessionRepository:
     async def init_db(self) -> None:
         """Create tables if they do not exist."""
         if not self._initialized:
-            async with self.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            self._initialized = True
+            try:
+                async with self.engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                self._initialized = True
+            except Exception as exc:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Database initialization delayed or failed: %s", exc
+                )
 
     async def create_session(
         self,

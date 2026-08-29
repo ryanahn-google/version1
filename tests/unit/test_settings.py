@@ -253,6 +253,17 @@ def test_telemetry_settings_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     assert tel.otel_instrumentation_genai_upload_base_path == "gs://b"
 
 
+def test_telemetry_settings_no_content_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT handles NO_CONTENT."""
+    monkeypatch.setenv(
+        "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT", "NO_CONTENT"
+    )
+    tel = TelemetrySettings()
+    assert tel.otel_instrumentation_genai_capture_message_content == "NO_CONTENT"
+
+
 def test_database_settings_standalone_postgres() -> None:
     """Verify standalone PostgreSQL URL formatting with db_host and db_port."""
     db = DatabaseSettings(

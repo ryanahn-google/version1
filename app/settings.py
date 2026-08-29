@@ -19,9 +19,10 @@ BaseSettings according to the project guidelines in AGENTS.md.
 """
 
 from functools import lru_cache
+from typing import Any
 from urllib.parse import quote
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -285,7 +286,7 @@ class TelemetrySettings(BaseAppSettings):
         validation_alias=AliasChoices("OTEL_SERVICE_NAME", "otel_service_name"),
         description="OpenTelemetry service name for distributed tracing.",
     )
-    otel_instrumentation_genai_capture_message_content: bool = Field(
+    otel_instrumentation_genai_capture_message_content: str | bool = Field(
         default=False,
         validation_alias=AliasChoices(
             "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
@@ -293,7 +294,7 @@ class TelemetrySettings(BaseAppSettings):
         ),
         description="Capture message payload in OpenTelemetry GenAI spans.",
     )
-    adk_capture_message_content_in_spans: bool = Field(
+    adk_capture_message_content_in_spans: str | bool = Field(
         default=False,
         validation_alias=AliasChoices(
             "ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS",
@@ -301,6 +302,23 @@ class TelemetrySettings(BaseAppSettings):
         ),
         description="Capture full GenAI message content in ADK spans.",
     )
+
+    @field_validator(
+        "otel_instrumentation_genai_capture_message_content",
+        "adk_capture_message_content_in_spans",
+        mode="before",
+    )
+    @classmethod
+    def _parse_bool_or_str(cls, v: Any) -> bool | str:
+        """Parse boolean-like strings while preserving literal config strings."""
+        if isinstance(v, str):
+            if v.lower() in ("true", "1", "yes", "on"):
+                return True
+            if v.lower() in ("false", "0", "no", "off"):
+                return False
+            return v
+        return bool(v)
+
     otel_semconv_stability_opt_in: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
