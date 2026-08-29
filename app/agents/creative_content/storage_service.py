@@ -102,18 +102,28 @@ def save_visual_marketing_asset(
     session_id: str | None = None,
     user_id: str | None = None,
 ) -> str:
-    """Save marketing visual bytes exclusively to Google Cloud Storage.
+    """Save marketing visual bytes exclusively to Google Cloud Storage under users/{user_id}/campaigns/{campaign_id}/.
 
-    Returns the accessible public HTTPS GCS URL or fallback URL.
+    Returns the accessible HTTPS GCS URL or fallback URL.
     Never writes to local filesystem.
     """
+    if not user_id or user_id == "default":
+        raise ValueError(
+            f"Invalid user_id: {user_id!r}. Visual marketing assets must be stored "
+            "under a valid user ID path: users/{user_id}/campaigns/{campaign_id}/"
+        )
+
+    if not session_id or session_id == "default":
+        raise ValueError(
+            f"Invalid session_id: {session_id!r}. Visual marketing assets must be stored "
+            "under a valid campaign ID path: users/{user_id}/campaigns/{campaign_id}/"
+        )
+
     if not filename:
-        clean_id = (session_id or "default").replace(":", "_").replace("/", "_")
-        filename = f"creative_{clean_id}_{uuid.uuid4().hex[:6]}.png"
+        filename = f"creative_{session_id}_{uuid.uuid4().hex[:6]}.png"
 
     project, bucket_name, _ = _resolve_project_and_bucket()
-    user_prefix = f"users/{user_id}" if user_id else "users/default"
-    blob_path = f"{user_prefix}/campaigns/{session_id or 'default'}/{filename}"
+    blob_path = f"users/{user_id}/campaigns/{session_id}/{filename}"
     gcs_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
 
     if bucket_name:

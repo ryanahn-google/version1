@@ -22,7 +22,6 @@ Step 2: Native visual asset synthesis and persistence (Nano Banana 2 Lite).
 import asyncio
 import logging
 import os
-import re
 from typing import Any
 
 from google.adk.agents import Agent, SequentialAgent
@@ -108,6 +107,7 @@ _MOCK_PNG_BYTES = (
 def generate_marketing_visual(
     visual_prompt: str,
     session_id: str | None = None,
+    user_id: str | None = None,
     tool_context: ToolContext | None = None,
 ) -> str:
     """Synthesize 16:9 marketing visual with Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and hold in memory.
@@ -115,43 +115,35 @@ def generate_marketing_visual(
     Args:
         visual_prompt: The photorealistic, studio-quality 16:9 visual prompt describing the scene.
         session_id: Optional campaign session identifier to group assets under campaigns/{session_id}/.
+        user_id: Optional user identifier to isolate assets under users/{user_id}/.
         tool_context: Optional ADK execution context injected automatically by the framework.
 
     Returns:
         The accessible draft URL or fallback URL of the synthesized marketing visual.
     """
-    # 1. Resolve effective session_id from direct argument, tool_context, or prompt metadata
+    # 1. Resolve effective session_id and user_id from arguments, tool_context, or prompt metadata
     effective_session_id = session_id
-    if not effective_session_id and tool_context:
+    effective_user_id = user_id
+
+    if tool_context:
         try:
             if hasattr(tool_context, "session") and tool_context.session:
-                effective_session_id = getattr(tool_context.session, "id", None)
+                effective_session_id = effective_session_id or getattr(
+                    tool_context.session, "id", None
+                )
+                effective_user_id = effective_user_id or getattr(
+                    tool_context.session, "user_id", None
+                )
             if not effective_session_id and hasattr(tool_context, "session_id"):
                 effective_session_id = tool_context.session_id
-            if (
-                not effective_session_id
-                and hasattr(tool_context, "user_content")
-                and tool_context.user_content
-            ):
-                text_content = str(tool_context.user_content)
-                match = re.search(
-                    r"(?:Campaign|Session)\s*(?:ID)?\s*[:=]\s*([A-Za-z0-9_-]+)",
-                    text_content,
-                )
-                if match:
-                    effective_session_id = match.group(1)
+            if not effective_user_id and hasattr(tool_context, "user_id"):
+                effective_user_id = tool_context.user_id
         except Exception as ctx_err:
-            logger.debug("Could not resolve session_id from tool_context: %s", ctx_err)
+            logger.debug(
+                "Could not resolve session_id/user_id from tool_context: %s", ctx_err
+            )
 
-    if not effective_session_id:
-        match = re.search(
-            r"(?:Campaign|Session)\s*(?:ID)?\s*[:=]\s*([A-Za-z0-9_-]+)",
-            visual_prompt,
-        )
-        if match:
-            effective_session_id = match.group(1)
-
-    effective_session_id = effective_session_id or "default"
+    effective_user_id = effective_user_id or os.environ.get("USER_ID")
 
     if os.environ.get("INTEGRATION_TEST") == "TRUE":
         if get_draft_image_store:
@@ -177,10 +169,11 @@ def generate_marketing_visual(
 
         client = Client(vertexai=True, project=project, location=location)
         logger.info(
-            "P3 Tool generate_marketing_visual: synthesizing with %s at %s (session_id=%s)...",
+            "P3 Tool generate_marketing_visual: synthesizing with %s at %s (session_id=%s, user_id=%s)...",
             image_model,
             location,
             effective_session_id,
+            effective_user_id,
         )
         resp = client.models.generate_content(
             model=image_model,
@@ -214,7 +207,9 @@ def generate_marketing_visual(
                     )
 
             url = save_visual_marketing_asset(
-                img_bytes, session_id=effective_session_id
+                img_bytes,
+                session_id=effective_session_id,
+                user_id=effective_user_id,
             )
             logger.info("P3 Tool successfully stored visual: %s", url)
             return url
@@ -225,20 +220,23 @@ def generate_marketing_visual(
 
 
 async def synthesize_nano_banana_image(
-    prompt: str, session_id: str | None = None
+    prompt: str,
+    session_id: str | None = None,
+    user_id: str | None = None,
 ) -> str | None:
     """Synthesize marketing visual using Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage."""
-    url = generate_marketing_visual(prompt, session_id=session_id)
+    url = generate_marketing_visual(prompt, session_id=session_id, user_id=user_id)
     return url if url != FALLBACK_ASSET_URL else None
 
 
 IMAGE_SYNTHESIS_INSTRUCTION = """
 You are the Visual Synthesis & Asset Packaging Specialist [P3-Step2] for Nova Electronics Corp.
 Your task is to take the copy and visual prompt produced by Step 1:
-1. Identify any Campaign ID / Session ID specified in the context or prompt.
+1. Identify any Campaign ID / Session ID and User ID specified in the context or prompt.
 2. You MUST call the `generate_marketing_visual` tool passing:
    - `visual_prompt`: The photorealistic, studio-quality 16:9 visual prompt.
    - `session_id`: The Campaign ID / Session ID if present.
+   - `user_id`: The User ID if present.
 3. Set `assetUrl` in your output to the exact URL returned by the `generate_marketing_visual` tool.
 4. Assemble and output the complete deliverable strictly conforming to the CreativeContentDeliverable schema.
 """
@@ -271,6 +269,7 @@ async def run_creative_content_pipeline(
     brief: CampaignBriefDeliverable,
     feedback: str | None = None,
     session_id: str | None = None,
+    user_id: str | None = None,
 ) -> CreativeContentDeliverable:
     """Self-contained 2-step sequential generation pipeline for [P3] Creative Content.
 
@@ -348,9 +347,13 @@ async def run_creative_content_pipeline(
     # Step 2: Synthesize visual asset with Nano Banana 2 Lite and persist to storage
     if deliverable.visualPromptUsed:
         generated_url = await synthesize_nano_banana_image(
-            deliverable.visualPromptUsed, session_id=session_id
+            deliverable.visualPromptUsed, session_id=session_id, user_id=user_id
         )
         if generated_url:
-            deliverable.assetUrl = generated_url
+            if generated_url.startswith("http") or generated_url.startswith("gs://"):
+                deliverable.storageUri = generated_url
+                deliverable.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
+            else:
+                deliverable.assetUrl = generated_url
 
     return deliverable

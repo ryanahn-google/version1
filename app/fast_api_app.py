@@ -459,8 +459,12 @@ async def get_campaign_visual(
         blob_path = extract_blob_path_from_gcs_url(target_uri, bucket_name)
 
     if not blob_path and bucket_name:
-        user_prefix = f"users/{session.userId}" if session.userId else "users/default"
-        blob_prefix = f"{user_prefix}/campaigns/{sessionId}/"
+        if not session.userId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot access visual asset: Session has no associated user_id.",
+            )
+        blob_prefix = f"users/{session.userId}/campaigns/{sessionId}/"
         try:
             from google.cloud import storage
 
@@ -469,12 +473,6 @@ async def get_campaign_visual(
             blobs = list(bucket.list_blobs(prefix=blob_prefix, max_results=1))
             if blobs:
                 blob_path = blobs[0].name
-            else:
-                legacy_blobs = list(
-                    bucket.list_blobs(prefix=f"campaigns/{sessionId}/", max_results=1)
-                )
-                if legacy_blobs:
-                    blob_path = legacy_blobs[0].name
         except Exception as scan_exc:
             logger.debug(
                 "Failed scanning bucket for blob prefix %s: %s", blob_prefix, scan_exc
@@ -543,8 +541,12 @@ async def get_campaign_visual_token(
 
     blob_path = extract_blob_path_from_gcs_url(target_uri or "", bucket_name)
     if not blob_path:
-        user_prefix = f"users/{session.userId}" if session.userId else "users/default"
-        blob_path = f"{user_prefix}/campaigns/{sessionId}/mockup.png"
+        if not session.userId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot generate visual token: Session has no associated user_id.",
+            )
+        blob_path = f"users/{session.userId}/campaigns/{sessionId}/mockup.png"
 
     signed_url = generate_v4_signed_url(
         blob_path=blob_path,
