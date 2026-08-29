@@ -54,6 +54,21 @@ class ApplicationSettings(BaseAppSettings):
         validation_alias=AliasChoices("INTEGRATION_TEST", "integration_test"),
         description="Whether running in integration test mode.",
     )
+    user_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("USER_ID", "user_id"),
+        description="Default or fallback user ID for operations.",
+    )
+    k_service: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("K_SERVICE", "k_service"),
+        description="Google Cloud Run service name if deployed on Cloud Run.",
+    )
+
+    @property
+    def is_cloud_run(self) -> bool:
+        """Whether the application is running in Google Cloud Run."""
+        return bool(self.k_service)
 
 
 class SecuritySettings(BaseAppSettings):
@@ -301,6 +316,11 @@ class GoogleCloudSettings(BaseAppSettings):
         ),
         description="Vertex AI Nano Banana model for marketing visual generation.",
     )
+    service_account_email: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SERVICE_ACCOUNT_EMAIL", "service_account_email"),
+        description="Google Cloud service account email for signing URLs and GCP auth.",
+    )
 
 
 class TelemetrySettings(BaseAppSettings):
@@ -383,7 +403,13 @@ class TelemetrySettings(BaseAppSettings):
     )
 
 
-class SubAgentSettings(ApplicationSettings, GoogleCloudSettings, TelemetrySettings):
+class SubAgentSettings(
+    ApplicationSettings,
+    SecuritySettings,
+    StorageSettings,
+    GoogleCloudSettings,
+    TelemetrySettings,
+):
     """Sub-agent configuration for standalone or embedded execution."""
 
 

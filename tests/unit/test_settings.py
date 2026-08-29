@@ -325,3 +325,132 @@ def test_subagent_settings_telemetry() -> None:
     assert sub_cfg.app_url == "http://subagent:8080"
     assert sub_cfg.otel_service_name == "market-sensing-agent"
     assert sub_cfg.otel_to_cloud is True
+
+
+def test_user_id_and_k_service_settings() -> None:
+    """Verify user_id, k_service defaults and is_cloud_run property."""
+    app_cfg = ApplicationSettings()
+    assert app_cfg.user_id is None
+    assert app_cfg.k_service is None
+    assert app_cfg.is_cloud_run is False
+
+    custom_cfg = ApplicationSettings(
+        user_id="user_test_123",
+        k_service="mvc-backend",
+    )
+    assert custom_cfg.user_id == "user_test_123"
+    assert custom_cfg.k_service == "mvc-backend"
+    assert custom_cfg.is_cloud_run is True
+
+
+def test_user_id_and_k_service_env_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify USER_ID and K_SERVICE environment variables load correctly."""
+    monkeypatch.setenv("USER_ID", "user-env-456")
+    monkeypatch.setenv("K_SERVICE", "mvc-service-prod")
+
+    settings = Settings()
+    assert settings.user_id == "user-env-456"
+    assert settings.k_service == "mvc-service-prod"
+    assert settings.is_cloud_run is True
+
+
+def test_service_account_email_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify service_account_email loads from environment variables."""
+    monkeypatch.setenv(
+        "SERVICE_ACCOUNT_EMAIL", "sa-test@project.iam.gserviceaccount.com"
+    )
+    gcp = GoogleCloudSettings()
+    assert gcp.service_account_email == "sa-test@project.iam.gserviceaccount.com"
+
+    settings = Settings()
+    assert settings.service_account_email == "sa-test@project.iam.gserviceaccount.com"
+
+
+def test_subagent_settings_composite_inheritance() -> None:
+    """Verify SubAgentSettings inherits SecuritySettings and StorageSettings."""
+    sub_cfg = SubAgentSettings(
+        env="staging",
+        artifacts_bucket_name="custom-artifacts-bucket",
+        user_id="user-sub",
+        k_service="subagent-service",
+    )
+    assert sub_cfg.env == "staging"
+    assert sub_cfg.artifacts_bucket_name == "custom-artifacts-bucket"
+    assert sub_cfg.user_id == "user-sub"
+    assert sub_cfg.is_cloud_run is True
+    assert sub_cfg.resolved_bucket == "custom-artifacts-bucket"
+
+
+def test_subagent_fallback_settings_parity() -> None:
+    """Verify fallback SubAgentSettings in agent packages has parity with app.settings."""
+    from app.agents.creative_content import settings as cc_settings
+
+    # Both SubAgentSettings classes must expose required attributes
+    required_attrs = [
+        "app_url",
+        "agent_version",
+        "env",
+        "integration_test",
+        "user_id",
+        "k_service",
+        "is_cloud_run",
+        "artifacts_bucket_name",
+        "logs_bucket_name",
+        "resolved_bucket",
+        "google_cloud_project",
+        "google_cloud_location",
+        "google_cloud_agent_engine_id",
+        "sub_agent_model",
+        "image_model",
+        "service_account_email",
+        "otel_service_name",
+        "otel_to_cloud",
+    ]
+    sub_instance = cc_settings.SubAgentSettings()
+    for attr in required_attrs:
+        assert hasattr(sub_instance, attr), f"Missing attribute: {attr}"
+
+
+def test_prohibit_direct_os_environ_in_application_code() -> None:
+    """AST guard verifying zero direct os.environ or os.getenv lookups in app/."""
+    import ast
+    from pathlib import Path
+
+    app_dir = Path(__file__).resolve().parents[2] / "app"
+    violations: list[str] = []
+
+    for py_file in app_dir.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        try:
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        except Exception:
+            continue
+
+        for node in ast.walk(tree):
+            # Check for os.environ[...] or os.environ.get(...)
+            if isinstance(node, ast.Attribute):
+                if (
+                    node.attr == "environ"
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id == "os"
+                ):
+                    violations.append(
+                        f"{py_file.name}:{node.lineno} accesses os.environ directly"
+                    )
+                elif (
+                    node.attr == "getenv"
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id == "os"
+                ):
+                    violations.append(
+                        f"{py_file.name}:{node.lineno} calls os.getenv directly"
+                    )
+
+    assert not violations, (
+        f"Found prohibited os.environ / os.getenv calls: {violations}"
+    )

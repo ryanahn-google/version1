@@ -46,6 +46,50 @@ except ImportError:
             validation_alias=AliasChoices("AGENT_VERSION", "agent_version"),
             description="Semantic version of the sub-agent.",
         )
+        env: str = Field(
+            default="development",
+            validation_alias=AliasChoices("ENV", "env"),
+            description="Deployment environment (development, staging, prod).",
+        )
+        integration_test: bool = Field(
+            default=False,
+            validation_alias=AliasChoices("INTEGRATION_TEST", "integration_test"),
+            description="Whether running in integration test mode.",
+        )
+        user_id: str | None = Field(
+            default=None,
+            validation_alias=AliasChoices("USER_ID", "user_id"),
+            description="Default or fallback user ID.",
+        )
+        k_service: str | None = Field(
+            default=None,
+            validation_alias=AliasChoices("K_SERVICE", "k_service"),
+            description="Cloud Run service name.",
+        )
+
+        @property
+        def is_cloud_run(self) -> bool:
+            """Whether running inside Cloud Run."""
+            return bool(self.k_service)
+
+        artifacts_bucket_name: str | None = Field(
+            default=None,
+            validation_alias=AliasChoices(
+                "ARTIFACTS_BUCKET_NAME", "artifacts_bucket_name"
+            ),
+            description="GCS bucket for deliverables and assets.",
+        )
+        logs_bucket_name: str | None = Field(
+            default=None,
+            validation_alias=AliasChoices("LOGS_BUCKET_NAME", "logs_bucket_name"),
+            description="Fallback GCS bucket for logs and artifacts.",
+        )
+
+        @property
+        def resolved_bucket(self) -> str | None:
+            """Resolve effective bucket name."""
+            return self.artifacts_bucket_name or self.logs_bucket_name
+
         google_cloud_project: str | None = Field(
             default=None,
             validation_alias=AliasChoices(
@@ -75,6 +119,28 @@ except ImportError:
                 "agent_engine_id",
             ),
             description="Vertex AI Agent Engine / Reasoning Engine ID.",
+        )
+        sub_agent_model: str = Field(
+            default="gemini-3.5-flash-lite",
+            validation_alias=AliasChoices("SUB_AGENT_MODEL", "sub_agent_model"),
+            description="Vertex AI foundation model for structured sub-agents.",
+        )
+        image_model: str = Field(
+            default="gemini-3.1-flash-lite-image",
+            validation_alias=AliasChoices(
+                "IMAGE_MODEL",
+                "NANO_BANANA_MODEL",
+                "image_model",
+                "nano_banana_model",
+            ),
+            description="Vertex AI Nano Banana model for marketing visual generation.",
+        )
+        service_account_email: str | None = Field(
+            default=None,
+            validation_alias=AliasChoices(
+                "SERVICE_ACCOUNT_EMAIL", "service_account_email"
+            ),
+            description="Service account email for signing URLs.",
         )
         otel_service_name: str | None = Field(
             default=None,
