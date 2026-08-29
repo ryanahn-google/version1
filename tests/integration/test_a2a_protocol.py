@@ -22,13 +22,18 @@ Creative Content, Performance & Insights) implement the A2A standard:
 """
 
 import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.agents.market_sensing.fast_api_app import app as p1_app, lifespan as p1_lifespan
-from app.agents.strategy_brief.fast_api_app import app as p2_app, lifespan as p2_lifespan
-from app.agents.creative_content.fast_api_app import app as p3_app, lifespan as p3_lifespan
-from app.agents.performance_insights.fast_api_app import app as p4_app, lifespan as p4_lifespan
+from app.agents.creative_content.fast_api_app import app as p3_app
+from app.agents.creative_content.fast_api_app import lifespan as p3_lifespan
+from app.agents.market_sensing.fast_api_app import app as p1_app
+from app.agents.market_sensing.fast_api_app import lifespan as p1_lifespan
+from app.agents.performance_insights.fast_api_app import app as p4_app
+from app.agents.performance_insights.fast_api_app import lifespan as p4_lifespan
+from app.agents.strategy_brief.fast_api_app import app as p2_app
+from app.agents.strategy_brief.fast_api_app import lifespan as p2_lifespan
 from app.orchestrator.a2a_client import A2ASubAgentClient
 
 
@@ -77,7 +82,9 @@ async def test_p4_performance_insights_agent_card():
     async with p4_lifespan(p4_app):
         transport = ASGITransport(app=p4_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/a2a/performance_insights/.well-known/agent-card.json")
+            resp = await client.get(
+                "/a2a/performance_insights/.well-known/agent-card.json"
+            )
             assert resp.status_code == 200
             card = resp.json()
             assert card["name"] == "performance_insights_agent"
@@ -96,7 +103,11 @@ async def test_p1_market_sensing_a2a_jsonrpc_dispatch():
                 "params": {
                     "message": {
                         "role": "user",
-                        "parts": [{"text": "Brand: Nova Electronics Corp\nProduct: Galaxy S27 Ultra\nObjective: Launch new AI flagship"}],
+                        "parts": [
+                            {
+                                "text": "Brand: Nova Electronics Corp\nProduct: Galaxy S27 Ultra\nObjective: Launch new AI flagship"
+                            }
+                        ],
                         "messageId": str(uuid.uuid4()),
                     }
                 },

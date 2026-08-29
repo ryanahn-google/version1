@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Copyright 2026 Google LLC
+#
+# Pre-commit hook enforcing formatting, linting, type checking, and tests.
+set -euo pipefail
+
+echo "============================================================"
+echo "🔍 Running pre-commit validation: format, lint, typecheck, tests..."
+echo "============================================================"
+
+# 1. Format Check
+echo "▶ [1/4] Checking code formatting (ruff format)..."
+if ! uv run ruff format --check .; then
+    echo "❌ Code formatting check failed! Run 'make format' to format code."
+    exit 1
+fi
+
+# 2. Linting & Spelling Check
+echo "▶ [2/4] Checking linter & spellings (ruff check, codespell)..."
+if ! uv run ruff check . || ! uv run codespell; then
+    echo "❌ Linting check failed! Fix the reported errors above."
+    exit 1
+fi
+
+# 3. Type Checking
+echo "▶ [3/4] Running type checking (ty check)..."
+if ! uv run ty check; then
+    echo "❌ Type check failed! Fix type errors before committing."
+    exit 1
+fi
+
+# 4. Tests
+echo "▶ [4/4] Running test suite (pytest)..."
+if ! uv run pytest tests/unit tests/integration; then
+    echo "❌ Tests failed! Ensure all tests pass before committing."
+    exit 1
+fi
+
+echo "============================================================"
+echo "✅ All pre-commit checks passed successfully! Proceeding with commit."
+echo "============================================================"
+exit 0

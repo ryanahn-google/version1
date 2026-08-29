@@ -14,14 +14,11 @@
 
 """SQLAlchemy-based hybrid session repository for Campaign state management."""
 
-import os
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import quote
 
 from sqlalchemy import (
     JSON,
-    Column,
     DateTime,
     Float,
     Integer,
@@ -34,7 +31,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.schemas.campaign import (
     CampaignDeliverables,
@@ -43,10 +40,13 @@ from app.schemas.campaign import (
     CampaignStatus,
 )
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for SQLAlchemy declarative models."""
 
 
-def utcnow():
+def utcnow() -> datetime:
+    """Return timezone-naive UTC datetime."""
     return datetime.now(UTC).replace(tzinfo=None)
 
 
@@ -55,47 +55,43 @@ class CampaignSessionModel(Base):
 
     __tablename__ = "orchestrator_sessions"
 
-    session_id = Column(String(64), primary_key=True)
-    tenant_id = Column(String(64), default="default", nullable=False)
-    status = Column(
+    session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="default", nullable=False
+    )
+    status: Mapped[str] = mapped_column(
         String(32), default=CampaignStatus.INITIALIZING.value, nullable=False
     )
-    current_stage = Column(
+    current_stage: Mapped[str] = mapped_column(
         String(32), default=CampaignStage.MARKET_SENSING.value, nullable=False
     )
-    brand_name = Column(String(128), nullable=False)
-    product_name = Column(String(128), nullable=False)
-    campaign_objective = Column(Text, nullable=False)
-    budget_amount = Column(Float, nullable=False)
-    currency = Column(String(16), default="USD", nullable=False)
-    channels = Column(JSON, default=list, nullable=False)
-    deliverables = Column(JSON, default=dict, nullable=False)
-    revision_count = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
-    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+    brand_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    product_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    campaign_objective: Mapped[str] = mapped_column(Text, nullable=False)
+    budget_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    currency: Mapped[str] = mapped_column(String(16), default="USD", nullable=False)
+    channels: Mapped[list[Any]] = mapped_column(JSON, default=list, nullable=False)
+    deliverables: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    revision_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow, nullable=False
+    )
 
 
 def _get_database_url() -> str:
     """Build database connection URL: Cloud SQL PostgreSQL if configured, else SQLite."""
-    if db_url := os.environ.get("DATABASE_URL"):
-        return db_url
+    from app.app_utils.services import get_database_url
+    from app.settings import get_settings
 
-    instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
-    db_pass = os.environ.get("DB_PASS")
-    if instance_connection_name and db_pass:
-        db_user = os.environ.get("DB_USER", "postgres")
-        db_name = os.environ.get("DB_NAME", "postgres")
-        encoded_user = quote(db_user, safe="")
-        encoded_pass = quote(db_pass, safe="")
-        encoded_instance = instance_connection_name.replace(":", "%3A")
-        return (
-            f"postgresql+asyncpg://{encoded_user}:{encoded_pass}@"
-            f"/{db_name}?host=/cloudsql/{encoded_instance}"
-        )
+    if url := get_database_url():
+        return url
 
-    # Local development SQLite
-    db_path = os.environ.get("LOCAL_DB_PATH", "campaign_sessions.db")
-    return f"sqlite+aiosqlite:///{db_path}"
+    return get_settings().get_sqlite_url()
 
 
 class SessionRepository:

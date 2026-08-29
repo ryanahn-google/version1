@@ -81,4 +81,5 @@ async def health_check():
     """Liveness health check endpoint."""
     return {"status": "healthy", "agent": adk_app.name}
 
+
 attach_reasoning_engine_routes(app, adk_app=adk_app)

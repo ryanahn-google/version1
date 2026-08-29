@@ -16,15 +16,16 @@
 
 import json
 import logging
-import os
 import re
 import urllib.error
 import urllib.request
 
-from fastapi import Header, HTTPException, status
 import google.auth
+from fastapi import Header, HTTPException, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
+
+from app.settings import SecuritySettings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +42,11 @@ SUSPICIOUS_PROMPT_PATTERNS = [
 class SecurityManager:
     """Manages Google OAuth OIDC verification and Model Armor prompt sanitization."""
 
-    def __init__(self) -> None:
-        self.env = os.environ.get("ENV", "development")
-        self.oauth_client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
-        self.model_armor_template = os.environ.get("MODEL_ARMOR_TEMPLATE")
+    def __init__(self, settings: SecuritySettings | None = None) -> None:
+        cfg = settings or get_settings()
+        self.env = cfg.env
+        self.oauth_client_id = cfg.google_oauth_client_id
+        self.model_armor_template = cfg.model_armor_template
         self._credentials = None
 
     def _get_auth_headers(self) -> dict[str, str]:
@@ -79,13 +81,12 @@ class SecurityManager:
                 body = json.loads(resp.read().decode("utf-8"))
                 result = body.get("sanitizationResult", {})
                 action_taken = (
-                    result.get("actionTaken")
-                    or result.get("filterMatchState")
-                    or ""
+                    result.get("actionTaken") or result.get("filterMatchState") or ""
                 )
                 if action_taken.upper() in ("BLOCK", "MATCH_FOUND", "BLOCKED"):
                     logger.warning(
-                        "Model Armor blocked input prompt. Action taken: %s", action_taken
+                        "Model Armor blocked input prompt. Action taken: %s",
+                        action_taken,
                     )
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,

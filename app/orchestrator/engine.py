@@ -77,6 +77,8 @@ class CampaignOrchestrationEngine:
             current_stage=CampaignStage.MARKET_SENSING,
             deliverables={"marketSensing": deliv.model_dump(mode="json")},
         )
+        if not updated:
+            raise RuntimeError(f"Session {session_id} not found after creation.")
         return updated
 
     async def stream_create_campaign(
@@ -206,11 +208,13 @@ class CampaignOrchestrationEngine:
             await self.repo.update_session(session_id, increment_revision=True)
 
             if current_stage == CampaignStage.MARKET_SENSING:
+                audience = getattr(session, "targetAudience", "General")
                 deliv1 = await self.a2a.run_market_sensing(
                     session.brandName,
                     session.productName,
                     session.campaignObjective,
-                    "General",
+                    audience,
+                    feedback=feedback,
                     context_id=f"{session_id}-p1-rev",
                 )
                 await self.repo.update_session(
@@ -228,11 +232,27 @@ class CampaignOrchestrationEngine:
                 )
 
             elif current_stage == CampaignStage.STRATEGY_BRIEF:
+                market_sensing = session.deliverables.marketSensing
+                if not market_sensing:
+                    yield _format_sse(
+                        CampaignStreamEvent(
+                            event="error",
+                            stage=current_stage.value,
+                            sessionId=session_id,
+                            data={
+                                "error": (
+                                    "Missing Market Sensing deliverable for "
+                                    "Strategy Brief revision"
+                                )
+                            },
+                        )
+                    )
+                    return
                 deliv2 = await self.a2a.run_strategy_brief(
                     session.brandName,
                     session.productName,
                     session.campaignObjective,
-                    session.deliverables.marketSensing,
+                    market_sensing,
                     feedback=feedback,
                     context_id=f"{session_id}-p2-rev",
                 )
@@ -251,8 +271,26 @@ class CampaignOrchestrationEngine:
                 )
 
             elif current_stage == CampaignStage.CREATIVE_CONTENT:
+                campaign_brief = session.deliverables.campaignBrief
+                if not campaign_brief:
+                    yield _format_sse(
+                        CampaignStreamEvent(
+                            event="error",
+                            stage=current_stage.value,
+                            sessionId=session_id,
+                            data={
+                                "error": (
+                                    "Missing Campaign Brief deliverable for "
+                                    "Creative Content revision"
+                                )
+                            },
+                        )
+                    )
+                    return
                 deliv3 = await self.a2a.run_creative_content(
-                    session.deliverables.campaignBrief, feedback=feedback, context_id=f"{session_id}-p3-rev"
+                    campaign_brief,
+                    feedback=feedback,
+                    context_id=f"{session_id}-p3-rev",
                 )
                 await self.repo.update_session(
                     session_id,
@@ -265,6 +303,47 @@ class CampaignOrchestrationEngine:
                         stage=current_stage.value,
                         sessionId=session_id,
                         data={"creativeContent": deliv3.model_dump(mode="json")},
+                    )
+                )
+
+            elif current_stage == CampaignStage.PERFORMANCE_INSIGHTS:
+                campaign_brief = session.deliverables.campaignBrief
+                if not campaign_brief:
+                    yield _format_sse(
+                        CampaignStreamEvent(
+                            event="error",
+                            stage=current_stage.value,
+                            sessionId=session_id,
+                            data={
+                                "error": (
+                                    "Missing Campaign Brief deliverable for "
+                                    "Performance Insights revision"
+                                )
+                            },
+                        )
+                    )
+                    return
+                deliv4 = await self.a2a.run_performance_insights(
+                    budget=session.budgetAmount,
+                    currency=session.currency,
+                    channels=session.channels,
+                    brief=campaign_brief,
+                    feedback=feedback,
+                    context_id=f"{session_id}-p4-rev",
+                )
+                await self.repo.update_session(
+                    session_id,
+                    status=CampaignStatus.PAUSED_FOR_REVIEW,
+                    deliverables={
+                        "performanceInsights": deliv4.model_dump(mode="json")
+                    },
+                )
+                yield _format_sse(
+                    CampaignStreamEvent(
+                        event="artifact_generated",
+                        stage=current_stage.value,
+                        sessionId=session_id,
+                        data={"performanceInsights": deliv4.model_dump(mode="json")},
                     )
                 )
 
@@ -283,19 +362,34 @@ class CampaignOrchestrationEngine:
         # --- Case 2: Approval -> Advance to next stage ---
         if current_stage == CampaignStage.MARKET_SENSING:
             next_stage = CampaignStage.STRATEGY_BRIEF
+            market_sensing = session.deliverables.marketSensing
+            if not market_sensing:
+                yield _format_sse(
+                    CampaignStreamEvent(
+                        event="error",
+                        stage=current_stage.value,
+                        sessionId=session_id,
+                        data={
+                            "error": ("Missing Market Sensing deliverable to proceed")
+                        },
+                    )
+                )
+                return
             yield _format_sse(
                 CampaignStreamEvent(
                     event="stage_started",
                     stage=next_stage.value,
                     sessionId=session_id,
-                    data={"message": "P1 Approved. Starting [P2] Strategy & Brief..."},
+                    data={
+                        "message": ("P1 Approved. Starting [P2] Strategy & Brief...")
+                    },
                 )
             )
             deliv_p2 = await self.a2a.run_strategy_brief(
                 session.brandName,
                 session.productName,
                 session.campaignObjective,
-                session.deliverables.marketSensing,
+                market_sensing,
                 context_id=f"{session_id}-p2",
             )
             updated = await self.repo.update_session(
@@ -326,18 +420,34 @@ class CampaignOrchestrationEngine:
 
         elif current_stage == CampaignStage.STRATEGY_BRIEF:
             next_stage = CampaignStage.CREATIVE_CONTENT
+            campaign_brief = session.deliverables.campaignBrief
+            if not campaign_brief:
+                yield _format_sse(
+                    CampaignStreamEvent(
+                        event="error",
+                        stage=current_stage.value,
+                        sessionId=session_id,
+                        data={
+                            "error": ("Missing Campaign Brief deliverable to proceed")
+                        },
+                    )
+                )
+                return
             yield _format_sse(
                 CampaignStreamEvent(
                     event="stage_started",
                     stage=next_stage.value,
                     sessionId=session_id,
                     data={
-                        "message": "P2 Approved. Starting [P3] Creative Content generation (Imagen 3)..."
+                        "message": (
+                            "P2 Approved. Starting [P3] Creative Content "
+                            "generation (Imagen 3)..."
+                        )
                     },
                 )
             )
             deliv_p3 = await self.a2a.run_creative_content(
-                session.deliverables.campaignBrief, context_id=f"{session_id}-p3"
+                campaign_brief, context_id=f"{session_id}-p3"
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -367,13 +477,29 @@ class CampaignOrchestrationEngine:
 
         elif current_stage == CampaignStage.CREATIVE_CONTENT:
             next_stage = CampaignStage.PERFORMANCE_INSIGHTS
+            campaign_brief = session.deliverables.campaignBrief
+            if not campaign_brief:
+                yield _format_sse(
+                    CampaignStreamEvent(
+                        event="error",
+                        stage=current_stage.value,
+                        sessionId=session_id,
+                        data={
+                            "error": ("Missing Campaign Brief deliverable to proceed")
+                        },
+                    )
+                )
+                return
             yield _format_sse(
                 CampaignStreamEvent(
                     event="stage_started",
                     stage=next_stage.value,
                     sessionId=session_id,
                     data={
-                        "message": "P3 Approved. Starting [P4] Performance & Insights budget allocation..."
+                        "message": (
+                            "P3 Approved. Starting [P4] Performance & Insights "
+                            "budget allocation..."
+                        )
                     },
                 )
             )
@@ -381,7 +507,7 @@ class CampaignOrchestrationEngine:
                 session.budgetAmount,
                 session.currency,
                 session.channels,
-                session.deliverables.campaignBrief,
+                campaign_brief,
                 context_id=f"{session_id}-p4",
             )
             updated = await self.repo.update_session(

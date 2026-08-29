@@ -25,7 +25,7 @@ Demonstrates the entire multi-agent campaign planning DAG with interactive outpu
 """
 
 import asyncio
-import json
+
 from httpx import ASGITransport, AsyncClient
 
 from app.fast_api_app import app
@@ -70,7 +70,12 @@ async def run_flow():
             "targetAudience": "Tech-savvy professionals aged 25-45.",
             "budgetAmount": 1000000.0,
             "currency": "USD",
-            "channels": ["Digital Video", "Social Media", "Paid Search", "Retail Display"],
+            "channels": [
+                "Digital Video",
+                "Social Media",
+                "Paid Search",
+                "Retail Display",
+            ],
             "stream": False,
         }
         res = await client.post("/api/v1/campaigns", json=campaign_req)
@@ -82,7 +87,9 @@ async def run_flow():
         print(f"  ✨ Status: {data['status']}")
         p1 = data["deliverables"]["marketSensing"]
         print(f"  📊 Consumer Trends: {p1['consumerTrends']}")
-        print(f"  📊 Sentiment Score: {p1['sentimentOverview']['overallSentimentScore']}")
+        print(
+            f"  📊 Sentiment Score: {p1['sentimentOverview']['overallSentimentScore']}"
+        )
 
         # 4. Approve P1 -> Stage 2: P2 Strategy & Brief
         print("\n[Step 2] Marketer Approves P1 -> Executing [P2] Strategy & Brief...")
@@ -111,7 +118,9 @@ async def run_flow():
         print(f"  🎨 Asset URL: {p3['assetUrl']}")
 
         # 6. Approve P3 -> Stage 4: P4 Performance & Insights
-        print("\n[Step 4] Marketer Approves P3 -> Executing [P4] Performance Insights...")
+        print(
+            "\n[Step 4] Marketer Approves P3 -> Executing [P4] Performance Insights..."
+        )
         res = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
             json={"action": "approve", "stream": False},
@@ -124,13 +133,17 @@ async def run_flow():
         print(f"  📈 Expected ROAS: {p4['expectedRoas']}x")
         print(f"  📈 Total Budget: ${p4['totalBudget']:,.2f}")
         for ch in p4["channelAllocations"]:
-            print(f"     - {ch['channel']}: {ch['percentage']}% (${ch['allocationAmount']:,.2f})")
+            print(
+                f"     - {ch['channel']}: {ch['percentage']}% (${ch['allocationAmount']:,.2f})"
+            )
 
         # 7. Final Session Verification
         print("\n[Step 5] Fetching final session state from persistent repository...")
         get_res = await client.get(f"/api/v1/campaigns/{session_id}")
         assert get_res.status_code == 200
-        print(f"  ✅ Retrieved session '{session_id}' successfully. Deliverables count: {len(get_res.json()['deliverables'])}")
+        print(
+            f"  ✅ Retrieved session '{session_id}' successfully. Deliverables count: {len(get_res.json()['deliverables'])}"
+        )
         print("\n🎉 Entire Multi-Agent Flow Test Successfully Completed!")
         print("=" * 70)
 

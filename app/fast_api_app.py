@@ -22,8 +22,7 @@ from datetime import UTC, datetime
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
@@ -42,11 +41,12 @@ from app.schemas.campaign import (
     StageApprovalRequest,
 )
 from app.schemas.errors import ErrorResponse
+from app.settings import get_settings
 
 load_dotenv()
 
 AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATIC_DIR = os.path.join(AGENT_DIR, "static")
+STATIC_DIR = os.path.join(AGENT_DIR, "frontend", "dist")
 
 
 @contextlib.asynccontextmanager
@@ -80,9 +80,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     web=True,
+    allow_origins=["*"],
     artifact_service_uri=services.ARTIFACT_SERVICE_URI,
     session_service_uri=services.SESSION_SERVICE_URI,
-    otel_to_cloud=False,
+    otel_to_cloud=get_settings().otel_to_cloud,
     lifespan=lifespan,
 )
 app.title = "Marketing Value Creator (MVC) API"
@@ -90,14 +91,6 @@ app.description = (
     "Enterprise multi-agent campaign planning platform on Cloud Run and Agent Runtime"
 )
 app.version = "1.0.0"
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 @app.get("/healthz", tags=["System"])
@@ -223,8 +216,22 @@ async def approve_stage(
 
 
 # Static files mount for compiled React SPA
+_INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
+
 if os.path.isdir(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+
+@app.get("/mvc", include_in_schema=False)
+async def serve_mvc():
+    """Serve compiled React SPA at /mvc entrypoint."""
+    if os.path.isfile(_INDEX_HTML):
+        return FileResponse(_INDEX_HTML)
+    return {
+        "status": "healthy",
+        "service": "mvc-orchestrator",
+        "detail": "Frontend bundle not compiled.",
+    }
 
 
 if __name__ == "__main__":

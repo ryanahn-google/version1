@@ -3,7 +3,7 @@ name = "version1"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Your Name", email = "your@email.com"},
+    {name = "Ryan Ahn", email = "ryanahn@google.com"},
 ]
 
 dependencies = [
@@ -19,6 +19,7 @@ dependencies = [
     "asyncpg>=0.30.0,<1.0.0",
     "sqlalchemy>=2,<3",
     "python-multipart>=0.0.20,<1.0.0",
+    "pydantic-settings>=2.0.0",
 ]
 requires-python = ">=3.13"
 
@@ -28,6 +29,9 @@ dev = [
     "pytest>=9.0.2,<10.0.0",
     "pytest-asyncio>=1.0.0,<2.0.0",
     "nest-asyncio>=1.6.0,<2.0.0",
+    "ruff>=0.4.6,<1.0.0",
+    "ty>=0.0.1a0",
+    "codespell>=2.2.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -95,6 +99,17 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 pythonpath = "."
 asyncio_default_fixture_loop_scope = "session"
+filterwarnings = [
+    "ignore:.*GOOGLE_GENAI_USE_VERTEXAI is deprecated.*:DeprecationWarning",
+    "ignore:.*BaseAgentConfig is deprecated.*:DeprecationWarning",
+    "ignore:.*is deprecated and will be removed.*:DeprecationWarning",
+    "ignore:.*label\\(\\) is deprecated.*:DeprecationWarning",
+    "ignore:.*Inheritance class AiohttpClientSession.*:DeprecationWarning",
+    "ignore:.*The vertexai.Client class is deprecated.*:FutureWarning",
+    "ignore:.*Using `@model_validator` with mode='after'.*:pydantic.warnings.PydanticDeprecatedSince212",
+    "ignore:.*Please use `import python_multipart` instead.*:PendingDeprecationWarning",
+    "ignore:.*EXPERIMENTAL.*:UserWarning",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app","frontend"]

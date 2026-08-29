@@ -2,7 +2,7 @@
 
 ## 1. Core Operating Directives (Mandatory)
 1. **Actively use the `ponytail` skill throughout development**: Prioritize the simplest, most minimal working solution (YAGNI, standard library / native features first, shortest diff).
-2. **Environment Configuration**: Manage all environment variables in a single `.env` file instead of `env.tfvars` when writing Terraform code.
+2. **Environment Configuration**: Manage all environment variables in a single `.env` file instead of `env.tfvars` when writing Terraform code. When reading OS environment variables in application code, use Pydantic `BaseSettings` within a dedicated `settings.py` file rather than direct `os.getenv` or `os.environ` calls.
 3. **Agent Harness Directory**: Whenever Harness is needed, DO NOT create `_agents` directory and instead stick to `.agents` directory.
 4. **Preserve `.env`**: DO NOT modify or overwrite the `.env` file.
 5. **Package Management**: Use `uv` as package installer/manager for this project (`uv run ...`, `uv sync`).
@@ -34,6 +34,9 @@
 - **Contract-First & Data Modeling**:
   - Single source of truth for API contracts: `api/openapi.yaml`.
   - Structured data validation via Pydantic v2 schemas in `app/schemas/`.
+- **Configuration & Environment Management**:
+  - Centralize OS environment variable loading and validation using Pydantic `BaseSettings` (`pydantic-settings`) in a dedicated `settings.py` file.
+  - Prohibit scattered or direct `os.getenv()` or `os.environ` lookups across the codebase to ensure type safety, validation, and single-source-of-truth configuration.
 
 ## 4. Google Agents CLI & ADK Workflow Guidelines
 - **End-to-End Lifecycle (`google-agents-cli-workflow`)**:

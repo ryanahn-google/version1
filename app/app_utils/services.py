@@ -28,6 +28,8 @@ from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
 from google.adk.cli.service_registry import get_service_registry
 from google.adk.cli.utils.service_factory import create_session_service_from_options
 
+from app.settings import get_settings
+
 SESSION_SERVICE_URI = "shared://session"
 ARTIFACT_SERVICE_URI = "shared://artifact"
 
@@ -36,25 +38,15 @@ _AGENT_DIR = os.path.dirname(
 )
 
 
+def get_database_url() -> str | None:
+    """Build database connection URL: Cloud SQL PostgreSQL if configured, else None."""
+    return get_settings().get_cloud_sql_url()
+
+
 @functools.cache
 def get_session_service():
     """Process-wide session service shared across every serving surface."""
-    from urllib.parse import quote
-
-    db_user = os.environ.get("DB_USER", "postgres")
-    db_name = os.environ.get("DB_NAME", "postgres")
-    db_pass = os.environ.get("DB_PASS")
-    instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
-
-    if instance_connection_name and db_pass:
-        # URL-encode credentials/instance; '[' would otherwise trigger IPv6 parsing.
-        encoded_user = quote(db_user, safe="")
-        encoded_pass = quote(db_pass, safe="")
-        encoded_instance = instance_connection_name.replace(":", "%3A")
-        session_service_uri = (
-            f"postgresql+asyncpg://{encoded_user}:{encoded_pass}@"
-            f"/{db_name}?host=/cloudsql/{encoded_instance}"
-        )
+    if session_service_uri := get_database_url():
         return create_session_service_from_options(
             base_dir=_AGENT_DIR, session_service_uri=session_service_uri
         )
@@ -67,7 +59,7 @@ def get_session_service():
 @functools.cache
 def get_artifact_service():
     """Process-wide artifact service: GCS when a bucket is set, else in-memory."""
-    if bucket := (os.environ.get("ARTIFACTS_BUCKET_NAME") or os.environ.get("LOGS_BUCKET_NAME")):
+    if bucket := get_settings().resolved_bucket:
         return GcsArtifactService(bucket_name=bucket)
     return InMemoryArtifactService()
 

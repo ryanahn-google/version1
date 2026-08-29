@@ -14,10 +14,14 @@
 
 """Root Orchestrator Agent for Marketing Value Creator (MVC)."""
 
+from collections.abc import AsyncGenerator
+
 from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
+
+from app.settings import get_settings
 
 MODEL = "gemini-3.1-pro-preview"
 
@@ -36,13 +40,39 @@ Your duties:
 3. Validate human approvals or revision feedback between stages.
 """
 
-root_agent = Agent(
-    name="mvc_orchestrator",
-    model=Gemini(
+if get_settings().integration_test:
+    from google.adk.models.base_llm import BaseLlm
+    from google.adk.models.llm_request import LlmRequest
+    from google.adk.models.llm_response import LlmResponse
+
+    class _IntegrationTestMockLlm(BaseLlm):
+        """Deterministic mock LLM for integration testing without external credentials."""
+
+        def __init__(self) -> None:
+            super().__init__(model="mock-gemini")
+
+        async def generate_content_async(
+            self, llm_request: LlmRequest, stream: bool = False
+        ) -> AsyncGenerator[LlmResponse, None]:
+            content = types.Content(
+                role="model",
+                parts=[types.Part.from_text(text="I am the MVC Root Orchestrator.")],
+            )
+            if stream:
+                yield LlmResponse(content=content, partial=True)
+            yield LlmResponse(content=content, partial=False)
+
+    _model = _IntegrationTestMockLlm()
+else:
+    _model = Gemini(
         model=MODEL,
         client_kwargs={"location": "global"},
         retry_options=types.HttpRetryOptions(attempts=3),
-    ),
+    )
+
+root_agent = Agent(
+    name="mvc_orchestrator",
+    model=_model,
     instruction=ORCHESTRATOR_INSTRUCTION,
 )
 

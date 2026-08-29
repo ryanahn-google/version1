@@ -237,3 +237,10 @@ def test_collect_feedback(server_fixture: subprocess.Popen[str]) -> None:
         FEEDBACK_URL, json=feedback_data, headers=HEADERS, timeout=10
     )
     assert response.status_code == 200
+
+
+def test_spa_serving(server_fixture: subprocess.Popen[str]) -> None:
+    """Test that /static/ serves the compiled React SPA HTML."""
+    response = requests.get(BASE_URL + "/static/", timeout=10)
+    assert response.status_code == 200
+    assert "Marketing Value Creator" in response.text

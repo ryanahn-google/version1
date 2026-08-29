@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Stage 1: Build React 19 Frontend SPA
+FROM node:24-alpine AS frontend-builder
+WORKDIR /build/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+COPY api/openapi.yaml /build/api/openapi.yaml
+RUN npm run build
+
+# Stage 2: Production Cloud Run Container
 FROM python:3.13-slim
 
 RUN pip install --no-cache-dir uv==0.8.13
@@ -21,6 +31,8 @@ WORKDIR /code
 COPY ./pyproject.toml ./README.md ./uv.lock* ./
 
 COPY ./app ./app
+# Copy compiled frontend SPA from builder
+COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 # Ensure subagents are completely excluded from Cloud Run container (deployed to Agent Runtime)
 RUN rm -rf ./app/agents
 

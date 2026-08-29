@@ -24,29 +24,38 @@ import json
 import logging
 import os
 import re
-from typing import Optional
+
+try:
+    from app.settings import get_settings
+except ImportError:
+    from settings import get_settings
 
 logger = logging.getLogger(__name__)
 
 
-def get_agent_engine_id() -> Optional[str]:
+def get_agent_engine_id() -> str | None:
     """Resolves the Reasoning Engine ID from environment or metadata."""
-    if eid := (os.environ.get("GOOGLE_CLOUD_AGENT_ENGINE_ID") or os.environ.get("AGENT_ENGINE_ID")):
+    cfg = get_settings()
+    if eid := cfg.google_cloud_agent_engine_id:
         return eid
 
     # Agent Engine injects APP_URL containing the reasoning engine resource path
-    if app_url := os.environ.get("APP_URL", ""):
+    if app_url := cfg.app_url:
         m = re.search(r"reasoningEngines/(?P<id>\d+)", app_url)
         if m:
             return m.group("id")
 
     # Fallback to deployment_metadata.json if present
-    meta_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deployment_metadata.json")
+    meta_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "deployment_metadata.json"
+    )
     if os.path.exists(meta_path):
         try:
-            with open(meta_path, "r", encoding="utf-8") as f:
+            with open(meta_path, encoding="utf-8") as f:
                 data = json.load(f)
-            m = re.search(r"reasoningEngines/(?P<id>\d+)", data.get("remote_agent_runtime_id", ""))
+            m = re.search(
+                r"reasoningEngines/(?P<id>\d+)", data.get("remote_agent_runtime_id", "")
+            )
             if m:
                 return m.group("id")
         except Exception:
@@ -56,18 +65,26 @@ def get_agent_engine_id() -> Optional[str]:
 
 
 def get_subagent_session_service():
-    """Returns VertexAiSessionService if Reasoning Engine ID is available, else InMemorySessionService."""
+    """Returns VertexAiSessionService if engine ID is set, else InMemory."""
+    cfg = get_settings()
     engine_id = get_agent_engine_id()
-    project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID")
-    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("CLOUD_ML_REGION") or "asia-northeast3"
+    project = cfg.google_cloud_project
+    location = cfg.google_cloud_location or "asia-northeast3"
     if location == "global":
         location = "asia-northeast3"
 
     if engine_id and project:
         try:
-            from google.adk.sessions.vertex_ai_session_service import VertexAiSessionService
+            from google.adk.sessions.vertex_ai_session_service import (
+                VertexAiSessionService,
+            )
 
-            logger.info("Using VertexAiSessionService for engine %s in %s/%s", engine_id, project, location)
+            logger.info(
+                "Using VertexAiSessionService for engine %s in %s/%s",
+                engine_id,
+                project,
+                location,
+            )
             return VertexAiSessionService(
                 project=project,
                 location=location,
