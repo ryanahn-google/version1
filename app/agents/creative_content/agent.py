@@ -24,7 +24,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import uuid
 
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.apps import App
@@ -36,14 +35,12 @@ try:
         CampaignBriefDeliverable,
         CreativeContentDeliverable,
     )
-    from app.services.storage import get_asset_storage_service
     from app.settings import get_settings
 except ImportError:
     from schemas.deliverables import (  # type: ignore[no-redef]
         CampaignBriefDeliverable,
         CreativeContentDeliverable,
     )
-    from services.storage import get_asset_storage_service  # type: ignore[no-redef]
     from settings import get_settings  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
@@ -78,37 +75,38 @@ copy_and_prompt_agent = Agent(
 
 
 # --- Step 2: Visual Asset Synthesis Function & Agent ---
-async def synthesize_nano_banana_image(
-    prompt: str, session_id: str | None = None
-) -> str | None:
-    """Synthesize marketing visual using Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage."""
+def generate_marketing_visual(visual_prompt: str) -> str:
+    """Synthesize 16:9 marketing visual with Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage.
+
+    Args:
+        visual_prompt: The photorealistic, studio-quality 16:9 visual prompt describing the scene.
+
+    Returns:
+        The accessible public HTTPS URL of the persisted marketing visual.
+    """
     if os.environ.get("INTEGRATION_TEST") == "TRUE":
-        return None
+        return FALLBACK_ASSET_URL
 
     try:
         from google.genai import Client
 
-        settings = get_settings()
-        project = settings.google_cloud_project or "sample-505914"
-        location = settings.google_cloud_location or "global"
-        image_model = getattr(settings, "image_model", IMAGE_MODEL)
+        project = (
+            os.environ.get("GOOGLE_CLOUD_PROJECT")
+            or os.environ.get("PROJECT_ID")
+            or "sample-505914"
+        )
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
+        image_model = os.environ.get("IMAGE_MODEL") or IMAGE_MODEL
 
-        client = Client(
-            vertexai=True,
-            project=project,
-            location=location,
-        )
+        client = Client(vertexai=True, project=project, location=location)
         logger.info(
-            "P3 Creative Content synthesizing visual with Nano Banana (%s): prompt=%.60s...",
+            "P3 Tool generate_marketing_visual: synthesizing with %s at %s...",
             image_model,
-            prompt,
+            location,
         )
-        resp = await asyncio.wait_for(
-            client.aio.models.generate_content(
-                model=image_model,
-                contents=prompt,
-            ),
-            timeout=20.0,
+        resp = client.models.generate_content(
+            model=image_model,
+            contents=visual_prompt,
         )
         img_bytes: bytes | None = None
         if resp and resp.candidates and resp.candidates[0].content.parts:
@@ -118,26 +116,39 @@ async def synthesize_nano_banana_image(
                     break
 
         if img_bytes:
-            storage_svc = get_asset_storage_service()
-            clean_id = (session_id or "default").replace(":", "_").replace("/", "_")
-            filename = f"creative_{clean_id}_{uuid.uuid4().hex[:6]}.png"
-            url = await storage_svc.save_visual_asset(
-                img_bytes, filename=filename, session_id=session_id
-            )
-            logger.info("Nano Banana visual asset stored: %s", url)
+            try:
+                from .storage_service import save_visual_marketing_asset
+            except ImportError:
+                try:
+                    from storage_service import save_visual_marketing_asset
+                except ImportError:
+                    from app.agents.creative_content.storage_service import (
+                        save_visual_marketing_asset,
+                    )
+
+            url = save_visual_marketing_asset(img_bytes)
+            logger.info("P3 Tool successfully stored visual: %s", url)
             return url
     except Exception as exc:
-        logger.warning(
-            "Nano Banana image generation failed or timed out: %s. Using fallback asset.",
-            exc,
-        )
-    return None
+        logger.warning("P3 Tool generate_marketing_visual failed: %s", exc)
+
+    return FALLBACK_ASSET_URL
+
+
+async def synthesize_nano_banana_image(
+    prompt: str, session_id: str | None = None
+) -> str | None:
+    """Synthesize marketing visual using Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage."""
+    url = generate_marketing_visual(prompt)
+    return url if url != FALLBACK_ASSET_URL else None
 
 
 IMAGE_SYNTHESIS_INSTRUCTION = """
 You are the Visual Synthesis & Asset Packaging Specialist [P3-Step2] for Nova Electronics Corp.
-Your task is to take the copy and visual prompt produced by Step 1, verify the 16:9 visual concept, and assemble the final CreativeContentDeliverable.
-Output your deliverable strictly as a valid JSON object conforming to CreativeContentDeliverable schema.
+Your task is to take the copy and visual prompt produced by Step 1:
+1. You MUST call the `generate_marketing_visual` tool passing `visual_prompt` containing the 16:9 prompt.
+2. Set `assetUrl` in your output to the exact URL returned by the `generate_marketing_visual` tool.
+3. Assemble and output the complete deliverable strictly conforming to the CreativeContentDeliverable schema.
 """
 
 image_synthesis_agent = Agent(
@@ -147,6 +158,7 @@ image_synthesis_agent = Agent(
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     instruction=IMAGE_SYNTHESIS_INSTRUCTION,
+    tools=[generate_marketing_visual],
     output_schema=CreativeContentDeliverable,
 )
 

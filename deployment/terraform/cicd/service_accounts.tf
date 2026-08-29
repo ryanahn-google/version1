@@ -27,3 +27,13 @@ resource "google_service_account" "app_sa" {
   project      = each.value
   depends_on   = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
+
+# Dedicated Subagent Service Account
+resource "google_service_account" "subagent_sa" {
+  for_each = local.deploy_project_ids
+
+  account_id   = "${var.project_name}-subagent"
+  display_name = "${var.project_name} Subagent Service Account"
+  project      = each.value
+  depends_on   = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}

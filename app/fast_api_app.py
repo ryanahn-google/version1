@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
@@ -220,7 +220,45 @@ _INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
 
 GENERATED_MEDIA_DIR = os.path.join(AGENT_DIR, "static", "generated")
 os.makedirs(GENERATED_MEDIA_DIR, exist_ok=True)
-app.mount("/generated", StaticFiles(directory=GENERATED_MEDIA_DIR), name="generated")
+
+
+@app.get("/generated/{filename:path}", include_in_schema=False)
+async def serve_generated_asset(filename: str):
+    """Serve visual marketing assets from local disk or stream directly from GCS."""
+    local_file = os.path.join(GENERATED_MEDIA_DIR, filename)
+    if os.path.isfile(local_file):
+        return FileResponse(local_file)
+
+    # In production/staging, stream from GCS artifacts bucket if available
+    settings = get_settings()
+    bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket
+    if bucket_name:
+        try:
+            from google.cloud import storage
+
+            storage_client = storage.Client(project=settings.google_cloud_project)
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(filename)
+            if not blob.exists():
+                blobs = list(bucket.list_blobs(prefix="campaigns/"))
+                for b in blobs:
+                    if b.name.endswith(filename):
+                        blob = b
+                        break
+            if blob.exists():
+                data = blob.download_as_bytes()
+                return Response(
+                    content=data,
+                    media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+        except Exception as exc:
+            services.logger.warning(
+                "Failed streaming asset %s from GCS: %s", filename, exc
+            )
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
 
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static")

@@ -30,5 +30,5 @@ resource "google_model_armor_template" "mvc_guardrails" {
     custom_llm_response_safety_error_message = "Response rejected by Model Armor inspection."
   }
 
-  depends_on = [resource.google_project_service.project_services]
+  depends_on = [resource.google_project_service.services]
 }

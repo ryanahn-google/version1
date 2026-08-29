@@ -56,4 +56,28 @@ resource "google_project_iam_member" "app_sa_roles" {
   depends_on = [resource.google_project_service.services]
 }
 
+# Dedicated Subagent service account
+resource "google_service_account" "subagent_sa" {
+  account_id   = "${var.project_name}-subagent"
+  display_name = "${var.project_name} Subagent Service Account"
+  project      = var.project_id
+  depends_on   = [resource.google_project_service.services]
+}
+
+# Grant subagent SA the required permissions to run subagents and write to GCS
+resource "google_project_iam_member" "subagent_sa_roles" {
+  for_each = {
+    for pair in setproduct(keys(local.project_ids), var.subagent_sa_roles) :
+    join(",", pair) => {
+      project = local.project_ids[pair[0]]
+      role    = pair[1]
+    }
+  }
+
+  project    = each.value.project
+  role       = each.value.role
+  member     = "serviceAccount:${google_service_account.subagent_sa.email}"
+  depends_on = [resource.google_project_service.services]
+}
+
 

@@ -60,6 +60,22 @@ resource "google_project_iam_member" "app_sa_roles" {
   depends_on = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
 
+# 4. Grant subagent SA the required permissions to run subagents and write to GCS
+resource "google_project_iam_member" "subagent_sa_roles" {
+  for_each = {
+    for pair in setproduct(keys(local.deploy_project_ids), var.subagent_sa_roles) :
+    join(",", pair) => {
+      project = local.deploy_project_ids[pair[0]]
+      role    = pair[1]
+    }
+  }
+
+  project    = each.value.project
+  role       = each.value.role
+  member     = "serviceAccount:${google_service_account.subagent_sa[split(",", each.key)[0]].email}"
+  depends_on = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
+
 
 # 4. Allow Cloud Run service SA to pull containers stored in the CICD project
 resource "google_project_iam_member" "cicd_run_invoker_artifact_registry_reader" {

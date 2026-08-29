@@ -114,7 +114,7 @@ resource "google_vertex_ai_reasoning_engine" "subagents" {
 
   spec {
     agent_framework = "google-adk"
-    service_account = google_service_account.app_sa[each.value.env_key].email
+    service_account = google_service_account.subagent_sa[each.value.env_key].email
 
     deployment_spec {
       min_instances         = 0
@@ -129,6 +129,11 @@ resource "google_vertex_ai_reasoning_engine" "subagents" {
       env {
         name  = "LOGS_BUCKET_NAME"
         value = google_storage_bucket.logs_data_bucket[each.value.project_id].name
+      }
+
+      env {
+        name  = "ARTIFACTS_BUCKET_NAME"
+        value = google_storage_bucket.artifacts_bucket[each.value.project_id].name
       }
 
       env {

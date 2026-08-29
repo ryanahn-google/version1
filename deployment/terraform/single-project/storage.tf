@@ -12,12 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-provider "google" {
-  project               = var.project_id
-  region                = var.region
-  user_project_override = true
-}
-
 resource "google_storage_bucket" "logs_data_bucket" {
   name                        = "${var.project_id}-${var.project_name}-logs"
   location                    = var.region
@@ -52,4 +46,11 @@ resource "google_storage_bucket" "artifacts_bucket" {
   }
 
   depends_on = [resource.google_project_service.services]
+}
+
+# Allow public web browser access to generated marketing visuals
+resource "google_storage_bucket_iam_member" "artifacts_public_viewer" {
+  bucket = google_storage_bucket.artifacts_bucket.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
 }

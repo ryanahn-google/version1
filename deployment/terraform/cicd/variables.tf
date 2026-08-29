@@ -66,6 +66,17 @@ variable "app_sa_roles" {
   ]
 }
 
+variable "subagent_sa_roles" {
+  description = "List of roles to assign to the dedicated subagent service account"
+  type        = list(string)
+  default = [
+    "roles/aiplatform.user",
+    "roles/storage.objectAdmin",
+    "roles/logging.logWriter",
+    "roles/cloudtrace.agent",
+  ]
+}
+
 variable "cicd_roles" {
   description = "List of roles to assign to the CICD runner service account in the CICD project"
   type        = list(string)
