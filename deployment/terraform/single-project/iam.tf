@@ -80,4 +80,12 @@ resource "google_project_iam_member" "subagent_sa_roles" {
   depends_on = [resource.google_project_service.services]
 }
 
+# Allow application SA to sign tokens / URLs for direct GCS access
+resource "google_service_account_iam_member" "app_sa_token_creator" {
+  service_account_id = google_service_account.app_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.app_sa.email}"
+  depends_on         = [resource.google_project_service.services]
+}
+
 

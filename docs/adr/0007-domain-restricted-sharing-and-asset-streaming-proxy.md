@@ -17,23 +17,19 @@ We adopt an **Authenticated Backend Streaming Proxy Architecture** on Cloud Run:
    - `google_storage_bucket_iam_member.artifacts_public_viewer` (`allUsers`) is completely removed from Terraform (`deployment/terraform/cicd/storage.tf` and `single-project/storage.tf`).
    - The GCS artifacts bucket remains strictly private, accessible only by authenticated service identities (`version1-app` and `version1-subagent`).
 
-2. **FastAPI Streaming Proxy (`/generated/{filename:path}`)**:
-   - The Cloud Run FastAPI backend exposes an internal streaming endpoint:
-     ```python
-     @app.get("/generated/{filename:path}", include_in_schema=False)
-     async def serve_generated_asset(filename: str):
-         # Streams directly from GCS artifacts bucket in memory
-     ```
-   - In staging and production, the proxy uses the Cloud Run Service Account (`version1-app`) with `roles/storage.objectAdmin` to stream the image binary in-memory directly from GCS to the client browser with appropriate `image/png` content-type headers.
+2. **FastAPI Direct Access & Streaming Endpoint (`/generated/{filename:path}`)**:
+   - In Cloud Run, the endpoint dynamically issues an HTTP 307 Temporary Redirect to a GCS V4 Signed URL (valid for 1 hour) enabled by `roles/iam.serviceAccountTokenCreator` bound to `version1-app`.
+   - The browser automatically follows the redirect and downloads the image **directly from Google Cloud Storage (`storage.googleapis.com`)**, ensuring **0 bytes of memory buffering** in Cloud Run and **0 bytes of Cloud Run network egress**.
+   - If signed URL generation is skipped or in local development, it gracefully falls back to zero-memory socket-to-socket chunked streaming (`StreamingResponse` with 64KB chunks) directly from GCS without buffering into memory.
 
 3. **Subagent URL Generation**:
-   - Subagents save image binaries to GCS and return URLs pointing to the Cloud Run proxy (`https://{cloud-run-domain}/generated/{filename}`), ensuring that the frontend React SPA renders visuals seamlessly without requiring direct GCS public read access.
+   - Subagents save image binaries to GCS and return canonical `/generated/{filename}` paths, ensuring that historical campaign sessions reopened days or months later from Cloud SQL always generate fresh, valid access links dynamically.
 
 ## Alternatives Considered
 
-### Alternative A: Google Cloud V4 Signed URLs
-Generate ephemeral Signed URLs with a finite expiration time (e.g. 1 hour) and attach them to deliverable payloads.
-- *Why it lost*: Requires frequent URL re-signing when historical campaign sessions are reopened days or weeks later from Cloud SQL, introducing state re-hydration complexity and potential stale image link failures.
+### Alternative A: Making GCS Bucket Public (`allUsers`)
+Attempting to grant `allUsers` `roles/storage.objectViewer` directly on the GCS bucket.
+- *Why it lost*: The enterprise Google Cloud organization enforces the **Domain-Restricted Sharing (DRS)** constraint (`constraints/iam.allowedPolicyMemberDomains`). Terraform fails immediately during apply with `Error 412: One or more users named in the policy do not belong to a permitted customer`.
 
 ### Alternative B: Organization Policy Exemption for DRS
 Request an exemption on `constraints/iam.allowedPolicyMemberDomains` for the artifacts bucket.
@@ -42,9 +38,7 @@ Request an exemption on `constraints/iam.allowedPolicyMemberDomains` for the art
 ## Consequences
 
 ### Positive
-- **100% DRS Compliance**: Completely eliminates Terraform deployment failures caused by organization policy enforcement.
-- **Zero Public Bucket Exposure**: GCS bucket retains uniform bucket-level access and private IAM controls.
+- **Direct Cloud Storage Downloads**: Client browsers download visual assets directly from `storage.googleapis.com` without loading image binaries into Cloud Run container memory.
+- **Zero Cloud Run Egress & Memory**: Eliminates server-side memory buffering and egress bandwidth consumption.
+- **100% DRS Compliance**: The bucket remains strictly private, passing all Terraform CI/CD checks without org policy violations.
 - **Unified Frontend Experience**: The React SPA accesses images via standard relative `/generated/` HTTP paths with zero CORS preflight or auth token URL embedding issues.
-
-### Negative / Accepted Trade-offs
-- Cloud Run egress bandwidth is consumed when proxying images from GCS to user browsers (mitigated by Cloud Run's high network throughput and small image sizes of ~1-2 MB).
