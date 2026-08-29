@@ -71,7 +71,7 @@ def test_draft_store_commit_to_gcs():
     assert store.has_draft(session_id)
 
     with patch(
-        "app.agents.creative_content.storage_service.save_visual_marketing_asset",
+        "app.storage_service.save_visual_marketing_asset",
         return_value=expected_gcs_url,
     ) as mock_save:
         gcs_url = store.commit_draft_to_gcs(session_id)

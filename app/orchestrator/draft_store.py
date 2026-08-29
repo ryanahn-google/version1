@@ -113,18 +113,21 @@ class DraftImageStore:
 
         image_bytes, _ = draft
         try:
-            from app.agents.creative_content.storage_service import (
-                save_visual_marketing_asset,
-            )
+            from app.storage_service import save_visual_marketing_asset
         except ImportError:
             try:
-                from storage_service import (  # type: ignore[no-redef]
+                from app.agents.creative_content.storage_service import (
                     save_visual_marketing_asset,
                 )
             except ImportError:
-                from .storage_service import (  # type: ignore[no-redef]
-                    save_visual_marketing_asset,
-                )
+                try:
+                    from storage_service import (  # type: ignore[no-redef]
+                        save_visual_marketing_asset,
+                    )
+                except ImportError:
+                    from .storage_service import (  # type: ignore[no-redef]
+                        save_visual_marketing_asset,
+                    )
 
         gcs_url = save_visual_marketing_asset(
             image_bytes, session_id=clean_id, user_id=user_id

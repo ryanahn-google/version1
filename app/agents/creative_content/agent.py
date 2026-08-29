@@ -22,30 +22,33 @@ Step 2: Native visual asset synthesis and persistence (Nano Banana 2 Lite).
 import asyncio
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.apps import App
 from google.adk.models import Gemini
+from google.adk.tools.tool_context import ToolContext
 from google.genai import types
 
-try:
-    from google.adk.tools import ToolContext
-except ImportError:
-    ToolContext = None  # type: ignore[assignment]
-
-try:
+if TYPE_CHECKING:
     from app.schemas.deliverables import (
         CampaignBriefDeliverable,
         CreativeContentDeliverable,
     )
     from app.settings import get_settings
-except ImportError:
-    from schemas.deliverables import (  # type: ignore[no-redef]
-        CampaignBriefDeliverable,
-        CreativeContentDeliverable,
-    )
-    from settings import get_settings  # type: ignore[no-redef]
+else:
+    try:
+        from app.schemas.deliverables import (
+            CampaignBriefDeliverable,
+            CreativeContentDeliverable,
+        )
+        from app.settings import get_settings
+    except ImportError:
+        from schemas.deliverables import (  # type: ignore[no-redef]
+            CampaignBriefDeliverable,
+            CreativeContentDeliverable,
+        )
+        from settings import get_settings  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +137,10 @@ def generate_marketing_visual(
                 effective_user_id = effective_user_id or getattr(
                     tool_context.session, "user_id", None
                 )
-            if not effective_session_id and hasattr(tool_context, "session_id"):
-                effective_session_id = tool_context.session_id
-            if not effective_user_id and hasattr(tool_context, "user_id"):
-                effective_user_id = tool_context.user_id
+            if not effective_session_id:
+                effective_session_id = getattr(tool_context, "session_id", None)
+            if not effective_user_id:
+                effective_user_id = getattr(tool_context, "user_id", None)
         except Exception as ctx_err:
             logger.debug(
                 "Could not resolve session_id/user_id from tool_context: %s", ctx_err
@@ -180,11 +183,14 @@ def generate_marketing_visual(
             contents=visual_prompt,
         )
         img_bytes: bytes | None = None
-        if resp and resp.candidates and resp.candidates[0].content.parts:
-            for part in resp.candidates[0].content.parts:
-                if getattr(part, "inline_data", None) and part.inline_data.data:
-                    img_bytes = part.inline_data.data
-                    break
+        if resp and resp.candidates:
+            content = resp.candidates[0].content
+            if content and content.parts:
+                for part in content.parts:
+                    inline_data = getattr(part, "inline_data", None)
+                    if inline_data and inline_data.data:
+                        img_bytes = inline_data.data
+                        break
 
         if img_bytes:
             if get_draft_image_store:
@@ -202,9 +208,12 @@ def generate_marketing_visual(
                 try:
                     from storage_service import save_visual_marketing_asset
                 except ImportError:
-                    from app.agents.creative_content.storage_service import (
-                        save_visual_marketing_asset,
-                    )
+                    try:
+                        from app.storage_service import save_visual_marketing_asset
+                    except ImportError:
+                        from app.agents.creative_content.storage_service import (
+                            save_visual_marketing_asset,
+                        )
 
             url = save_visual_marketing_asset(
                 img_bytes,

@@ -20,10 +20,10 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.agents.creative_content.storage_service import save_visual_marketing_asset
 from app.fast_api_app import app
 from app.orchestrator.draft_store import DraftImageStore
 from app.orchestrator.session_repo import SessionRepository
+from app.storage_service import save_visual_marketing_asset
 
 
 @pytest.mark.asyncio
@@ -104,11 +104,11 @@ def test_storage_service_user_isolation():
 
     with (
         patch(
-            "app.agents.creative_content.storage_service._resolve_project_and_bucket",
+            "app.storage_service._resolve_project_and_bucket",
             return_value=("test-proj", "test-bucket", "test-loc"),
         ),
         patch(
-            "app.agents.creative_content.storage_service._upload_via_direct_http",
+            "app.storage_service._upload_via_direct_http",
             return_value=True,
         ),
     ):
@@ -132,7 +132,7 @@ def test_commit_draft_to_gcs_with_user_id():
     assert store.has_draft(session_id)
 
     with patch(
-        "app.agents.creative_content.storage_service.save_visual_marketing_asset",
+        "app.storage_service.save_visual_marketing_asset",
         return_value=f"https://storage.googleapis.com/test-bucket/users/{user_id}/campaigns/{session_id}/creative.png",
     ) as mock_save:
         gcs_url = store.commit_draft_to_gcs(session_id, user_id=user_id)

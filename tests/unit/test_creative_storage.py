@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.agents.creative_content.storage_service import (
+from app.storage_service import (
     FALLBACK_ASSET_URL,
     save_visual_marketing_asset,
 )
@@ -141,7 +141,7 @@ def test_save_visual_marketing_asset_fallback_without_local_write(
     with (
         patch("google.cloud.storage.Client", side_effect=RuntimeError("No GCS")),
         patch(
-            "app.agents.creative_content.storage_service._upload_via_direct_http",
+            "app.storage_service._upload_via_direct_http",
             return_value=False,
         ),
     ):
@@ -159,7 +159,7 @@ def test_save_visual_marketing_asset_fallback_without_local_write(
 
 def test_extract_blob_path_from_gcs_url() -> None:
     """Verify blob path extraction from https and gs URLs."""
-    from app.agents.creative_content.storage_service import (
+    from app.storage_service import (
         extract_blob_path_from_gcs_url,
     )
 
@@ -181,7 +181,7 @@ def test_generate_v4_signed_url_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify V4 Signed URL generation with service account credentials."""
-    from app.agents.creative_content.storage_service import generate_v4_signed_url
+    from app.storage_service import generate_v4_signed_url
 
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
     monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
@@ -272,7 +272,7 @@ def test_get_campaign_visual_307_redirect(
     try:
         with (
             patch(
-                "app.agents.creative_content.storage_service.generate_v4_signed_url",
+                "app.storage_service.generate_v4_signed_url",
                 return_value=expected_signed,
             ),
             TestClient(app) as client,
@@ -344,7 +344,7 @@ def test_get_campaign_visual_token_endpoint(
     try:
         with (
             patch(
-                "app.agents.creative_content.storage_service.generate_v4_signed_url",
+                "app.storage_service.generate_v4_signed_url",
                 return_value=expected_signed,
             ),
             TestClient(app) as client,
