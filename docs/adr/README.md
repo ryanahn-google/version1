@@ -8,3 +8,4 @@
 | [0004](0004-multi-project-cicd-pipeline-and-approval-gate.md) | Multi-Project CI/CD Pipeline with Cloud Build Native Approval Gate | Accepted | 2026-08-28 | — |
 | [0005](0005-direct-vpc-egress-and-cloud-sql-auth-proxy.md) | Direct VPC Egress and Cloud SQL Auth Proxy Architecture | Accepted | 2026-08-28 | — |
 | [0006](0006-hybrid-generated-asset-storage.md) | Hybrid Generated Visual Asset Storage (Local Static Mount vs Google Cloud Storage) | Accepted | 2026-08-29 | — |
+| [0007](0007-domain-restricted-sharing-and-asset-streaming-proxy.md) | Domain-Restricted Sharing (DRS) Compliance and Authenticated Asset Streaming Proxy | Accepted | 2026-08-29 | — |
