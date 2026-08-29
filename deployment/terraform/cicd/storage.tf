@@ -53,14 +53,6 @@ resource "google_storage_bucket" "artifacts_bucket" {
   depends_on = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
 
-# Allow public web browser access to generated marketing visuals
-resource "google_storage_bucket_iam_member" "artifacts_public_viewer" {
-  for_each = toset(local.all_project_ids)
-  bucket   = google_storage_bucket.artifacts_bucket[each.value].name
-  role     = "roles/storage.objectViewer"
-  member   = "allUsers"
-}
-
 resource "google_artifact_registry_repository" "repo-artifacts-genai" {
   location      = var.region
   repository_id = "${var.project_name}-repo"

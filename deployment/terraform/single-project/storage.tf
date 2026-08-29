@@ -47,10 +47,3 @@ resource "google_storage_bucket" "artifacts_bucket" {
 
   depends_on = [resource.google_project_service.services]
 }
-
-# Allow public web browser access to generated marketing visuals
-resource "google_storage_bucket_iam_member" "artifacts_public_viewer" {
-  bucket = google_storage_bucket.artifacts_bucket.name
-  role   = "roles/storage.objectViewer"
-  member = "allUsers"
-}
