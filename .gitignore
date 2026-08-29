@@ -210,6 +210,9 @@ tools/a2a-inspector/
 *.pem
 *-key.json
 credentials*.json
+production.json
+staging.json
+
 
 # Local SQLite databases
 *.db

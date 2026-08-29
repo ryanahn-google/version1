@@ -25,11 +25,24 @@ export function CreativeContentView({ data }: { data?: CreativeContentDeliverabl
             <Sparkles className="h-4 w-4 text-purple-400" />
             {data.visualConceptTitle || 'Synthesized Campaign Visual (Nano Banana 2 Lite)'}
           </h3>
-          {data.aspectRatio && (
-            <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-              Aspect: {data.aspectRatio}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {data.assetUrl?.includes('/draft-image') ? (
+              <span className="text-[10px] text-amber-300 font-medium bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/80 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                Draft (In-Memory — Pending Approval)
+              </span>
+            ) : data.assetUrl?.startsWith('http') ? (
+              <span className="text-[10px] text-emerald-300 font-medium bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/80 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Cloud Storage Verified
+              </span>
+            ) : null}
+            {data.aspectRatio && (
+              <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                Aspect: {data.aspectRatio}
+              </span>
+            )}
+          </div>
         </div>
 
         {hasImage ? (

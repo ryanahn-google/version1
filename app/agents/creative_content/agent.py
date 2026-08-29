@@ -23,6 +23,7 @@ import asyncio
 import logging
 import os
 import re
+from typing import Any
 
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.apps import App
@@ -78,13 +79,38 @@ copy_and_prompt_agent = Agent(
 )
 
 
+get_draft_image_store: Any = None
+try:
+    from app.orchestrator.draft_store import (
+        get_draft_image_store as _get_store,
+    )
+
+    get_draft_image_store = _get_store
+except ImportError:
+    try:
+        from orchestrator.draft_store import (
+            get_draft_image_store as _get_store,
+        )
+
+        get_draft_image_store = _get_store
+    except ImportError:
+        pass
+
+
+_MOCK_PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00"
+    b"\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
 # --- Step 2: Visual Asset Synthesis Function & Agent ---
 def generate_marketing_visual(
     visual_prompt: str,
     session_id: str | None = None,
     tool_context: ToolContext | None = None,
 ) -> str:
-    """Synthesize 16:9 marketing visual with Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage.
+    """Synthesize 16:9 marketing visual with Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and hold in memory.
 
     Args:
         visual_prompt: The photorealistic, studio-quality 16:9 visual prompt describing the scene.
@@ -92,11 +118,8 @@ def generate_marketing_visual(
         tool_context: Optional ADK execution context injected automatically by the framework.
 
     Returns:
-        The accessible public HTTPS URL of the persisted marketing visual.
+        The accessible draft URL or fallback URL of the synthesized marketing visual.
     """
-    if os.environ.get("INTEGRATION_TEST") == "TRUE":
-        return FALLBACK_ASSET_URL
-
     # 1. Resolve effective session_id from direct argument, tool_context, or prompt metadata
     effective_session_id = session_id
     if not effective_session_id and tool_context:
@@ -129,6 +152,13 @@ def generate_marketing_visual(
             effective_session_id = match.group(1)
 
     effective_session_id = effective_session_id or "default"
+
+    if os.environ.get("INTEGRATION_TEST") == "TRUE":
+        if get_draft_image_store:
+            return get_draft_image_store().save_draft(
+                effective_session_id, _MOCK_PNG_BYTES
+            )
+        return FALLBACK_ASSET_URL
 
     try:
         from google.genai import Client
@@ -164,6 +194,15 @@ def generate_marketing_visual(
                     break
 
         if img_bytes:
+            if get_draft_image_store:
+                draft_url = get_draft_image_store().save_draft(
+                    effective_session_id, img_bytes
+                )
+                logger.info(
+                    "P3 Tool successfully stored draft visual in memory: %s", draft_url
+                )
+                return draft_url
+
             try:
                 from .storage_service import save_visual_marketing_asset
             except ImportError:

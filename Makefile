@@ -45,7 +45,7 @@ typecheck: ## Run static type checking with ty
 test-unit: ## Run deterministic unit tests
 	uv run pytest tests/unit
 
-test-integration: ## Run integration tests
+test-integration: build-frontend ## Run integration tests
 	uv run pytest tests/integration
 
 test: ## Run full test suite (unit + integration)
