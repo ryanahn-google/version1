@@ -74,6 +74,7 @@ variable "subagent_sa_roles" {
     "roles/storage.objectAdmin",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
+    "roles/serviceusage.serviceUsageConsumer",
   ]
 }
 
