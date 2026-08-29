@@ -61,11 +61,12 @@ steps:
           --region ${_REGION} \
           --service-name version1 \
           --image $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:$SHORT_SHA \
-          --update-env-vars="OTEL_RESOURCE_ATTRIBUTES=service.version=$COMMIT_SHA"
+          --update-env-vars="OTEL_RESOURCE_ATTRIBUTES=service.version=$COMMIT_SHA,GOOGLE_OAUTH_CLIENT_ID=${_PROD_GOOGLE_OAUTH_CLIENT_ID}"
 
 substitutions:
   _PROD_PROJECT_ID: YOUR_PROD_PROJECT_ID
   _REGION: asia-northeast3
+  _PROD_GOOGLE_OAUTH_CLIENT_ID: ""
 
 logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:
