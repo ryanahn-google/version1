@@ -51,7 +51,7 @@ paths:
                     properties:
                       orchestrator: { type: string, example: "gemini-3.1-pro" }
                       sub_agents: { type: string, example: "gemini-3.5-flash-lite" }
-                      creative_image: { type: string, example: "imagen-3.0-generate-002" }
+                      creative_image: { type: string, example: "gemini-3.1-flash-lite-image" }
 
   /api/v1/campaigns:
     post:
@@ -231,6 +231,16 @@ components:
           type: string
           enum: ["MARKET_SENSING", "STRATEGY_BRIEF", "CREATIVE_CONTENT", "PERFORMANCE_INSIGHTS", "COMPLETED"]
           example: "MARKET_SENSING"
+        tenantId:
+          type: string
+          example: "default"
+        channels:
+          type: array
+          items:
+            type: string
+        revisionCount:
+          type: integer
+          example: 0
         brandName:
           type: string
         productName:

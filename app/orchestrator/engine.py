@@ -442,7 +442,7 @@ class CampaignOrchestrationEngine:
                     data={
                         "message": (
                             "P2 Approved. Starting [P3] Creative Content "
-                            "generation (Imagen 3)..."
+                            "generation (Nano Banana 2 Lite)..."
                         )
                     },
                 )

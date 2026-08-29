@@ -21,7 +21,7 @@
 1. **What outcome does this unlock that you can't achieve today?**
    Automates desk research, briefing cycles, visual concept generation, and multi-channel budget allocation into a unified simulation, removing 4–6 weeks of fragmented email and agency friction.
 2. **Who specifically benefits, and how would they describe the benefit to a peer?**
-   Regional Campaign Planners & Global Brand Communications (GBC) Marketing Leads. "I can test 5 different campaign angles and have complete executive-ready briefs, Imagen 3 visual mockups, and ROAS projections in minutes instead of waiting a month for an agency."
+   Regional Campaign Planners & Global Brand Communications (GBC) Marketing Leads. "I can test 5 different campaign angles and have complete executive-ready briefs, Nano Banana 2 Lite visual mockups, and ROAS projections in minutes instead of waiting a month for an agency."
 3. **What is the measurable success metric, and what is the baseline today?**
    - *Metric:* End-to-end DAG execution turnaround $< 15\text{s}$ (excluding human pause time); Golden eval dataset quality score $\ge 4.0 / 5.0$ (LLM-as-a-Judge); $100\%$ JSON schema compliance for P1, P2, P4.
    - *Baseline:* 4 to 6 weeks of manual cross-agency briefing, spreadsheet modeling, and subjective review.
@@ -77,7 +77,7 @@
 16. **What is the eval set today? If none, who builds one with us?**
     Pre-configured Golden Evaluation Dataset ("Galaxy S27 Black Friday Global Campaign") stored in `agents/*/eval/datasets/golden-dataset.json`.
 17. **Rollback / kill-switch story when output quality regresses?**
-    - *Graceful Degradation:* Bounded 3-attempt exponential backoff retry. If Imagen 3 or sub-agent fails, returns structured placeholder asset and error envelope allowing marketer to approve or retry without aborting the session.
+    - *Graceful Degradation:* Bounded 3-attempt exponential backoff retry. If image generation or sub-agent fails, returns structured placeholder asset and error envelope allowing marketer to approve or retry without aborting the session.
     - *Cloud Run Revisions:* Immediate zero-downtime traffic split rollback to previous revision.
     - *Model Armor:* Instant policy toggle to block emerging attack vectors.
 
@@ -98,7 +98,7 @@
 ```mermaid
 flowchart LR
     Marketer([Marketer / Campaign Planner]) -->|Google OAuth 2.0 OIDC| CloudRun["Cloud Run Service (asia-northeast3)<br>React SPA + FastAPI Orchestrator (Gemini 3.1 Pro)"]
-    CloudRun <-->|A2A JSON-RPC Protocol| AgentRuntime["Agent Runtime Sub-Agents (asia-northeast3)<br>P1, P2, P4 (Gemini 3.5 Flash Lite) + P3 (Imagen 3)"]
+    CloudRun <-->|A2A JSON-RPC Protocol| AgentRuntime["Agent Runtime Sub-Agents (asia-northeast3)<br>P1, P2, P4 (Gemini 3.5 Flash Lite) + P3 (Nano Banana 2 Lite)"]
     CloudRun <-->|State Persistence (30d TTL)| CloudSQL[("Cloud SQL (PostgreSQL 15)<br>orchestrator_sessions")]
     CloudRun & AgentRuntime <-->|Deliverable Storage (30d TTL)| GCS[("GCS Bucket<br>gs://mvc-artifacts-*")]
     CloudRun -.->|Prompt Sanitization| ModelArmor["Model Armor Service (global)"]
@@ -208,7 +208,7 @@ Compress Nova Electronics Corp's manual 4-to-6-week multi-channel campaign plann
 
 #### 2. In Scope (MVP)
 - **Multi-Agent Sequential DAG**: Autonomous execution of [P1] Market Sensing $\to$ [P2] Strategy & Brief $\to$ [P3] Creative Content $\to$ [P4] Performance & Insights.
-- **Strict Structured Deliverables**: P1, P2, P4 output schema-validated JSON; P3 generates Imagen 3 marketing visual image saved to GCS.
+- **Strict Structured Deliverables**: P1, P2, P4 output schema-validated JSON; P3 generates Nano Banana 2 Lite marketing visual image saved to GCS.
 - **Human-in-the-Loop Review Gates**: Marketers inspect outputs via Web UI and submit text feedback or approve progression.
 - **Enterprise Security**: Google OAuth 2.0 OIDC token verification on all API requests; Google Cloud Model Armor prompt sanitization; Direct VPC Egress.
 - **Scale-to-Zero State Persistence**: Cloud SQL (PostgreSQL 15) session store managing multi-turn state across idle pauses.

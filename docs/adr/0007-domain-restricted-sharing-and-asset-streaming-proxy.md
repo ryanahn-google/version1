@@ -6,7 +6,7 @@
 - **Related**: [docs/design/TDD.md](../design/TDD.md), [deployment/terraform/cicd/storage.tf](../../deployment/terraform/cicd/storage.tf), [app/fast_api_app.py](../../app/fast_api_app.py)
 
 ## Context
-Marketing Value Creator (MVC) generates campaign visual assets via [P3] Creative Content Agent (using Imagen / Nano Banana 2 Lite) and persists them to Google Cloud Storage (`gs://{project_id}-version1-artifacts/campaigns/{sessionId}/`). Marketers reviewing the campaign in the React Single Page Application (SPA) must view these generated images in real time.
+Marketing Value Creator (MVC) generates campaign visual assets via [P3] Creative Content Agent (using Nano Banana 2 Lite) and persists them to Google Cloud Storage (`gs://{project_id}-version1-artifacts/campaigns/{sessionId}/`). Marketers reviewing the campaign in the React Single Page Application (SPA) must view these generated images in real time.
 
 In typical prototype architectures, public asset display is achieved by granting `allUsers` the `roles/storage.objectViewer` IAM role on the GCS bucket. However, enterprise Google Cloud organizations enforce the **Domain-Restricted Sharing (DRS)** constraint (`constraints/iam.allowedPolicyMemberDomains`). Under this policy, any Terraform apply attempting to grant `allUsers` or `allAuthenticatedUsers` permissions fails immediately with an organization policy violation.
 

@@ -6,7 +6,7 @@ Enterprise 3-Panel Campaign Console for Nova Electronics Corp, built with React 
 - **3-Panel Command Center**:
   - **Left**: Campaign parameter configuration (Brand, Product, Objective, Budget, Channels) & Golden Scenario pre-fill.
   - **Center**: 4-Stage Multi-Agent DAG pipeline stepper ([P1] Market Sensing $\to$ [P2] Strategy & Brief $\to$ [P3] Creative Content $\to$ [P4] Performance & Insights) with live SSE thought logs.
-  - **Right**: Deliverable inspector with custom views for structured briefs, Imagen 3 visual lightbox, budget tables, and raw JSON.
+  - **Right**: Deliverable inspector with custom views for structured briefs, visual deliverable lightbox, budget tables, and raw JSON.
 - **Human-in-the-Loop (HITL) Gate**: Sticky review action bar with approval transition and targeted revision feedback modal.
 - **Contract-First & Zero-Drift**: All TypeScript models are generated from `api/openapi.yaml` via `openapi-typescript`.
 - **Single-Origin Deployment**: Built bundle is served directly from FastAPI (`/static/` & `/mvc`) on Cloud Run.

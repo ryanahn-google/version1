@@ -154,6 +154,11 @@ export interface components {
              * @enum {string}
              */
             currentStage: "MARKET_SENSING" | "STRATEGY_BRIEF" | "CREATIVE_CONTENT" | "PERFORMANCE_INSIGHTS" | "COMPLETED";
+            /** @example default */
+            tenantId?: string;
+            channels?: string[];
+            /** @example 0 */
+            revisionCount?: number;
             brandName: string;
             productName: string;
             campaignObjective?: string;
@@ -312,7 +317,7 @@ export interface operations {
                             orchestrator?: string;
                             /** @example gemini-3.5-flash-lite */
                             sub_agents?: string;
-                            /** @example imagen-3.0-generate-002 */
+                            /** @example gemini-3.1-flash-lite-image */
                             creative_image?: string;
                         };
                     };

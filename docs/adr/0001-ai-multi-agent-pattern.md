@@ -7,7 +7,7 @@
 
 ## Context
 Marketing Value Creator (MVC) requires a multi-stage campaign planning pipeline (Market Sensing -> Strategy & Brief -> Creative Content -> Performance & Insights) with Human-in-the-Loop (HITL) review gates.
-The sub-tasks require specialized domain prompts, different foundation models (Gemini 3.5 Flash Lite vs Imagen 3), and strict boundary separation.
+The sub-tasks require specialized domain prompts, different foundation models (Gemini 3.5 Flash Lite vs Nano Banana 2 Lite), and strict boundary separation.
 Additionally, enterprise governance requires A2A (Agent-to-Agent) interoperability, auditability, and independent lifecycle management.
 
 ## Decision

@@ -121,7 +121,7 @@ class CreativeContentDeliverable(BaseModel):
 
     visualConceptTitle: str = Field(..., description="Title of the visual concept")
     visualPromptUsed: str = Field(
-        ..., description="High-detail prompt dispatched to Imagen 3"
+        ..., description="High-detail prompt dispatched to image generation model"
     )
     assetUrl: str = Field(
         ..., description="GCS URI or accessible HTTP URL of generated marketing image"

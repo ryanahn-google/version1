@@ -29,4 +29,4 @@ GCP resources are regionally deployed in `asia-northeast3` (Seoul) for data resi
 - Elimination of regional model endpoint 404 errors.
 
 ### Conditions to revisit
-- If Vertex AI releases regional endpoints for Gemini 3.5 / Imagen 3 in `asia-northeast3`.
+- If Vertex AI releases regional endpoints for Gemini 3.5 / Nano Banana 2 Lite in `asia-northeast3`.

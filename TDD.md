@@ -15,7 +15,7 @@
 ## 2. TL;DR
 The Marketing Value Creator (MVC) is an enterprise generative AI campaign planning platform built for Nova Electronics Corp to compress manual 4-to-6-week cross-agency marketing workflows into an interactive simulation taking minutes. Built using Google ADK and FastAPI, the system deploys a containerized Cloud Run service (`version1`) in `asia-northeast3` hosting a React Single Page Application (SPA) and an Orchestration Engine (powered by **Gemini 3.1 Pro**).
 
-The Orchestrator coordinates four specialized sub-agents running on Vertex AI Agent Runtime / Reasoning Engine ([P1] Market Sensing, [P2] Strategy & Brief, [P3] Creative Content, [P4] Performance & Insights) via direct Agent-to-Agent (A2A) protocol. Sub-agents P1, P2, and P4 utilize **Gemini 3.5 Flash Lite** targeting Vertex AI `global` endpoints to generate structured JSON artifacts, while P3 leverages **Imagen 3** (`imagen-3.0-generate-002`) to produce high-resolution marketing visuals saved to Google Cloud Storage.
+The Orchestrator coordinates four specialized sub-agents running on Vertex AI Agent Runtime / Reasoning Engine ([P1] Market Sensing, [P2] Strategy & Brief, [P3] Creative Content, [P4] Performance & Insights) via direct Agent-to-Agent (A2A) protocol. Sub-agents P1, P2, and P4 utilize **Gemini 3.5 Flash Lite** targeting Vertex AI `global` endpoints to generate structured JSON artifacts, while P3 leverages **Nano Banana 2 Lite** (`gemini-3.1-flash-lite-image`) to produce high-resolution marketing visuals saved to Google Cloud Storage.
 
 Marketers inspect intermediate deliverables at each stage through an interactive Web UI secured by **Google OAuth 2.0 OIDC**, with Human-in-the-Loop (HITL) approval gates. Campaign workflow states, deliverables, and ADK session histories are persisted in **Google Cloud SQL (PostgreSQL 15)** mounted securely over Cloud SQL Auth Proxy Unix domain sockets, preventing public database exposure. The entire system is governed across 3 dedicated GCP projects (`capstone-cicd`, `capstone-staging-506811`, `capstone-prod-506811`) using 100% Terraform Infrastructure-as-Code and automated Cloud Build CI/CD with Locust load-test validation and a native Production Approval Gate.
 
@@ -49,7 +49,7 @@ Previous attempts using standard chat interfaces failed due to context loss, lac
 
 ## 5. Success Criteria
 - **Quality Metric**: Intent classification accuracy $\ge 90\%$ (Gemini 3.1 Pro); Golden eval dataset quality score $\ge 4.0 / 5.0$ (LLM-as-a-Judge); $100\%$ JSON schema compliance for P1, P2, P4.
-- **Operational Metric**: Sub-agent text turn latency $< 3.0\text{s}$ (Gemini 3.5 Flash Lite); Image generation $< 8.0\text{s}$ (Imagen 3); Full E2E DAG turnaround $< 15.0\text{s}$ (excluding human pause time); Service availability $99.5\%$.
+- **Operational Metric**: Sub-agent text turn latency $< 3.0\text{s}$ (Gemini 3.5 Flash Lite); Image generation $< 8.0\text{s}$ (Nano Banana 2 Lite); Full E2E DAG turnaround $< 15.0\text{s}$ (excluding human pause time); Service availability $99.5\%$.
 - **Verification Metric**: $100\%$ pass rate on automated Locust load test (sessions & SSE streaming) executed in Cloud Build prior to production promotion gate.
 - **Adoption Metric**: $100\%$ successful end-to-end execution of golden test scenarios (e.g. "Galaxy S27 Black Friday Global Campaign") during final capstone acceptance.
 
@@ -101,7 +101,7 @@ flowchart TB
     subgraph Agent_Runtime["Vertex AI Agent Runtime (Reasoning Engine)"]
         P1["[P1] Market Sensing<br>gemini-3.5-flash-lite"]
         P2["[P2] Strategy & Brief<br>gemini-3.5-flash-lite"]
-        P3["[P3] Creative Content<br>imagen-3.0 + flash-lite"]
+        P3["[P3] Creative Content<br>flash-lite-image + flash-lite"]
         P4["[P4] Performance Insights<br>gemini-3.5-flash-lite"]
     end
 
@@ -142,7 +142,7 @@ Sub-agents are provisioned as independent Reasoning Engine instances via Terrafo
      - Pipeline: Self-contained sequential generation within the `creative_content` subagent:
        - *Step 3a (Prompt Translation & Copy)*: `gemini-3.5-flash-lite` synthesizes headline, body copy, CTA, and studio-grade 16:9 photographic prompt.
        - *Step 3b (Visual Asset Synthesis)*: `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) renders 16:9 marketing visual binary via native `generate_content`.
-       - *Step 3c (Cloud Storage Persistence)*: Subagent uploads marketing visuals exclusively to GCS (`gs://{project_id}-version1-artifacts/campaigns/{session_id}/`); never persists to local container disk. Cloud Run provides an in-memory `/generated/` streaming proxy for browser access under Domain-Restricted Sharing (DRS).
+       - *Step 3c (Cloud Storage Persistence)*: Subagent uploads marketing visuals exclusively to GCS (`gs://{project_id}-version1-artifacts/campaigns/{session_id}/`); never persists to local container disk. Visual deliverables are accessed directly from Cloud Storage.
      - Deliverable: `CreativeContentDeliverable` (PNG/JPEG image URL + prompt metadata)
   4. **[P4] Performance & Insights Agent**:
      - Model: `gemini-3.5-flash-lite` (location="global")
@@ -166,7 +166,7 @@ The deployment pipeline spans three dedicated GCP projects:
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | **Cloud SQL (PostgreSQL 15)** | Relational campaign state, deliverables JSON, and ADK multi-turn chat sessions | `orchestrator_sessions`, `sessions`, `events`, `user_states`, `app_states` | 30 days | Google-managed | Cloud SQL Auth Proxy Unix domain socket (`/cloudsql/{instance}`) via IAM + mTLS *(Local: SQLite `sqlite+aiosqlite`)* |
 | **GCS Logs Bucket** | Build logs, Locust HTML/CSV reports, OpenTelemetry JSONL completion hooks | `gs://{project_id}-version1-logs/*` | 30 days | Google-managed | Google Cloud Storage API *(Local: Console / local file)* |
-| **GCS Artifacts Bucket**| Generated PNG/JPEG marketing assets and serialized deliverables | `gs://{project_id}-version1-artifacts/*` | 30 days | Google-managed | GCS API; served to web browsers via backend `/generated/` in-memory streaming proxy complying with corporate Domain-Restricted Sharing (DRS) |
+| **GCS Artifacts Bucket**| Generated PNG/JPEG marketing assets and serialized deliverables | `gs://{project_id}-version1-artifacts/*` | 30 days | Google-managed | GCS API; direct HTTPS / GCS authenticated access |
 | **Artifact Registry** | Container image repository for Cloud Run | `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1` | Tagged by `$SHORT_SHA` | Google-managed | HTTPS / IAM |
 
 ### 9.2 Cloud SQL Relational Schemas (`version1` Database)
@@ -204,18 +204,16 @@ The deployment pipeline spans three dedicated GCP projects:
 | `/api/v1/campaigns` | `POST` | Google OAuth (Bearer) | Initialize campaign workflow; streams SSE events |
 | `/api/v1/campaigns/{sessionId}` | `GET` | Google OAuth (Bearer) | Fetch current session state & artifact URLs from Cloud SQL |
 | `/api/v1/campaigns/{sessionId}/approve` | `POST` | Google OAuth (Bearer) | Submit HITL stage approval or revision feedback |
-| `/generated/{filename:path}` | `GET` | None / Internal | Streaming proxy for generated marketing visuals stored in GCS artifacts bucket (DRS compliant) |
 | `/apps/{appName}/users/{userId}/sessions` | `POST` | Internal / Bearer | Create ADK session in Cloud SQL |
 | `/run_sse` | `POST` | Internal / Bearer | Stream ADK agent response events |
 | `/healthz` | `GET` | None | Container liveness check |
 | `/meta` | `GET` | None | Service metadata & model version negotiation |
-| `/feedback` | `POST` | Bearer | Submit user feedback for BigQuery telemetry |
 
 ### 10.2 Consumed Internal & External APIs
 | API | Endpoint Location | Expected QPS | Retry Policy | Failure Behavior |
 | :--- | :---: | :---: | :---: | :--- |
 | **Vertex AI Gemini API** | `global` | 5.0 QPS | Exponential backoff (max 3 retries) | Fallback to bounded retry, then graceful error |
-| **Vertex AI Imagen 3 API** | `global` | 1.0 QPS | 1 retry on 5xx | Return structured fallback placeholder |
+| **Vertex AI Image API (Nano Banana 2 Lite)** | `global` | 1.0 QPS | 1 retry on 5xx | Return structured fallback placeholder |
 | **Vertex AI Agent Runtime (A2A)** | `asia-northeast3` | 5.0 QPS | 3 retries with jitter | Return 500 error envelope |
 | **Google Cloud Model Armor** | `asia-northeast3` | 5.0 QPS | Fail-closed policy | Block prompt if service unavailable |
 
@@ -255,7 +253,7 @@ The deployment pipeline spans three dedicated GCP projects:
 - **Unit Economics per Campaign Run**:
   - [P1] Market Sensing (`gemini-3.5-flash-lite`): $0.00345
   - [P2] Strategy Brief (`gemini-3.5-flash-lite`): $0.00450
-  - [P3] Creative Content (`imagen-3.0-generate-002`): $0.02000 (44.0% of task cost)
+  - [P3] Creative Content (`gemini-3.1-flash-lite-image`): $0.02000 (44.0% of task cost)
   - [P4] Performance Insights (`gemini-3.5-flash-lite`): $0.00366
   - Root Orchestrator Coordination (`gemini-3.1-pro`): $0.01360 (29.9% of task cost)
   - Cloud Run & GCS Storage Compute: $0.00029

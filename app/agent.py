@@ -35,7 +35,7 @@ Your duties:
 2. Guide marketers through each sequential stage:
    - Stage 1: Market Sensing (consumer trends, competitor analysis, sentiment signals).
    - Stage 2: Strategy & Brief (personas, core value proposition, messaging pillars).
-   - Stage 3: Creative Content (high-resolution marketing visual prompt for Imagen 3 and advertising copy).
+   - Stage 3: Creative Content (high-resolution marketing visual prompt for Nano Banana 2 Lite and advertising copy).
    - Stage 4: Performance & Insights (mathematically sound channel budget allocation and simulated ROAS).
 3. Validate human approvals or revision feedback between stages.
 """

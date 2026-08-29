@@ -23,7 +23,7 @@ export function CreativeContentView({ data }: { data?: CreativeContentDeliverabl
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
             <Sparkles className="h-4 w-4 text-purple-400" />
-            {data.visualConceptTitle || 'Synthesized Campaign Visual (Imagen 3)'}
+            {data.visualConceptTitle || 'Synthesized Campaign Visual (Nano Banana 2 Lite)'}
           </h3>
           {data.aspectRatio && (
             <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
@@ -64,7 +64,7 @@ export function CreativeContentView({ data }: { data?: CreativeContentDeliverabl
         ) : (
           <div className="h-56 rounded-lg bg-slate-950/80 border border-dashed border-slate-800 flex flex-col items-center justify-center text-slate-500 p-4 text-center">
             <ImageIcon className="h-10 w-10 text-slate-600 mb-2" />
-            <p className="text-xs">Imagen 3 visual synthesis placeholder (GCS storage bucket link configured).</p>
+            <p className="text-xs">Visual synthesis placeholder (GCS storage bucket link configured).</p>
           </div>
         )}
       </div>
@@ -105,7 +105,7 @@ export function CreativeContentView({ data }: { data?: CreativeContentDeliverabl
       {data.visualPromptUsed && (
         <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-            Imagen 3 Prompt Inspector
+            Visual Generation Prompt Inspector
           </h3>
           <div className="bg-slate-950 p-2.5 rounded border border-slate-800 font-mono text-[11px] text-purple-300/90 leading-relaxed select-text">
             {data.visualPromptUsed}

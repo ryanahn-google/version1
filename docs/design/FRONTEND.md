@@ -18,9 +18,9 @@ The Marketing Value Creator (MVC) frontend is an enterprise web application desi
 2. **Real-Time Streaming Visualizer**: Server-Sent Events (SSE) stream incremental agent thoughts, task progress, and execution milestones across the 4 specialized agents:
    - `[P1] Market Sensing`
    - `[P2] Strategy & Brief`
-   - `[P3] Creative Content` (Imagen 3 visual synthesis)
+   - `[P3] Creative Content` (Nano Banana 2 Lite visual synthesis)
    - `[P4] Performance & Insights` (Channel budget allocation & ROAS)
-3. **Multimodal Deliverable Inspection**: Rich interactive syntax-highlighted views for structured JSON deliverables, an image gallery lightbox for high-resolution Imagen 3 assets, and dynamic budget distribution charts.
+3. **Multimodal Deliverable Inspection**: Rich interactive syntax-highlighted views for structured JSON deliverables, an image gallery lightbox for high-resolution marketing visual assets, and dynamic budget distribution charts.
 4. **Human-in-the-Loop (HITL) Governance**: Stage-by-stage review gates where marketers can approve continuation or inject text revision feedback to refine agent outputs.
 5. **Contract-First & Zero Drift**: 100% of data structures are type-synchronized with `api/openapi.yaml` via `openapi-typescript`.
 
@@ -65,7 +65,7 @@ flowchart LR
 - **Accent Signals**:
   - Emerald Green (`#10B981`): Completed stages, approved deliverables, positive ROAS.
   - Amber Orange (`#F59E0B`): Waiting for Human Review (HITL Gate), warnings.
-  - Indigo / Cyan (`#06B6D4`): Active streaming agents, Imagen 3 generation.
+  - Indigo / Cyan (`#06B6D4`): Active streaming agents, visual generation.
   - Rose Red (`#EF4444`): Model Armor prompt rejection, system errors.
 
 ### 4.2 3-Panel Layout Grid
@@ -80,10 +80,10 @@ flowchart LR
 | - Product Name                     |                                    | - Competitor Benchmarks                     |
 | - Objective                        | [Stage 2: Strategy & Brief]        | - Consumer Sentiment Signal                 |
 | - Budget ($)                       |   * Completed (2.1s)               |                                             |
-| - Target Channels (Checkboxes)     |                                    | [Imagen 3 Visual Concept (Stage 3)]         |
+| - Target Channels (Checkboxes)     |                                    | [Visual Concept (Stage 3)]                  |
 |                                    | [Stage 3: Creative Content]        | - High-Res Ad Mockup (Lightbox)             |
 | [Launch Simulation CTA]            |   * RUNNING (Pulsing Icon)         | - Prompt Metadata Inspector                 |
-|                                    |   * Generating Imagen 3 asset...   |                                             |
+|                                    |   * Generating visual asset...     |                                             |
 | ---------------------------------- |                                    | [Budget Allocation Table (Stage 4)]         |
 | [Recent Sessions History]          | [Stage 4: Performance & Insights]  | - Channel Mix %, Simulated ROAS             |
 | - Galaxy S27 Black Friday (Done)   |   * Pending                        |                                             |
@@ -109,7 +109,7 @@ stateDiagram-v2
     WAITING_APPROVAL_P1 --> STREAMING_P2: Marketer clicks 'Approve Stage'
     STREAMING_P2 --> WAITING_APPROVAL_P2: P2 Completed
     WAITING_APPROVAL_P2 --> STREAMING_P3: Marketer clicks 'Approve Stage'
-    STREAMING_P3 --> WAITING_APPROVAL_P3: P3 Completed (Imagen 3 visual rendered)
+    STREAMING_P3 --> WAITING_APPROVAL_P3: P3 Completed (visual rendered)
     WAITING_APPROVAL_P3 --> STREAMING_P4: Marketer clicks 'Approve Stage'
     STREAMING_P4 --> WAITING_APPROVAL_P4: P4 Completed
     WAITING_APPROVAL_P4 --> COMPLETED: Marketer clicks 'Final Approval'

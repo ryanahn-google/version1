@@ -8,7 +8,7 @@
 ## Context
 Marketing Value Creator (MVC) runs on Google Cloud Run and interacts with:
 1. Google Cloud SQL (PostgreSQL 15) for session persistence, state tracking, and campaign deliverable storage.
-2. Google Cloud APIs (Vertex AI Gemini/Imagen, Secret Manager, Model Armor, Cloud Logging) and external webhooks over the Internet.
+2. Google Cloud APIs (Vertex AI Gemini, Secret Manager, Model Armor, Cloud Logging) and external webhooks over the Internet.
 
 Securing container outbound traffic and database connectivity requires balancing network isolation, authentication, encryption, and operational simplicity.
 

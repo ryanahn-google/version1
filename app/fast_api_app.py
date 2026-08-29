@@ -25,7 +25,6 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.responses import (
     FileResponse,
-    RedirectResponse,
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
@@ -120,15 +119,9 @@ async def get_metadata():
         "models": {
             "orchestrator": "gemini-3.1-pro",
             "sub_agents": "gemini-3.5-flash-lite",
-            "creative_visual": "imagen-3.0-generate-002",
+            "creative_image": "gemini-3.1-flash-lite-image",
         },
     }
-
-
-@app.post("/feedback", tags=["System"])
-async def collect_feedback(payload: dict):
-    """Collect user feedback for BigQuery telemetry."""
-    return {"status": "success", "message": "Feedback recorded successfully"}
 
 
 @app.post(
@@ -224,75 +217,6 @@ async def approve_stage(
 
 # Static files mount for compiled React SPA
 _INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
-
-
-@app.get("/generated/{filename:path}", include_in_schema=False)
-async def serve_generated_asset(filename: str):
-    """Serve visual marketing assets directly from GCS via 307 redirect or chunked stream (zero in-memory buffering)."""
-
-    # In production/staging, stream or redirect from GCS artifacts bucket if available
-    settings = get_settings()
-    bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket
-    if bucket_name:
-        try:
-            from google.cloud import storage
-
-            storage_client = storage.Client(project=settings.google_cloud_project)
-            bucket = storage_client.bucket(bucket_name)
-            blob = bucket.blob(filename)
-            if not blob.exists():
-                blobs = list(bucket.list_blobs(prefix="campaigns/"))
-                for b in blobs:
-                    if b.name.endswith(filename):
-                        blob = b
-                        break
-            if blob.exists():
-                # Method 1: Issue HTTP 307 redirect to V4 Signed URL for direct GCS download
-                try:
-                    import datetime
-
-                    credentials = storage_client._credentials
-                    sa_email = getattr(
-                        credentials, "service_account_email", None
-                    ) or os.environ.get("SERVICE_ACCOUNT_EMAIL")
-
-                    signed_url_kwargs = {
-                        "version": "v4",
-                        "expiration": datetime.timedelta(hours=1),
-                        "method": "GET",
-                    }
-                    if sa_email and getattr(credentials, "token", None):
-                        signed_url_kwargs["service_account_email"] = sa_email
-                        signed_url_kwargs["access_token"] = credentials.token
-
-                    signed_url = blob.generate_signed_url(**signed_url_kwargs)
-                    return RedirectResponse(
-                        url=signed_url,
-                        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-                        headers={"Cache-Control": "public, max-age=3600"},
-                    )
-                except Exception as sign_exc:
-                    logger.debug(
-                        "Direct Signed URL skipped (%s), falling back to zero-memory chunked stream",
-                        sign_exc,
-                    )
-
-                # Method 2 (Fallback / Local dev): Zero-Memory Socket Streaming
-                # Streams socket-to-socket in 64KB chunks directly from GCS without buffering into memory
-                def iter_file():
-                    with blob.open("rb") as f:
-                        while chunk := f.read(64 * 1024):
-                            yield chunk
-
-                return StreamingResponse(
-                    iter_file(),
-                    media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=86400"},
-                )
-        except Exception as exc:
-            logger.warning("Failed streaming asset %s from GCS: %s", filename, exc)
-
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
 
 
 if os.path.isdir(STATIC_DIR):

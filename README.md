@@ -18,7 +18,7 @@ MVC is built using the **Google Agent Development Kit (ADK)** and **FastAPI**, o
     [Vertex AI Agent Runtime]          [Cloud SQL PostgreSQL 15]        [Google Cloud Storage]
     • P1: Market Sensing (Flash Lite)  • orchestrator_sessions          • {project_id}-version1-artifacts
     • P2: Strategy & Brief (Flash Lite)• ADK sessions & events          • {project_id}-version1-logs
-    • P3: Creative Content (Imagen 3)  (via Auth Proxy Unix Socket)     (30-day lifecycle retention)
+    • P3: Creative Content (Nano Banana 2 Lite) (via Auth Proxy Unix Socket) (30-day lifecycle retention)
     • P4: Performance Insights (Flash Lite)
 ```
 
