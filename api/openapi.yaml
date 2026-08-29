@@ -398,6 +398,14 @@ components:
         recommendations:
           type: array
           items: { type: string }
+        creativeAssetUrl:
+          type: string
+          nullable: true
+          description: "Visual asset URL evaluated for conversion and CTR impact"
+        visualConceptSummary:
+          type: string
+          nullable: true
+          description: "Creative concept summary evaluated during performance modeling"
 
     ErrorResponse:
       type: object

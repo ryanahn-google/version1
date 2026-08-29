@@ -328,6 +328,7 @@ class CampaignOrchestrationEngine:
                     currency=session.currency,
                     channels=session.channels,
                     brief=campaign_brief,
+                    creative=session.deliverables.creativeContent,
                     feedback=feedback,
                     context_id=f"{session_id}-p4-rev",
                 )
@@ -508,6 +509,7 @@ class CampaignOrchestrationEngine:
                 session.currency,
                 session.channels,
                 campaign_brief,
+                creative=session.deliverables.creativeContent,
                 context_id=f"{session_id}-p4",
             )
             updated = await self.repo.update_session(

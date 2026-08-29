@@ -212,3 +212,7 @@ credentials*.json
 
 # Local SQLite databases
 *.db
+
+# Generated visual marketing assets
+static/generated/*
+!static/generated/.gitkeep

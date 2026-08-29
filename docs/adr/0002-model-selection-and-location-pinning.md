@@ -12,7 +12,7 @@ GCP resources are regionally deployed in `asia-northeast3` (Seoul) for data resi
 ## Decision
 1. **Root Orchestrator & Eval**: Pinned to `gemini-3.1-pro` for complex intent classification, state transitions, and LLM-as-a-Judge evaluation.
 2. **Text Sub-Agents (P1, P2, P4)**: Pinned to `gemini-3.5-flash-lite` for high throughput, strict JSON schema conformance, low latency (<3.0s turn), and cost efficiency ($0.003-$0.004 per turn).
-3. **Creative Visual Sub-Agent (P3)**: Pinned to `imagen-3.0-generate-002` + `gemini-3.5-flash-lite` for prompt translation and high-resolution campaign asset generation.
+3. **Creative Visual Sub-Agent (P3)**: Executes a self-contained 2-step sequential generation pipeline entirely within the `creative_content` subagent: Step 3a uses `gemini-3.5-flash-lite` to translate strategy briefs into ad copy and studio-grade 16:9 photographic prompts; Step 3b calls **Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`)** via native Gemini `generate_content` at `location="global"` to synthesize the high-resolution image asset and persist it to hybrid storage. (Replaced deprecated Imagen models scheduled for August 17, 2026 shutdown).
 4. **Location Pinning**: Vertex AI model API calls are explicitly directed to `location="global"` endpoint to avoid regional 404/quota errors, while Cloud Run and Agent Runtime infrastructure remain in `asia-northeast3`.
 
 ## Alternatives considered

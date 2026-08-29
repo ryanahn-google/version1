@@ -139,7 +139,7 @@ class A2ASubAgentClient:
             from google.genai import Client
 
             settings = get_settings()
-            project = settings.google_cloud_project or "sample-505914"
+            project = settings.google_cloud_project
             location = settings.google_cloud_location or "global"
 
             client = Client(
@@ -370,7 +370,7 @@ class A2ASubAgentClient:
         prompt = (
             f"Campaign Brief: {brief.model_dump_json()}\n"
             f"Human Revision Instructions: {feedback or 'None'}\n\n"
-            "Translate the brief into marketing headline, body copy, CTA, and Imagen 3 visual prompt. "
+            "Translate the brief into marketing headline, body copy, CTA, and a photorealistic 16:9 visual prompt for Nano Banana. "
             "If Human Revision Instructions are provided, rigorously align the visual concept and copy with the requested changes."
         )
         if self.p3_url:
@@ -386,40 +386,16 @@ class A2ASubAgentClient:
                     e,
                 )
 
-        ai_deliv = await self._execute_local_agent(
-            prompt, CreativeContentDeliverable, "P3 Creative Content"
-        )
-        if ai_deliv:
-            return ai_deliv
+        # Delegate execution entirely to the creative_content subagent pipeline
+        from app.agents.creative_content.agent import run_creative_content_pipeline
 
-        logger.info("Executing [P3] Creative Content via local agent fallback")
-        visual_prompt = (
-            "Cinematic 8k photograph of a futuristic titanium smartphone standing upright "
-            "on a reflective wet obsidian pedestal in a neon-lit cybernetic cityscape at dusk. "
-            "Volumetric lighting, shallow depth of field, dramatic indigo and amber highlights, "
-            "ultra-sharp lens reflection, professional commercial studio product photography --ar 16:9"
+        logger.info(
+            "Executing [P3] Creative Content via self-contained sequential subagent pipeline"
         )
-        headline = "Own the Dark. Rule the Night."
-        body_copy = (
-            f"{brief.coreValueProposition} Unleash studio-level generative editing and "
-            "cinematic zoom right from your palm this Black Friday."
-        )
-        cta = "Claim Black Friday Exclusives — Double Your Storage Free"
-
-        if feedback:
-            visual_prompt = f"{visual_prompt}. Art direction update incorporating feedback: '{feedback}'."
-            headline = f"Redefined: {feedback[:40]}"
-            body_copy = f"{body_copy} Enhanced per revision request: {feedback}."
-            cta = f"Act Now: {feedback[:30]}"
-
-        return CreativeContentDeliverable(
-            visualConceptTitle=f"Night City Awakening — {brief.campaignTitle}",
-            visualPromptUsed=visual_prompt,
-            assetUrl="https://storage.googleapis.com/mvc-artifacts-public/campaigns/galaxy_s27_visual.jpg",
-            headlineCopy=headline,
-            bodyCopy=body_copy,
-            callToAction=cta,
-            aspectRatio="16:9",
+        return await run_creative_content_pipeline(
+            brief=brief,
+            feedback=feedback,
+            session_id=context_id,
         )
 
     async def run_performance_insights(
@@ -428,118 +404,144 @@ class A2ASubAgentClient:
         currency: str,
         channels: list[str],
         brief: CampaignBriefDeliverable,
+        creative: CreativeContentDeliverable | None = None,
         feedback: str | None = None,
         context_id: str | None = None,
     ) -> PerformanceInsightsDeliverable:
         """Run [P4] Performance & Insights Agent."""
+        creative_context = ""
+        if creative:
+            creative_context = (
+                f"\nEvaluated Creative Visual Concept: {creative.visualConceptTitle}\n"
+                f"Creative Headline: {creative.headlineCopy}\n"
+                f"Creative Asset URL: {creative.assetUrl}\n"
+                f"Visual Prompt: {creative.visualPromptUsed}\n"
+            )
+
         prompt = (
             f"Budget: {budget} {currency}\n"
             f"Channels: {channels}\n"
             f"Brief: {brief.model_dump_json()}\n"
+            f"{creative_context}"
             f"Human Revision Instructions: {feedback or 'None'}\n\n"
             "Model multi-channel budget allocations and forecast realistic KPIs/ROAS. "
-            "If Human Revision Instructions are provided, adjust the channel split and projections accordingly. "
-            "Ensure the sum of percentage equals 100% and amounts equal total budget."
+            "Evaluate how the creative visual concept drives engagement and conversion on visual channels. "
+            "Ensure the sum of percentage equals 100% and amounts equal total budget. "
+            "Populate creativeAssetUrl and visualConceptSummary in your deliverable."
         )
+        deliverable: PerformanceInsightsDeliverable | None = None
         if self.p4_url:
             logger.info("Calling remote [P4] A2A endpoint: %s", self.p4_url)
             try:
                 data = await self._call_remote_a2a(
                     self.p4_url, prompt, context_id=context_id
                 )
-                return PerformanceInsightsDeliverable.model_validate(data)
+                deliverable = PerformanceInsightsDeliverable.model_validate(data)
             except Exception as e:
                 logger.warning(
                     "Remote [P4] A2A call failed: %s. Falling back to local agent execution.",
                     e,
                 )
 
-        ai_deliv = await self._execute_local_agent(
-            prompt, PerformanceInsightsDeliverable, "P4 Performance Insights"
-        )
-        if ai_deliv:
-            # Ensure 100% budget conservation even with LLM output
-            total_pct = sum(a.percentage for a in ai_deliv.channelAllocations)
-            if round(total_pct, 1) != 100.0 and ai_deliv.channelAllocations:
-                diff = round(100.0 - total_pct, 1)
-                ai_deliv.channelAllocations[0].percentage = round(
-                    ai_deliv.channelAllocations[0].percentage + diff, 1
-                )
-                ai_deliv.channelAllocations[0].allocationAmount = round(
-                    budget * (ai_deliv.channelAllocations[0].percentage / 100.0), 2
-                )
-            return ai_deliv
+        if not deliverable:
+            ai_deliv = await self._execute_local_agent(
+                prompt, PerformanceInsightsDeliverable, "P4 Performance Insights"
+            )
+            if ai_deliv:
+                # Ensure 100% budget conservation even with LLM output
+                total_pct = sum(a.percentage for a in ai_deliv.channelAllocations)
+                if round(total_pct, 1) != 100.0 and ai_deliv.channelAllocations:
+                    diff = round(100.0 - total_pct, 1)
+                    ai_deliv.channelAllocations[0].percentage = round(
+                        ai_deliv.channelAllocations[0].percentage + diff, 1
+                    )
+                    ai_deliv.channelAllocations[0].allocationAmount = round(
+                        budget * (ai_deliv.channelAllocations[0].percentage / 100.0), 2
+                    )
+                deliverable = ai_deliv
 
-        logger.info("Executing [P4] Performance Insights via local agent fallback")
-        # Dynamic channel weighting based on feedback
-        allocations: list[ChannelAllocation] = []
-        n_channels = len(channels) if channels else 1
-        base_pct = round(100.0 / n_channels, 1)
+        if not deliverable:
+            logger.info("Executing [P4] Performance Insights via local agent fallback")
+            allocations: list[ChannelAllocation] = []
+            n_channels = len(channels) if channels else 1
+            base_pct = round(100.0 / n_channels, 1)
 
-        # Check if feedback mentions specific channels
-        boost_channel = None
-        if feedback:
-            fb_lower = feedback.lower()
+            boost_channel = None
+            if feedback:
+                fb_lower = feedback.lower()
+                for ch in channels:
+                    if any(word in fb_lower for word in ch.lower().split()):
+                        boost_channel = ch
+                        break
+
             for ch in channels:
-                if any(word in fb_lower for word in ch.lower().split()):
-                    boost_channel = ch
-                    break
+                pct = base_pct
+                if boost_channel:
+                    if ch == boost_channel:
+                        pct = min(60.0, base_pct + 15.0)
+                    else:
+                        pct = max(5.0, base_pct - 15.0 / max(1, n_channels - 1))
 
-        for ch in channels:
-            pct = base_pct
-            if boost_channel:
-                if ch == boost_channel:
-                    pct = min(60.0, base_pct + 15.0)
-                else:
-                    pct = max(5.0, base_pct - 15.0 / max(1, n_channels - 1))
-
-            allocations.append(
-                ChannelAllocation(
-                    channel=ch,
-                    allocationAmount=round(budget * (pct / 100.0), 2),
-                    percentage=round(pct, 1),
-                    rationale=f"Primary driver for {ch.lower()} reach"
-                    + (
-                        f" [Boosted per revision: {feedback[:30]}]"
-                        if ch == boost_channel
-                        else ""
-                    ),
+                allocations.append(
+                    ChannelAllocation(
+                        channel=ch,
+                        allocationAmount=round(budget * (pct / 100.0), 2),
+                        percentage=round(pct, 1),
+                        rationale=f"Primary driver for {ch.lower()} reach"
+                        + (
+                            f" [Boosted per revision: {feedback[:30]}]"
+                            if ch == boost_channel
+                            else ""
+                        ),
+                    )
                 )
-            )
 
-        # Normalize sum of percentages to exactly 100%
-        total_pct = sum(a.percentage for a in allocations)
-        if total_pct != 100.0 and allocations:
-            allocations[0].percentage = round(
-                allocations[0].percentage + (100.0 - total_pct), 1
-            )
-            allocations[0].allocationAmount = round(
-                budget * (allocations[0].percentage / 100.0), 2
-            )
+            total_pct = sum(a.percentage for a in allocations)
+            if total_pct != 100.0 and allocations:
+                allocations[0].percentage = round(
+                    allocations[0].percentage + (100.0 - total_pct), 1
+                )
+                allocations[0].allocationAmount = round(
+                    budget * (allocations[0].percentage / 100.0), 2
+                )
 
-        recs = [
-            "Front-load 40% of digital video spend 7 days prior to Black Friday to prime high-intent audiences.",
-            "Utilize dynamic search ads targeting trade-in keywords for immediate ROAS uplift.",
-            "A/B test the indigo neon visual creative against standard white studio renders in social retargeting.",
-        ]
-        if feedback:
-            recs.insert(
-                0,
-                f"Revision Applied: Strategy shifted per instructions ('{feedback}').",
-            )
+            recs = [
+                "Front-load 40% of digital video spend 7 days prior to Black Friday to prime high-intent audiences.",
+                "Utilize dynamic search ads targeting trade-in keywords for immediate ROAS uplift.",
+                "A/B test the indigo neon visual creative against standard white studio renders in social retargeting.",
+            ]
+            if feedback:
+                recs.insert(
+                    0,
+                    f"Revision Applied: Strategy shifted per instructions ('{feedback}').",
+                )
 
-        return PerformanceInsightsDeliverable(
-            totalBudget=budget,
-            currency=currency,
-            channelAllocations=allocations,
-            projectedKpis=ProjectedKPIs(
-                estimatedImpressions=int(budget * 29.2 if feedback else budget * 28.5),
-                estimatedClicks=int(budget * 0.98 if feedback else budget * 0.95),
-                estimatedConversions=int(
-                    budget * 0.041 if feedback else budget * 0.038
+            deliverable = PerformanceInsightsDeliverable(
+                totalBudget=budget,
+                currency=currency,
+                channelAllocations=allocations,
+                projectedKpis=ProjectedKPIs(
+                    estimatedImpressions=int(
+                        budget * 29.2 if feedback else budget * 28.5
+                    ),
+                    estimatedClicks=int(budget * 0.98 if feedback else budget * 0.95),
+                    estimatedConversions=int(
+                        budget * 0.041 if feedback else budget * 0.038
+                    ),
+                    projectedCtr=3.45 if feedback else 3.33,
                 ),
-                projectedCtr=3.45 if feedback else 3.33,
-            ),
-            expectedRoas=4.65 if feedback else 4.45,
-            recommendations=recs,
-        )
+                expectedRoas=4.65 if feedback else 4.45,
+                recommendations=recs,
+                creativeAssetUrl=creative.assetUrl if creative else None,
+                visualConceptSummary=f"Evaluated visual concept: {creative.visualConceptTitle}"
+                if creative
+                else None,
+            )
+
+        # Ensure creativeAssetUrl is carried forward
+        if creative and not deliverable.creativeAssetUrl:
+            deliverable.creativeAssetUrl = creative.assetUrl
+        if creative and not deliverable.visualConceptSummary:
+            deliverable.visualConceptSummary = f"Evaluated visual concept '{creative.visualConceptTitle}' for high-impact social and video engagement."
+
+        return deliverable

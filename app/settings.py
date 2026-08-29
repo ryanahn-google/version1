@@ -276,6 +276,21 @@ class GoogleCloudSettings(BaseAppSettings):
         ),
         description="Whether to use client certificate for Cloud SDK context.",
     )
+    sub_agent_model: str = Field(
+        default="gemini-3.5-flash-lite",
+        validation_alias=AliasChoices("SUB_AGENT_MODEL", "sub_agent_model"),
+        description="Vertex AI foundation model for structured sub-agents.",
+    )
+    image_model: str = Field(
+        default="gemini-3.1-flash-lite-image",
+        validation_alias=AliasChoices(
+            "IMAGE_MODEL",
+            "NANO_BANANA_MODEL",
+            "image_model",
+            "nano_banana_model",
+        ),
+        description="Vertex AI Nano Banana model for marketing visual generation.",
+    )
 
 
 class TelemetrySettings(BaseAppSettings):

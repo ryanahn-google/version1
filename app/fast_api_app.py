@@ -215,8 +215,12 @@ async def approve_stage(
     return updated
 
 
-# Static files mount for compiled React SPA
+# Static files mount for compiled React SPA and generated media assets
 _INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
+
+GENERATED_MEDIA_DIR = os.path.join(AGENT_DIR, "static", "generated")
+os.makedirs(GENERATED_MEDIA_DIR, exist_ok=True)
+app.mount("/generated", StaticFiles(directory=GENERATED_MEDIA_DIR), name="generated")
 
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static")

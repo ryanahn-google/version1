@@ -1,7 +1,12 @@
-import { DollarSign, ArrowUpRight, PieChart, CheckCircle, BarChart3 } from 'lucide-react';
-import type { PerformanceInsightsDeliverable } from '../../types/campaign';
+import { DollarSign, ArrowUpRight, PieChart, CheckCircle, BarChart3, Image as ImageIcon } from 'lucide-react';
+import type { PerformanceInsightsDeliverable, CreativeContentDeliverable } from '../../types/campaign';
 
-export function PerformanceInsightsView({ data }: { data?: PerformanceInsightsDeliverable | null }) {
+interface PerformanceInsightsViewProps {
+  data?: PerformanceInsightsDeliverable | null;
+  creativeContent?: CreativeContentDeliverable | null;
+}
+
+export function PerformanceInsightsView({ data, creativeContent }: PerformanceInsightsViewProps) {
   if (!data) {
     return (
       <div className="h-64 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-800 rounded-lg">
@@ -12,9 +17,43 @@ export function PerformanceInsightsView({ data }: { data?: PerformanceInsightsDe
   }
 
   const allocations = data.channelAllocations || [];
+  const visualUrl = data.creativeAssetUrl || creativeContent?.assetUrl;
 
   return (
     <div className="space-y-5 text-sm">
+      {/* Evaluated Creative Visual Concept Banner */}
+      {visualUrl && (
+        <div className="bg-gradient-to-r from-blue-950/40 via-slate-900/80 to-slate-900/80 border border-blue-900/50 rounded-lg p-4 flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative group flex-shrink-0">
+            <img
+              src={visualUrl}
+              alt="Evaluated Campaign Asset"
+              className="w-48 h-28 object-cover rounded-lg border border-slate-700/80 shadow-md transition group-hover:scale-[1.02]"
+            />
+            <span className="absolute bottom-1.5 right-1.5 bg-slate-950/80 text-[10px] font-mono text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/30">
+              16:9 Visual
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                <ImageIcon className="h-3.5 w-3.5" />
+                Evaluated Campaign Creative Asset
+              </span>
+              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                Nano Banana 2 Lite
+              </span>
+            </div>
+            <h4 className="text-sm font-bold text-slate-100 truncate">
+              {data.visualConceptSummary || creativeContent?.visualConceptTitle || 'Campaign Visual Mockup'}
+            </h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              This high-resolution creative visual concept was directly analyzed to project higher CTR and engagement across visually driven channels (Social Media and Digital Video).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Level Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3">

@@ -185,3 +185,11 @@ class PerformanceInsightsDeliverable(BaseModel):
     recommendations: list[str] = Field(
         default_factory=list, description="Performance optimization suggestions"
     )
+    creativeAssetUrl: str | None = Field(
+        default=None,
+        description="Visual asset evaluated for conversion and CTR impact",
+    )
+    visualConceptSummary: str | None = Field(
+        default=None,
+        description="Creative concept summary evaluated during performance modeling",
+    )

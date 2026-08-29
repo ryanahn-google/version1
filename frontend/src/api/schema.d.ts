@@ -238,6 +238,10 @@ export interface components {
             };
             expectedRoas: number;
             recommendations: string[];
+            /** @description Visual asset URL evaluated for conversion and CTR impact */
+            creativeAssetUrl?: string | null;
+            /** @description Creative concept summary evaluated during performance modeling */
+            visualConceptSummary?: string | null;
         };
         ErrorResponse: {
             error: string;

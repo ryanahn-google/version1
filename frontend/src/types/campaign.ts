@@ -50,8 +50,8 @@ export const STAGES: StageInfo[] = [
     deliverableKey: 'creativeContent',
     name: 'Stage 3: Creative Content',
     agentName: '[P3] Creative Content Agent',
-    model: 'imagen-3.0 + flash-lite',
-    description: 'Synthesizes visual concept prompt and renders marketing imagery via Imagen 3.',
+    model: 'gemini-3.1-flash-lite-image',
+    description: 'Synthesizes visual concept prompt and renders marketing imagery via Nano Banana 2 Lite.',
     outputName: 'visual_deliverable.png',
   },
   {

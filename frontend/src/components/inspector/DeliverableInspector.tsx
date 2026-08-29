@@ -151,7 +151,10 @@ export function DeliverableInspector({
               <CreativeContentView data={deliverables?.creativeContent} />
             )}
             {selectedStage === 'PERFORMANCE_INSIGHTS' && (
-              <PerformanceInsightsView data={deliverables?.performanceInsights} />
+              <PerformanceInsightsView
+                data={deliverables?.performanceInsights}
+                creativeContent={deliverables?.creativeContent}
+              />
             )}
           </>
         )}
