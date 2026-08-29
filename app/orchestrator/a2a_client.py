@@ -368,6 +368,7 @@ class A2ASubAgentClient:
     ) -> CreativeContentDeliverable:
         """Run [P3] Creative Content Agent."""
         prompt = (
+            f"Campaign ID / Session ID: {context_id or 'default'}\n"
             f"Campaign Brief: {brief.model_dump_json()}\n"
             f"Human Revision Instructions: {feedback or 'None'}\n\n"
             "Translate the brief into marketing headline, body copy, CTA, and a photorealistic 16:9 visual prompt for Nano Banana. "
