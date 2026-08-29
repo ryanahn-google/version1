@@ -227,5 +227,8 @@ def test_agent_card(server_fixture: subprocess.Popen[str]) -> None:
 def test_spa_serving(server_fixture: subprocess.Popen[str]) -> None:
     """Test that /static/ serves the compiled React SPA HTML."""
     response = requests.get(BASE_URL + "/static/", timeout=10)
-    assert response.status_code == 200
+    assert response.status_code == 200, (
+        f"Expected 200 but got {response.status_code}. "
+        "Ensure frontend is built (`cd frontend && npm run build` or `make build-frontend`)."
+    )
     assert "Marketing Value Creator" in response.text

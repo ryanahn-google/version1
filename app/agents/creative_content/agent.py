@@ -23,6 +23,7 @@ import asyncio
 import logging
 import os
 import re
+from typing import Any
 
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.apps import App
@@ -78,13 +79,23 @@ copy_and_prompt_agent = Agent(
 )
 
 
+get_draft_image_store: Any = None
 try:
-    from app.orchestrator.draft_store import get_draft_image_store
+    from app.orchestrator.draft_store import (
+        get_draft_image_store as _get_store,
+    )
+
+    get_draft_image_store = _get_store
 except ImportError:
     try:
-        from orchestrator.draft_store import get_draft_image_store
+        from orchestrator.draft_store import (
+            get_draft_image_store as _get_store,
+        )
+
+        get_draft_image_store = _get_store
     except ImportError:
-        get_draft_image_store = None  # type: ignore[assignment]
+        pass
+
 
 _MOCK_PNG_BYTES = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"

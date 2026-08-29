@@ -24,6 +24,17 @@ steps:
         export PATH="$$HOME/.local/bin:$$PATH"
         uv sync --locked
 
+  # Build React 19 Frontend SPA
+  - name: "node:24-alpine"
+    id: build-frontend
+    entrypoint: /bin/sh
+    args:
+      - "-c"
+      - |
+        cd frontend
+        npm ci
+        npm run build
+
   # Run unit tests using pytest
   - name: "gcr.io/cloud-builders/gcloud"
     id: unit-tests
