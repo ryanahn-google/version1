@@ -16,6 +16,9 @@ SHELL := bash
 .SHELLFLAGS := -euo pipefail -c
 .DEFAULT_GOAL := help
 
+export UV_DEFAULT_INDEX := https://pypi.org/simple
+export UV_INDEX_URL := https://pypi.org/simple
+
 PROMPT ?= "Hello"
 
 .PHONY: help install lint format format-check typecheck test-unit test-integration test quality run playground sim eval deploy ci build-frontend dev-frontend typecheck-frontend generate-api server dev dev-live

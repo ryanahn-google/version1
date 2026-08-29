@@ -114,4 +114,8 @@ filterwarnings = [
 [tool.hatch.build.targets.wheel]
 packages = ["app","frontend"]
 
+[tool.uv]
+index-url = "https://pypi.org/simple"
+
+
 

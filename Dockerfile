@@ -26,6 +26,9 @@ FROM python:3.13-slim
 
 RUN pip install --no-cache-dir uv==0.8.13
 
+ENV UV_DEFAULT_INDEX=https://pypi.org/simple
+ENV UV_INDEX_URL=https://pypi.org/simple
+
 WORKDIR /code
 
 COPY ./pyproject.toml ./README.md ./uv.lock* ./
