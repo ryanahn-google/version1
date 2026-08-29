@@ -4,6 +4,9 @@
 # Pre-commit hook enforcing formatting, linting, type checking, and tests.
 set -euo pipefail
 
+export UV_DEFAULT_INDEX="https://pypi.org/simple"
+export UV_INDEX_URL="https://pypi.org/simple"
+
 echo "============================================================"
 echo "🔍 Running pre-commit validation: format, lint, typecheck, tests..."
 echo "============================================================"
