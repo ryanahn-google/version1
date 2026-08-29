@@ -141,9 +141,19 @@ async def test_full_campaign_dag_golden_scenario():
         assert p3_deliv is not None
         assert "cinematic" in p3_deliv["visualPromptUsed"].lower()
         assert p3_deliv["assetUrl"] is not None
+        assert "/draft-image" in p3_deliv["assetUrl"]
         assert p3_deliv["aspectRatio"] == "16:9"
 
-        # Step 4: Approve P3 -> Triggers [P4] Performance & Insights
+        # Verify in-memory draft image endpoint serves the image
+        draft_img_resp = await client.get(
+            f"/api/v1/campaigns/{session_id}/draft-image",
+            headers={"Authorization": "Bearer dev-marketer-token"},
+        )
+        assert draft_img_resp.status_code == 200
+        assert draft_img_resp.headers["content-type"] == "image/png"
+        assert len(draft_img_resp.content) > 0
+
+        # Step 4: Approve P3 -> Commits draft to GCS and triggers [P4] Performance & Insights
         approve_p3_resp = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
             json={"action": "approve", "stream": False},
@@ -153,6 +163,12 @@ async def test_full_campaign_dag_golden_scenario():
         session_data = approve_p3_resp.json()
         assert session_data["status"] == CampaignStatus.COMPLETED.value
         assert session_data["currentStage"] == CampaignStage.COMPLETED.value
+
+        # Verify P3 assetUrl was committed to GCS / fallback URL upon approval
+        committed_p3 = session_data["deliverables"]["creativeContent"]
+        assert committed_p3 is not None
+        assert "/draft-image" not in committed_p3["assetUrl"]
+        assert committed_p3["assetUrl"].startswith("http")
 
         p4_deliv = session_data["deliverables"]["performanceInsights"]
         assert p4_deliv is not None

@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.responses import (
     FileResponse,
+    Response,
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +34,10 @@ from google.adk.runners import Runner
 
 from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
+from app.orchestrator.draft_store import (
+    DraftImageStore,
+    get_draft_image_store,
+)
 from app.orchestrator.engine import (
     CampaignOrchestrationEngine,
     get_orchestration_engine,
@@ -171,6 +176,33 @@ async def get_campaign_session(
             detail=f"Campaign session '{sessionId}' not found.",
         )
     return session
+
+
+@app.get(
+    "/api/v1/campaigns/{sessionId}/draft-image",
+    tags=["Campaigns"],
+    summary="Fetch in-memory draft marketing visual before approval",
+)
+async def get_draft_image(
+    sessionId: str,
+    draft_store: DraftImageStore = Depends(get_draft_image_store),
+):
+    """Serve in-memory draft marketing visual before Cloud Storage commitment."""
+    draft = draft_store.get_draft(sessionId)
+    if not draft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No in-memory draft image found for campaign session '{sessionId}'.",
+        )
+    image_bytes, mime_type = draft
+    return Response(
+        content=image_bytes,
+        media_type=mime_type,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Content-Disposition": f'inline; filename="draft_{sessionId}.png"',
+        },
+    )
 
 
 @app.post(

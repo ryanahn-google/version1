@@ -19,6 +19,7 @@ import uuid
 from collections.abc import AsyncGenerator
 
 from app.orchestrator.a2a_client import A2ASubAgentClient
+from app.orchestrator.draft_store import get_draft_image_store
 from app.orchestrator.session_repo import SessionRepository, get_session_repo
 from app.schemas.campaign import (
     ApprovalAction,
@@ -287,6 +288,9 @@ class CampaignOrchestrationEngine:
                         )
                     )
                     return
+                # Purge old in-memory draft image before re-running P3
+                get_draft_image_store().delete_draft(session_id)
+
                 deliv3 = await self.a2a.run_creative_content(
                     campaign_brief,
                     feedback=feedback,
@@ -491,6 +495,31 @@ class CampaignOrchestrationEngine:
                     )
                 )
                 return
+            # HITL Approval: Commit in-memory draft image to Cloud Storage (GCS)
+            committed_gcs_url = get_draft_image_store().commit_draft_to_gcs(session_id)
+            if committed_gcs_url and session.deliverables.creativeContent:
+                session.deliverables.creativeContent.assetUrl = committed_gcs_url
+                await self.repo.update_session(
+                    session_id,
+                    deliverables={
+                        "creativeContent": session.deliverables.creativeContent.model_dump(
+                            mode="json"
+                        )
+                    },
+                )
+                yield _format_sse(
+                    CampaignStreamEvent(
+                        event="artifact_generated",
+                        stage=current_stage.value,
+                        sessionId=session_id,
+                        data={
+                            "creativeContent": session.deliverables.creativeContent.model_dump(
+                                mode="json"
+                            )
+                        },
+                    )
+                )
+
             yield _format_sse(
                 CampaignStreamEvent(
                     event="stage_started",
@@ -498,7 +527,7 @@ class CampaignOrchestrationEngine:
                     sessionId=session_id,
                     data={
                         "message": (
-                            "P3 Approved. Starting [P4] Performance & Insights "
+                            "P3 Approved & visual committed to Cloud Storage. Starting [P4] Performance & Insights "
                             "budget allocation..."
                         )
                     },
