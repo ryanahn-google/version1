@@ -22,10 +22,8 @@ We implement a dual-mode, environment-aware asset storage architecture managed b
    - The returned `assetUrl` is an accessible HTTPS GCS URL or signed URL.
 
 2. **Local Development Storage Mode (`ENV=development` or bucket unset)**:
-   - Image binaries are saved locally to `static/generated/{assetId}.png`.
-   - FastAPI serves this directory via a dedicated static mount:
-     `app.mount("/generated", StaticFiles(directory="static/generated"), name="generated")`
-   - The returned `assetUrl` is `http://127.0.0.1:8000/generated/{assetId}.png` (or relative path `/generated/{assetId}.png`), allowing the React frontend (`CreativeContentView` and `PerformanceInsightsView`) to render the live generated visual mockup immediately.
+   - In local development without configured GCS access, the subagent directly returns the verified fallback public asset URL (`FALLBACK_ASSET_URL`) without writing files to local disk.
+   - Eliminates local `static/generated/` disk pollution and git noise completely across all environments.
 
 3. **Automated Test Isolation (`INTEGRATION_TEST=TRUE`)**:
    - Automated tests bypass live image generation API calls and return a deterministic fixture URL (`https://storage.googleapis.com/mvc-artifacts-public/campaigns/galaxy_s27_visual.jpg`), preserving fast local test execution and CI stability.

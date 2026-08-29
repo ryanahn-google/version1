@@ -215,19 +215,13 @@ async def approve_stage(
     return updated
 
 
-# Static files mount for compiled React SPA and generated media assets
+# Static files mount for compiled React SPA
 _INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
-
-GENERATED_MEDIA_DIR = os.path.join(AGENT_DIR, "static", "generated")
-os.makedirs(GENERATED_MEDIA_DIR, exist_ok=True)
 
 
 @app.get("/generated/{filename:path}", include_in_schema=False)
 async def serve_generated_asset(filename: str):
-    """Serve visual marketing assets from local disk or stream directly from GCS."""
-    local_file = os.path.join(GENERATED_MEDIA_DIR, filename)
-    if os.path.isfile(local_file):
-        return FileResponse(local_file)
+    """Stream visual marketing assets in memory from GCS artifacts bucket (DRS compliant)."""
 
     # In production/staging, stream from GCS artifacts bucket if available
     settings = get_settings()

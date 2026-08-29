@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -99,20 +98,20 @@ def save_visual_marketing_asset(
     filename: str | None = None,
     session_id: str | None = None,
 ) -> str:
-    """Save marketing visual bytes to GCS in cloud environments or local directory in dev.
+    """Save marketing visual bytes exclusively to Google Cloud Storage.
 
-    Returns the accessible public HTTPS GCS URL (or local serving URL in dev).
+    Returns the accessible public HTTPS GCS URL or fallback URL.
+    Never writes to local filesystem.
     """
     if not filename:
         clean_id = (session_id or "default").replace(":", "_").replace("/", "_")
         filename = f"creative_{clean_id}_{uuid.uuid4().hex[:6]}.png"
 
-    project, bucket_name, is_cloud_env = _resolve_project_and_bucket()
+    project, bucket_name, _ = _resolve_project_and_bucket()
     blob_path = f"campaigns/{session_id or 'default'}/{filename}"
     gcs_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
 
-    # 1. In Cloud Environment (Agent Runtime or Cloud Run) or if bucket is configured:
-    if is_cloud_env or bucket_name:
+    if bucket_name:
         # Method A: Google Cloud Storage SDK
         try:
             from google.cloud import storage
@@ -121,42 +120,19 @@ def save_visual_marketing_asset(
             bucket = storage_client.bucket(bucket_name)
             blob = bucket.blob(blob_path)
             blob.upload_from_string(image_bytes, content_type="image/png")
-            logger.info(
-                "Subagent successfully uploaded visual to GCS (SDK): %s", gcs_url
-            )
+            logger.info("Uploaded visual to GCS (SDK): %s", gcs_url)
             return gcs_url
         except Exception as sdk_exc:
             logger.warning(
-                "GCS SDK upload to %s failed (%s). Attempting direct GCS HTTP REST API...",
+                "GCS SDK upload to %s failed (%s). Attempting direct GCS REST API...",
                 bucket_name,
                 sdk_exc,
             )
 
         # Method B: Direct GCS HTTP REST API (ADC Token)
         if _upload_via_direct_http(bucket_name, blob_path, image_bytes):
-            logger.info(
-                "Subagent successfully uploaded visual to GCS (REST): %s", gcs_url
-            )
+            logger.info("Uploaded visual to GCS (REST): %s", gcs_url)
             return gcs_url
 
-        # If in Agent Runtime or Cloud Run, do NOT fall back to container local disk!
-        if is_cloud_env:
-            logger.error(
-                "All GCS upload methods failed in cloud environment. Returning fallback URL."
-            )
-            return FALLBACK_ASSET_URL
-
-    # 2. Local development fallback (strictly local workstation dev)
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
-    local_dir = project_root / "static" / "generated"
-    try:
-        local_dir.mkdir(parents=True, exist_ok=True)
-        local_path = local_dir / filename
-        local_path.write_bytes(image_bytes)
-        app_url = os.environ.get("APP_URL", "http://127.0.0.1:8000").rstrip("/")
-        if "0.0.0.0" in app_url:
-            app_url = app_url.replace("0.0.0.0", "127.0.0.1")
-        return f"{app_url}/generated/{filename}"
-    except Exception as exc:
-        logger.error("Local asset persistence failed: %s", exc)
-        return FALLBACK_ASSET_URL
+    logger.warning("GCS upload unavailable or unconfigured. Returning fallback URL.")
+    return FALLBACK_ASSET_URL

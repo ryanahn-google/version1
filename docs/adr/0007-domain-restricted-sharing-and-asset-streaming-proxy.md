@@ -22,10 +22,9 @@ We adopt an **Authenticated Backend Streaming Proxy Architecture** on Cloud Run:
      ```python
      @app.get("/generated/{filename:path}", include_in_schema=False)
      async def serve_generated_asset(filename: str):
-         # Checks local disk cache first, then streams directly from GCS artifacts bucket
+         # Streams directly from GCS artifacts bucket in memory
      ```
-   - In development, the proxy serves from the local `static/generated/` directory.
-   - In staging and production, the proxy uses the Cloud Run Service Account (`version1-app`) with `roles/storage.objectAdmin` to stream the image binary directly from GCS to the client browser with appropriate `image/png` content-type headers.
+   - In staging and production, the proxy uses the Cloud Run Service Account (`version1-app`) with `roles/storage.objectAdmin` to stream the image binary in-memory directly from GCS to the client browser with appropriate `image/png` content-type headers.
 
 3. **Subagent URL Generation**:
    - Subagents save image binaries to GCS and return URLs pointing to the Cloud Run proxy (`https://{cloud-run-domain}/generated/{filename}`), ensuring that the frontend React SPA renders visuals seamlessly without requiring direct GCS public read access.

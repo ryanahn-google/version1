@@ -142,7 +142,7 @@ Sub-agents are provisioned as independent Reasoning Engine instances via Terrafo
      - Pipeline: Self-contained sequential generation within the `creative_content` subagent:
        - *Step 3a (Prompt Translation & Copy)*: `gemini-3.5-flash-lite` synthesizes headline, body copy, CTA, and studio-grade 16:9 photographic prompt.
        - *Step 3b (Visual Asset Synthesis)*: `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) renders 16:9 marketing visual binary via native `generate_content`.
-       - *Step 3c (Dual-Mode Storage)*: Production uploads to GCS (`gs://{project_id}-version1-artifacts/campaigns/{session_id}/`); Local development saves to `static/generated/` served via FastAPI (`/generated`).
+       - *Step 3c (Cloud Storage Persistence)*: Subagent uploads marketing visuals exclusively to GCS (`gs://{project_id}-version1-artifacts/campaigns/{session_id}/`); never persists to local container disk. Cloud Run provides an in-memory `/generated/` streaming proxy for browser access under Domain-Restricted Sharing (DRS).
      - Deliverable: `CreativeContentDeliverable` (PNG/JPEG image URL + prompt metadata)
   4. **[P4] Performance & Insights Agent**:
      - Model: `gemini-3.5-flash-lite` (location="global")
@@ -166,7 +166,7 @@ The deployment pipeline spans three dedicated GCP projects:
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | **Cloud SQL (PostgreSQL 15)** | Relational campaign state, deliverables JSON, and ADK multi-turn chat sessions | `orchestrator_sessions`, `sessions`, `events`, `user_states`, `app_states` | 30 days | Google-managed | Cloud SQL Auth Proxy Unix domain socket (`/cloudsql/{instance}`) via IAM + mTLS *(Local: SQLite `sqlite+aiosqlite`)* |
 | **GCS Logs Bucket** | Build logs, Locust HTML/CSV reports, OpenTelemetry JSONL completion hooks | `gs://{project_id}-version1-logs/*` | 30 days | Google-managed | Google Cloud Storage API *(Local: Console / local file)* |
-| **GCS Artifacts Bucket**| Generated PNG/JPEG marketing assets and serialized deliverables | `gs://{project_id}-version1-artifacts/*` | 30 days | Google-managed | GCS API; served to web browsers via backend `/generated/` streaming proxy complying with corporate Domain-Restricted Sharing (DRS) *(Local: `static/generated/` mounted at `/generated`)* |
+| **GCS Artifacts Bucket**| Generated PNG/JPEG marketing assets and serialized deliverables | `gs://{project_id}-version1-artifacts/*` | 30 days | Google-managed | GCS API; served to web browsers via backend `/generated/` in-memory streaming proxy complying with corporate Domain-Restricted Sharing (DRS) |
 | **Artifact Registry** | Container image repository for Cloud Run | `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1` | Tagged by `$SHORT_SHA` | Google-managed | HTTPS / IAM |
 
 ### 9.2 Cloud SQL Relational Schemas (`version1` Database)
