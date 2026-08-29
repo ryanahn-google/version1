@@ -59,7 +59,7 @@ class AssetStorageService:
         )
         if not bucket_name:
             project = self.settings.google_cloud_project
-            if project and project not in ("sample-505914", "test-project"):
+            if project and project:
                 bucket_name = f"{project}-version1-artifacts"
 
         is_prod = (

@@ -93,7 +93,11 @@ def generate_marketing_visual(visual_prompt: str) -> str:
         project = (
             os.environ.get("GOOGLE_CLOUD_PROJECT")
             or os.environ.get("PROJECT_ID")
-            or "sample-505914"
+            or (
+                "capstone-prod-506811"
+                if os.environ.get("ENV") == "prod"
+                else "capstone-staging-506811"
+            )
         )
         location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
         image_model = os.environ.get("IMAGE_MODEL") or IMAGE_MODEL
@@ -186,7 +190,7 @@ async def run_creative_content_pipeline(
     Step 2: Synthesizes high-res 16:9 visual using Nano Banana 2 Lite and persists to storage.
     """
     settings = get_settings()
-    project = settings.google_cloud_project or "sample-505914"
+    project = settings.google_cloud_project
     location = settings.google_cloud_location or "global"
     sub_agent_model = getattr(settings, "sub_agent_model", TEXT_MODEL)
 
