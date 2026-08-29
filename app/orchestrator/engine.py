@@ -51,12 +51,16 @@ class CampaignOrchestrationEngine:
         self.a2a = a2a_client or A2ASubAgentClient()
 
     async def create_campaign(
-        self, request: CreateCampaignRequest, principal: str
+        self,
+        request: CreateCampaignRequest,
+        principal: str,
+        user_id: str | None = None,
     ) -> CampaignSessionResponse:
         """Create campaign and execute Stage 1 non-streaming."""
         session_id = f"camp-{uuid.uuid4().hex[:8]}"
         await self.repo.create_session(
             session_id=session_id,
+            user_id=user_id,
             brand_name=request.brandName,
             product_name=request.productName,
             campaign_objective=request.campaignObjective,
@@ -77,18 +81,23 @@ class CampaignOrchestrationEngine:
             status=CampaignStatus.PAUSED_FOR_REVIEW,
             current_stage=CampaignStage.MARKET_SENSING,
             deliverables={"marketSensing": deliv.model_dump(mode="json")},
+            user_id=user_id,
         )
         if not updated:
             raise RuntimeError(f"Session {session_id} not found after creation.")
         return updated
 
     async def stream_create_campaign(
-        self, request: CreateCampaignRequest, principal: str
+        self,
+        request: CreateCampaignRequest,
+        principal: str,
+        user_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Initialize campaign session and stream execution of Stage 1 (Market Sensing)."""
         session_id = f"camp-{uuid.uuid4().hex[:8]}"
         await self.repo.create_session(
             session_id=session_id,
+            user_id=user_id,
             brand_name=request.brandName,
             product_name=request.productName,
             campaign_objective=request.campaignObjective,
@@ -165,20 +174,24 @@ class CampaignOrchestrationEngine:
         session_id: str,
         request: StageApprovalRequest,
         principal: str,
+        user_id: str | None = None,
     ) -> CampaignSessionResponse | None:
         """Process approval or revision non-streaming."""
-        async for _ in self.stream_stage_approval(session_id, request, principal):
+        async for _ in self.stream_stage_approval(
+            session_id, request, principal, user_id=user_id
+        ):
             pass
-        return await self.repo.get_session(session_id)
+        return await self.repo.get_session(session_id, user_id=user_id)
 
     async def stream_stage_approval(
         self,
         session_id: str,
         request: StageApprovalRequest,
         principal: str,
+        user_id: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Handle human review approval or revision feedback, and stream subsequent execution."""
-        session = await self.repo.get_session(session_id)
+        session = await self.repo.get_session(session_id, user_id=user_id)
         if not session:
             yield _format_sse(
                 CampaignStreamEvent(
@@ -496,7 +509,9 @@ class CampaignOrchestrationEngine:
                 )
                 return
             # HITL Approval: Commit in-memory draft image to Cloud Storage (GCS)
-            committed_gcs_url = get_draft_image_store().commit_draft_to_gcs(session_id)
+            committed_gcs_url = get_draft_image_store().commit_draft_to_gcs(
+                session_id, user_id=session.userId or user_id
+            )
             if committed_gcs_url and session.deliverables.creativeContent:
                 session.deliverables.creativeContent.assetUrl = committed_gcs_url
                 await self.repo.update_session(

@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import (
     FileResponse,
     Response,
@@ -42,8 +42,22 @@ from app.orchestrator.engine import (
     CampaignOrchestrationEngine,
     get_orchestration_engine,
 )
-from app.orchestrator.security import SecurityManager, get_security_manager
-from app.orchestrator.session_repo import SessionRepository, get_session_repo
+from app.orchestrator.security import (
+    SecurityManager,
+    get_current_user,
+    get_security_manager,
+)
+from app.orchestrator.session_repo import (
+    SessionRepository,
+    UserModel,
+    get_session_repo,
+)
+from app.schemas.auth import (
+    DevLoginRequest,
+    GoogleAuthRequest,
+    LogoutResponse,
+    UserProfileResponse,
+)
 from app.schemas.campaign import (
     CampaignSessionResponse,
     CreateCampaignRequest,
@@ -117,6 +131,7 @@ async def health_check():
 @app.get("/meta", tags=["System"])
 async def get_metadata():
     """Service metadata and foundation model configuration."""
+    settings = get_settings()
     return {
         "name": "Marketing Value Creator (MVC)",
         "version": "1.0.0",
@@ -126,7 +141,193 @@ async def get_metadata():
             "sub_agents": "gemini-3.5-flash-lite",
             "creative_image": "gemini-3.1-flash-lite-image",
         },
+        "auth": {
+            "googleClientId": settings.google_oauth_client_id,
+        },
     }
+
+
+# ==========================================
+# Authentication & User Management Endpoints
+# ==========================================
+
+
+@app.post(
+    "/api/v1/auth/google",
+    response_model=UserProfileResponse,
+    responses={401: {"model": ErrorResponse}},
+    tags=["Authentication"],
+)
+async def login_with_google(
+    payload: GoogleAuthRequest,
+    response: Response,
+    request: Request,
+    security: SecurityManager = Depends(get_security_manager),
+    repo: SessionRepository = Depends(get_session_repo),
+):
+    """Verify Google OIDC ID token, auto-register/login user, and issue session cookie."""
+    settings = get_settings()
+    profile = security.verify_google_credential(payload.credential)
+    user = await repo.create_or_update_google_user(
+        google_sub=profile["sub"],
+        email=profile["email"],
+        name=profile["name"],
+        picture=profile.get("picture"),
+    )
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent")
+    token = await repo.create_auth_session(
+        user_id=user.user_id,
+        expires_days=settings.session_expire_days,
+        ip_address=ip,
+        user_agent=ua,
+    )
+
+    is_secure = settings.env == "production"
+    response.set_cookie(
+        key=security.session_cookie_name,
+        value=token,
+        max_age=settings.session_expire_days * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure,
+        path="/",
+    )
+    created_at = (
+        user.created_at.replace(tzinfo=UTC)
+        if user.created_at.tzinfo is None
+        else user.created_at
+    )
+    return UserProfileResponse(
+        userId=user.user_id,
+        email=user.email,
+        name=user.name,
+        picture=user.picture,
+        role=user.role,
+        tenantId=user.tenant_id,
+        createdAt=created_at,
+    )
+
+
+@app.post(
+    "/api/v1/auth/dev-login",
+    response_model=UserProfileResponse,
+    tags=["Authentication"],
+)
+async def dev_login(
+    response: Response,
+    request: Request,
+    payload: DevLoginRequest | None = None,
+    security: SecurityManager = Depends(get_security_manager),
+    repo: SessionRepository = Depends(get_session_repo),
+):
+    """Local development mock login establishing valid session cookie."""
+    settings = get_settings()
+    email = (payload and payload.email) or "dev-marketer@gmail.com"
+    name = (payload and payload.name) or "Dev Marketer"
+    user = await repo.create_or_update_google_user(
+        google_sub=f"mock-sub-{email}",
+        email=email,
+        name=name,
+        picture="https://lh3.googleusercontent.com/a/default-user",
+    )
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent")
+    token = await repo.create_auth_session(
+        user_id=user.user_id,
+        expires_days=settings.session_expire_days,
+        ip_address=ip,
+        user_agent=ua,
+    )
+
+    is_secure = settings.env == "production"
+    response.set_cookie(
+        key=security.session_cookie_name,
+        value=token,
+        max_age=settings.session_expire_days * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure,
+        path="/",
+    )
+    created_at = (
+        user.created_at.replace(tzinfo=UTC)
+        if user.created_at.tzinfo is None
+        else user.created_at
+    )
+    return UserProfileResponse(
+        userId=user.user_id,
+        email=user.email,
+        name=user.name,
+        picture=user.picture,
+        role=user.role,
+        tenantId=user.tenant_id,
+        createdAt=created_at,
+    )
+
+
+@app.get(
+    "/api/v1/auth/me",
+    response_model=UserProfileResponse,
+    responses={401: {"model": ErrorResponse}},
+    tags=["Authentication"],
+)
+async def get_current_user_profile(
+    user: UserModel = Depends(get_current_user),
+):
+    """Return currently authenticated user profile."""
+    created_at = (
+        user.created_at.replace(tzinfo=UTC)
+        if user.created_at.tzinfo is None
+        else user.created_at
+    )
+    return UserProfileResponse(
+        userId=user.user_id,
+        email=user.email,
+        name=user.name,
+        picture=user.picture,
+        role=user.role,
+        tenantId=user.tenant_id,
+        createdAt=created_at,
+    )
+
+
+@app.post(
+    "/api/v1/auth/logout",
+    response_model=LogoutResponse,
+    tags=["Authentication"],
+)
+async def logout(
+    request: Request,
+    response: Response,
+    repo: SessionRepository = Depends(get_session_repo),
+    security: SecurityManager = Depends(get_security_manager),
+):
+    """Invalidate current session token in Cloud SQL and clear browser cookie."""
+    token = request.cookies.get(security.session_cookie_name)
+    if token:
+        await repo.delete_auth_session(token)
+    response.delete_cookie(key=security.session_cookie_name, path="/")
+    return LogoutResponse(status="logged_out")
+
+
+# ==========================================
+# Campaign Planning & Lifecycle Endpoints
+# ==========================================
+
+
+@app.get(
+    "/api/v1/campaigns",
+    response_model=list[CampaignSessionResponse],
+    responses={401: {"model": ErrorResponse}},
+    tags=["Campaigns"],
+)
+async def list_campaigns(
+    user: UserModel = Depends(get_current_user),
+    repo: SessionRepository = Depends(get_session_repo),
+):
+    """List recent campaigns belonging to authenticated user."""
+    return await repo.list_user_campaigns(user.user_id)
 
 
 @app.post(
@@ -137,39 +338,40 @@ async def get_metadata():
 )
 async def create_campaign(
     payload: CreateCampaignRequest,
-    authorization: str | None = Header(None),
+    user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
 ):
     """Start a new multi-agent campaign planning DAG."""
-    principal = security.verify_auth_token(authorization)
     security.inspect_prompt_safety(payload.campaignObjective)
 
     if payload.stream:
         return StreamingResponse(
-            engine.stream_create_campaign(payload, principal),
+            engine.stream_create_campaign(
+                payload, principal=user.email, user_id=user.user_id
+            ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    return await engine.create_campaign(payload, principal)
+    return await engine.create_campaign(
+        payload, principal=user.email, user_id=user.user_id
+    )
 
 
 @app.get(
     "/api/v1/campaigns/{sessionId}",
     response_model=CampaignSessionResponse,
-    responses={404: {"model": ErrorResponse}},
+    responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
     tags=["Campaigns"],
 )
 async def get_campaign_session(
     sessionId: str,
-    authorization: str | None = Header(None),
-    security: SecurityManager = Depends(get_security_manager),
+    user: UserModel = Depends(get_current_user),
     repo: SessionRepository = Depends(get_session_repo),
 ):
-    """Retrieve full campaign session state and deliverables."""
-    security.verify_auth_token(authorization)
-    session = await repo.get_session(sessionId)
+    """Retrieve full campaign session state and deliverables scoped by user."""
+    session = await repo.get_session(sessionId, user_id=user.user_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -208,23 +410,26 @@ async def get_draft_image(
 @app.post(
     "/api/v1/campaigns/{sessionId}/approve",
     response_model=CampaignSessionResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+    responses={
+        400: {"model": ErrorResponse},
+        401: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
     tags=["Campaigns"],
 )
 async def approve_stage(
     sessionId: str,
     payload: StageApprovalRequest,
-    authorization: str | None = Header(None),
+    user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
     repo: SessionRepository = Depends(get_session_repo),
 ):
     """Submit human review approval or revision feedback."""
-    principal = security.verify_auth_token(authorization)
     if payload.feedback:
         security.inspect_prompt_safety(payload.feedback)
 
-    session = await repo.get_session(sessionId)
+    session = await repo.get_session(sessionId, user_id=user.user_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -233,12 +438,16 @@ async def approve_stage(
 
     if payload.stream:
         return StreamingResponse(
-            engine.stream_stage_approval(sessionId, payload, principal),
+            engine.stream_stage_approval(
+                sessionId, payload, principal=user.email, user_id=user.user_id
+            ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    updated = await engine.approve_stage(sessionId, payload, principal)
+    updated = await engine.approve_stage(
+        sessionId, payload, principal=user.email, user_id=user.user_id
+    )
     if not updated:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

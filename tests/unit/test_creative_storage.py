@@ -48,7 +48,7 @@ def test_save_visual_marketing_asset_gcs_success(
 
     assert (
         url
-        == "https://storage.googleapis.com/test-artifacts-bucket/campaigns/test_session/mockup.png"
+        == "https://storage.googleapis.com/test-artifacts-bucket/users/default/campaigns/test_session/mockup.png"
     )
     fake_blob.upload_from_string.assert_called_once_with(
         b"fake_png_data", content_type="image/png"

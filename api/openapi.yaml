@@ -10,6 +10,7 @@ servers:
   - url: /
     description: Current host
 security:
+  - cookieAuth: []
   - googleOAuth: []
 
 paths:
@@ -52,8 +53,104 @@ paths:
                       orchestrator: { type: string, example: "gemini-3.1-pro" }
                       sub_agents: { type: string, example: "gemini-3.5-flash-lite" }
                       creative_image: { type: string, example: "gemini-3.1-flash-lite-image" }
+                  auth:
+                    type: object
+                    properties:
+                      googleClientId: { type: string, nullable: true }
+
+  /api/v1/auth/google:
+    post:
+      summary: Google OAuth2 login and auto-registration
+      operationId: loginWithGoogle
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+      responses:
+        "200":
+          description: Successfully authenticated; sets mvc_session cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        "401":
+          description: Invalid Google ID token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/dev-login:
+    post:
+      summary: Local development mock login
+      operationId: devLogin
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevLoginRequest'
+      responses:
+        "200":
+          description: Successfully authenticated with mock dev account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  /api/v1/auth/me:
+    get:
+      summary: Get currently authenticated user profile
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Active user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/logout:
+    post:
+      summary: Sign out and invalidate session cookie
+      operationId: logout
+      responses:
+        "200":
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
 
   /api/v1/campaigns:
+    get:
+      summary: List campaigns owned by authenticated user
+      operationId: listUserCampaigns
+      responses:
+        "200":
+          description: List of campaigns owned by the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampaignSessionResponse'
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Start a new multi-agent campaign planning DAG
       operationId: createCampaign
@@ -146,6 +243,11 @@ paths:
 
 components:
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: mvc_session
+      description: Session cookie stored in Cloud SQL
     googleOAuth:
       type: http
       scheme: bearer
@@ -223,6 +325,10 @@ components:
         sessionId:
           type: string
           example: "camp-9f8a3c21"
+        userId:
+          type: string
+          nullable: true
+          example: "a8098c1a-f86e-11da-bd1a-00112444be1e"
         status:
           type: string
           enum: ["INITIALIZING", "RUNNING", "PAUSED_FOR_REVIEW", "COMPLETED", "FAILED"]
@@ -428,3 +534,67 @@ components:
         message: { type: string }
         traceId: { type: string }
         detail: { type: object }
+
+    GoogleAuthRequest:
+      type: object
+      required:
+        - credential
+      properties:
+        credential:
+          type: string
+          description: "Google OAuth 2.0 OIDC ID token"
+          example: "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+
+    DevLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          default: "dev-marketer@gmail.com"
+          example: "dev-marketer@gmail.com"
+        name:
+          type: string
+          default: "Dev Marketer"
+          example: "Dev Marketer"
+
+    UserProfileResponse:
+      type: object
+      required:
+        - userId
+        - email
+        - name
+        - role
+        - tenantId
+        - createdAt
+      properties:
+        userId:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          example: "dev-marketer@gmail.com"
+        name:
+          type: string
+          example: "Dev Marketer"
+        picture:
+          type: string
+          nullable: true
+          example: "https://lh3.googleusercontent.com/a/default-user"
+        role:
+          type: string
+          example: "MARKETER"
+        tenantId:
+          type: string
+          example: "default"
+        createdAt:
+          type: string
+          format: date-time
+
+    LogoutResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: "logged_out"

@@ -2,6 +2,8 @@ import type {
   CreateCampaignRequest,
   CampaignSessionResponse,
   StageApprovalRequest,
+  UserProfileResponse,
+  LogoutResponse,
   ErrorResponse,
 } from '../types/campaign';
 
@@ -40,13 +42,62 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export const apiClient = {
   async getHealth(): Promise<{ status: string; service: string }> {
-    const res = await fetch(`${API_BASE}/healthz`);
+    const res = await fetch(`${API_BASE}/healthz`, { credentials: 'include' });
     return handleResponse(res);
   },
 
   async getMeta(): Promise<Record<string, unknown>> {
-    const res = await fetch(`${API_BASE}/meta`);
+    const res = await fetch(`${API_BASE}/meta`, { credentials: 'include' });
     return handleResponse(res);
+  },
+
+  async loginWithGoogle(credential: string): Promise<UserProfileResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ credential }),
+    });
+    return handleResponse<UserProfileResponse>(res);
+  },
+
+  async devLogin(email?: string, name?: string): Promise<UserProfileResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/auth/dev-login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: email || 'dev-marketer@gmail.com',
+        name: name || 'Dev Marketer',
+      }),
+    });
+    return handleResponse<UserProfileResponse>(res);
+  },
+
+  async getCurrentUser(): Promise<UserProfileResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+      credentials: 'include',
+    });
+    return handleResponse<UserProfileResponse>(res);
+  },
+
+  async logout(): Promise<LogoutResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return handleResponse<LogoutResponse>(res);
+  },
+
+  async listUserCampaigns(): Promise<CampaignSessionResponse[]> {
+    const res = await fetch(`${API_BASE}/api/v1/campaigns`, {
+      credentials: 'include',
+    });
+    return handleResponse<CampaignSessionResponse[]>(res);
   },
 
   async createCampaign(req: CreateCampaignRequest): Promise<CampaignSessionResponse> {
@@ -55,13 +106,16 @@ export const apiClient = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(req),
     });
     return handleResponse<CampaignSessionResponse>(res);
   },
 
   async getSession(sessionId: string): Promise<CampaignSessionResponse> {
-    const res = await fetch(`${API_BASE}/api/v1/campaigns/${encodeURIComponent(sessionId)}`);
+    const res = await fetch(`${API_BASE}/api/v1/campaigns/${encodeURIComponent(sessionId)}`, {
+      credentials: 'include',
+    });
     return handleResponse<CampaignSessionResponse>(res);
   },
 
@@ -76,6 +130,7 @@ export const apiClient = {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(req),
       }
     );

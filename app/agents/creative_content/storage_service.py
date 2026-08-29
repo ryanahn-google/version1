@@ -97,6 +97,7 @@ def save_visual_marketing_asset(
     image_bytes: bytes,
     filename: str | None = None,
     session_id: str | None = None,
+    user_id: str | None = None,
 ) -> str:
     """Save marketing visual bytes exclusively to Google Cloud Storage.
 
@@ -108,7 +109,8 @@ def save_visual_marketing_asset(
         filename = f"creative_{clean_id}_{uuid.uuid4().hex[:6]}.png"
 
     project, bucket_name, _ = _resolve_project_and_bucket()
-    blob_path = f"campaigns/{session_id or 'default'}/{filename}"
+    user_prefix = f"users/{user_id}" if user_id else "users/default"
+    blob_path = f"{user_prefix}/campaigns/{session_id or 'default'}/{filename}"
     gcs_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
 
     if bucket_name:
