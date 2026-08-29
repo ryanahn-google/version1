@@ -193,6 +193,13 @@ def test_security_manager_with_injected_settings() -> None:
     assert manager.model_armor_template == "template-xyz"
 
 
+def test_security_manager_model_armor_none_safe() -> None:
+    """Verify _call_model_armor_api is safe when model_armor_template is None."""
+    manager = SecurityManager(settings=SecuritySettings(model_armor_template=None))
+    assert manager.model_armor_template is None
+    manager._call_model_armor_api("Test user prompt")
+
+
 def test_a2a_subagent_client_with_injected_settings() -> None:
     """Verify A2ASubAgentClient accepts injected A2AClientSettings."""
     custom_a2a = A2AClientSettings(

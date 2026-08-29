@@ -71,14 +71,17 @@ class SecurityManager:
 
     def _call_model_armor_api(self, text: str) -> None:
         """Calls Google Cloud Model Armor sanitizeUserPrompt API (TDD Section 10.2)."""
-        parts = self.model_armor_template.split("/")
+        template = self.model_armor_template
+        if not template:
+            return
+        parts = template.split("/")
         loc = parts[3] if len(parts) >= 4 and parts[2] == "locations" else ""
         endpoint = (
             f"https://modelarmor.{loc}.rep.googleapis.com/v1"
             if loc and loc != "global"
             else "https://modelarmor.googleapis.com/v1"
         )
-        url = f"{endpoint}/{self.model_armor_template}:sanitizeUserPrompt"
+        url = f"{endpoint}/{template}:sanitizeUserPrompt"
         payload = json.dumps({"userPromptData": {"text": text}}).encode("utf-8")
         headers = self._get_auth_headers()
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")

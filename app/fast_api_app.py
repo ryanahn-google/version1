@@ -448,7 +448,7 @@ async def get_campaign_visual(
     settings = get_settings()
     bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket
 
-    from app.agents.creative_content.storage_service import (
+    from app.storage_service import (
         extract_blob_path_from_gcs_url,
         generate_v4_signed_url,
         stream_gcs_blob,
@@ -534,7 +534,7 @@ async def get_campaign_visual_token(
     settings = get_settings()
     bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket
 
-    from app.agents.creative_content.storage_service import (
+    from app.storage_service import (
         extract_blob_path_from_gcs_url,
         generate_v4_signed_url,
     )
