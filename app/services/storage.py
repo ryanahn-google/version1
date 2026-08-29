@@ -57,10 +57,14 @@ class AssetStorageService:
         bucket_name = (
             self.settings.artifacts_bucket_name or self.settings.resolved_bucket
         )
-        is_prod = self.settings.env.lower() in (
-            "prod",
-            "production",
-            "staging",
+        if not bucket_name:
+            project = self.settings.google_cloud_project
+            if project and project not in ("sample-505914", "test-project"):
+                bucket_name = f"{project}-version1-artifacts"
+
+        is_prod = (
+            self.settings.env.lower() in ("prod", "production", "staging")
+            or bool(self.settings.artifacts_bucket_name)
         ) and bool(bucket_name)
 
         if is_prod and bucket_name:

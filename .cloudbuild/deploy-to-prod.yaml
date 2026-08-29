@@ -38,7 +38,12 @@ steps:
         echo "Deploying P1-P4 Sub-Agents exclusively to Production Agent Runtime..."
         for agent in market_sensing strategy_brief creative_content performance_insights; do
           echo "Deploying $$agent to Production Agent Runtime..."
-          (cd app/agents/$$agent && uvx google-agents-cli@1.3.1 deploy --project ${_PROD_PROJECT_ID} --region ${_REGION} --service-account version1-subagent@${_PROD_PROJECT_ID}.iam.gserviceaccount.com --no-wait) || true
+          (cd app/agents/$$agent && uvx google-agents-cli@1.3.1 deploy \
+            --project ${_PROD_PROJECT_ID} \
+            --region ${_REGION} \
+            --service-account version1-subagent@${_PROD_PROJECT_ID}.iam.gserviceaccount.com \
+            --update-env-vars="ARTIFACTS_BUCKET_NAME=${_PROD_PROJECT_ID}-version1-artifacts,PROJECT_ID=${_PROD_PROJECT_ID},GOOGLE_CLOUD_PROJECT=${_PROD_PROJECT_ID},ENV=prod" \
+            --no-wait) || true
           sleep 5
         done
 

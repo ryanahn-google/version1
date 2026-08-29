@@ -37,30 +37,46 @@ def save_visual_marketing_asset(
         clean_id = (session_id or "default").replace(":", "_").replace("/", "_")
         filename = f"creative_{clean_id}_{uuid.uuid4().hex[:6]}.png"
 
-    env = os.environ.get("ENV", "development").lower()
+    # 1. Resolve Project ID
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID")
+    if not project:
+        try:
+            import urllib.request
+
+            req = urllib.request.Request(
+                "http://metadata.google.internal/computeMetadata/v1/project/project-id",
+                headers={"Metadata-Flavor": "Google"},
+            )
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                project = resp.read().decode("utf-8").strip()
+        except Exception:
+            pass
+
+    # 2. Resolve Bucket Name
     bucket_name = os.environ.get("ARTIFACTS_BUCKET_NAME") or os.environ.get(
         "LOGS_BUCKET_NAME"
     )
-    is_prod_like = env in ("prod", "production", "staging") and bool(bucket_name)
+    if not bucket_name and project and project not in ("sample-505914", "test-project"):
+        bucket_name = f"{project}-version1-artifacts"
 
-    if is_prod_like and bucket_name:
+    # 3. Always attempt GCS upload if a bucket is resolved
+    if bucket_name:
         try:
             from google.cloud import storage
 
-            project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get(
-                "PROJECT_ID"
-            )
             storage_client = storage.Client(project=project)
             bucket = storage_client.bucket(bucket_name)
             blob_path = f"campaigns/{session_id or 'default'}/{filename}"
             blob = bucket.blob(blob_path)
             blob.upload_from_string(image_bytes, content_type="image/png")
             gcs_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
-            logger.info("Subagent persisted visual asset to GCS: %s", gcs_url)
+            logger.info("Subagent successfully uploaded visual to GCS: %s", gcs_url)
             return gcs_url
         except Exception as exc:
             logger.warning(
-                "GCS upload failed (%s). Attempting local fallback storage.", exc
+                "GCS upload to %s failed (%s). Attempting local fallback.",
+                bucket_name,
+                exc,
             )
 
     # Local development / fallback storage
