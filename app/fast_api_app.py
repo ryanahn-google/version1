@@ -540,13 +540,31 @@ async def get_campaign_visual_token(
     )
 
     blob_path = extract_blob_path_from_gcs_url(target_uri or "", bucket_name)
-    if not blob_path:
+    if not blob_path and bucket_name:
         if not session.userId:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot generate visual token: Session has no associated user_id.",
             )
-        blob_path = f"users/{session.userId}/campaigns/{sessionId}/mockup.png"
+        blob_prefix = f"users/{session.userId}/campaigns/{sessionId}/"
+        try:
+            from google.cloud import storage
+
+            client = storage.Client(project=settings.google_cloud_project)
+            bucket = client.bucket(bucket_name)
+            blobs = list(bucket.list_blobs(prefix=blob_prefix, max_results=1))
+            if blobs:
+                blob_path = blobs[0].name
+        except Exception as scan_exc:
+            logger.debug(
+                "Failed scanning bucket for blob prefix %s: %s", blob_prefix, scan_exc
+            )
+
+    if not blob_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Visual asset blob not found in Cloud Storage for campaign '{sessionId}'.",
+        )
 
     signed_url = generate_v4_signed_url(
         blob_path=blob_path,
