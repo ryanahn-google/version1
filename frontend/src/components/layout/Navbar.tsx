@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Cpu, Activity, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Cpu, Activity, LogOut } from 'lucide-react';
 import { apiClient } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 
 export function Navbar() {
   const [healthy, setHealthy] = useState<boolean | null>(null);
   const [meta, setMeta] = useState<{ region?: string; models?: Record<string, string> } | null>(null);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     apiClient
@@ -67,13 +69,41 @@ export function Navbar() {
             </span>
           </div>
 
-          <button
-            onClick={() => window.location.reload()}
-            title="Reset Console"
-            className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
+          {/* User Profile & Logout */}
+          {user && (
+            <div className="flex items-center space-x-3 pl-2 border-l border-slate-800">
+              <div className="flex items-center space-x-2">
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="w-7 h-7 rounded-full border border-slate-700 object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-blue-600/30 border border-blue-500/50 flex items-center justify-center text-blue-300 text-xs font-semibold">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="hidden sm:block text-left">
+                  <div className="text-xs font-medium text-slate-200 leading-tight">
+                    {user.name}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono leading-tight">
+                    {user.email}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => logout()}
+                title="Sign Out"
+                className="p-1.5 rounded-md hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

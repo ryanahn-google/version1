@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/campaigns": {
+    "/api/v1/auth/google": {
         parameters: {
             query?: never;
             header?: never;
@@ -46,6 +46,75 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /** Google OAuth2 login and auto-registration */
+        post: operations["loginWithGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/dev-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Local development mock login */
+        post: operations["devLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get currently authenticated user profile */
+        get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign out and invalidate session cookie */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List campaigns owned by authenticated user */
+        get: operations["listUserCampaigns"];
         put?: never;
         /**
          * Start a new multi-agent campaign planning DAG
@@ -67,6 +136,40 @@ export interface paths {
         };
         /** Get current campaign session state and deliverables */
         get: operations["getCampaignSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{sessionId}/visual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Access campaign visual via 307 redirect to V4 Signed URL or in-memory draft */
+        get: operations["getCampaignVisual"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{sessionId}/visual-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get ephemeral V4 Signed URL token for campaign visual */
+        get: operations["getCampaignVisualToken"];
         put?: never;
         post?: never;
         delete?: never;
@@ -144,6 +247,8 @@ export interface components {
         CampaignSessionResponse: {
             /** @example camp-9f8a3c21 */
             sessionId: string;
+            /** @example a8098c1a-f86e-11da-bd1a-00112444be1e */
+            userId?: string | null;
             /**
              * @example PAUSED_FOR_REVIEW
              * @enum {string}
@@ -218,6 +323,8 @@ export interface components {
             visualPromptUsed: string;
             /** @description GCS URI or HTTP URL of generated marketing image */
             assetUrl: string;
+            /** @description Direct gs:// or https:// GCS storage URI of committed asset */
+            storageUri?: string | null;
             headlineCopy: string;
             bodyCopy: string;
             callToAction: string;
@@ -253,6 +360,45 @@ export interface components {
             message: string;
             traceId: string;
             detail?: Record<string, never>;
+        };
+        GoogleAuthRequest: {
+            /**
+             * @description Google OAuth 2.0 OIDC ID token
+             * @example eyJhbGciOiJSUzI1NiIsImtpZCI6...
+             */
+            credential: string;
+        };
+        DevLoginRequest: {
+            /**
+             * @default dev-marketer@gmail.com
+             * @example dev-marketer@gmail.com
+             */
+            email: string;
+            /**
+             * @default Dev Marketer
+             * @example Dev Marketer
+             */
+            name: string;
+        };
+        UserProfileResponse: {
+            /** @example 123e4567-e89b-12d3-a456-426614174000 */
+            userId: string;
+            /** @example dev-marketer@gmail.com */
+            email: string;
+            /** @example Dev Marketer */
+            name: string;
+            /** @example https://lh3.googleusercontent.com/a/default-user */
+            picture?: string | null;
+            /** @example MARKETER */
+            role: string;
+            /** @example default */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        LogoutResponse: {
+            /** @example logged_out */
+            status: string;
         };
     };
     responses: never;
@@ -320,7 +466,145 @@ export interface operations {
                             /** @example gemini-3.1-flash-lite-image */
                             creative_image?: string;
                         };
+                        auth?: {
+                            googleClientId?: string | null;
+                        };
                     };
+                };
+            };
+        };
+    };
+    loginWithGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description Successfully authenticated; sets mvc_session cookie */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileResponse"];
+                };
+            };
+            /** @description Invalid Google ID token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    devLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DevLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successfully authenticated with mock dev account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileResponse"];
+                };
+            };
+        };
+    };
+    getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active user profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successfully logged out */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+        };
+    };
+    listUserCampaigns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of campaigns owned by the current user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignSessionResponse"][];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -389,6 +673,81 @@ export interface operations {
                 };
             };
             /** @description Campaign session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCampaignVisual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image binary stream (for in-memory draft or streaming fallback) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Temporary redirect to Google Cloud Storage V4 Signed URL */
+            307: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Visual asset or campaign not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCampaignVisualToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ephemeral V4 Signed URL token and expiration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example https://storage.googleapis.com/bucket/path?X-Goog-Signature=... */
+                        signedUrl?: string;
+                        /** @example 3600 */
+                        expiresIn?: number;
+                    };
+                };
+            };
+            /** @description Visual asset or campaign not found */
             404: {
                 headers: {
                     [name: string]: unknown;

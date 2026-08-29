@@ -94,7 +94,9 @@ class DraftImageStore:
         with self._lock:
             return clean_id in self._cache
 
-    def commit_draft_to_gcs(self, session_id: str) -> str | None:
+    def commit_draft_to_gcs(
+        self, session_id: str, user_id: str | None = None
+    ) -> str | None:
         """Commit draft image from memory to GCS upon HITL approval.
 
         Returns the permanent public HTTPS GCS URL, or None if no draft existed.
@@ -124,10 +126,13 @@ class DraftImageStore:
                     save_visual_marketing_asset,
                 )
 
-        gcs_url = save_visual_marketing_asset(image_bytes, session_id=clean_id)
+        gcs_url = save_visual_marketing_asset(
+            image_bytes, session_id=clean_id, user_id=user_id
+        )
         logger.info(
-            "Successfully committed draft image to GCS for session '%s': %s",
+            "Successfully committed draft image to GCS for session '%s' (user: '%s'): %s",
             clean_id,
+            user_id,
             gcs_url,
         )
         return gcs_url

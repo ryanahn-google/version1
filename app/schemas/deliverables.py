@@ -126,6 +126,10 @@ class CreativeContentDeliverable(BaseModel):
     assetUrl: str = Field(
         ..., description="GCS URI or accessible HTTP URL of generated marketing image"
     )
+    storageUri: str | None = Field(
+        default=None,
+        description="Direct gs:// or https:// GCS storage URI of committed asset",
+    )
     headlineCopy: str = Field(..., description="Catchy primary headline")
     bodyCopy: str = Field(..., description="Supporting promotional body copy")
     callToAction: str = Field(

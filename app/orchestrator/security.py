@@ -19,12 +19,18 @@ import logging
 import re
 import urllib.error
 import urllib.request
+from typing import Any
 
 import google.auth
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 
+from app.orchestrator.session_repo import (
+    SessionRepository,
+    UserModel,
+    get_session_repo,
+)
 from app.settings import SecuritySettings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -46,6 +52,7 @@ class SecurityManager:
         cfg = settings or get_settings()
         self.env = cfg.env
         self.oauth_client_id = cfg.google_oauth_client_id
+        self.session_cookie_name = cfg.session_cookie_name
         self.model_armor_template = cfg.model_armor_template
         self._credentials = None
 
@@ -135,6 +142,32 @@ class SecurityManager:
                 detail="Invalid Google OAuth ID token.",
             ) from exc
 
+    def verify_google_credential(self, credential: str) -> dict[str, Any]:
+        """Verify Google OIDC ID token and return user profile dict."""
+        try:
+            req = google_requests.Request()
+            verify_kwargs: dict[str, Any] = {}
+            if self.oauth_client_id:
+                verify_kwargs["audience"] = self.oauth_client_id
+
+            id_info = id_token.verify_oauth2_token(credential, req, **verify_kwargs)
+            email = id_info.get("email")
+            if not email:
+                raise ValueError("Token missing verified email claim.")
+
+            return {
+                "sub": id_info.get("sub"),
+                "email": email,
+                "name": id_info.get("name") or email.split("@")[0],
+                "picture": id_info.get("picture"),
+            }
+        except Exception as exc:
+            logger.warning("Google ID token verification failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Google OAuth ID token.",
+            ) from exc
+
     def inspect_prompt_safety(self, text: str) -> None:
         """Inspect prompt for prompt injection using Model Armor or local guardrail rules."""
         if not text:
@@ -163,3 +196,49 @@ _security_manager = SecurityManager()
 def get_security_manager() -> SecurityManager:
     """Dependency injection for security manager."""
     return _security_manager
+
+
+async def get_current_user(
+    request: Request,
+    repo: SessionRepository = Depends(get_session_repo),
+    security: SecurityManager = Depends(get_security_manager),
+) -> UserModel:
+    """Extract session token from cookie or Authorization header and return active user."""
+    token = request.cookies.get(security.session_cookie_name)
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ", 1)[1].strip()
+
+    if token:
+        user = await repo.get_user_by_session_token(token)
+        if user:
+            return user
+
+    # Development / local testing mock user fallback if token provided
+    if security.env != "production" and token:
+        mock_sub = f"mock-sub-{token}"
+        email = "dev-marketer@nova.com" if "dev" in token else f"{token}@nova.com"
+        return await repo.create_or_update_google_user(
+            google_sub=mock_sub,
+            email=email,
+            name="Dev Marketer",
+            picture="https://lh3.googleusercontent.com/a/default-user",
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated. Valid session cookie or Bearer token required.",
+    )
+
+
+async def get_optional_user(
+    request: Request,
+    repo: SessionRepository = Depends(get_session_repo),
+    security: SecurityManager = Depends(get_security_manager),
+) -> UserModel | None:
+    """Extract active user if present without throwing 401."""
+    try:
+        return await get_current_user(request, repo, security)
+    except HTTPException:
+        return None

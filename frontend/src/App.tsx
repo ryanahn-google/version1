@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, X } from 'lucide-react';
+import { ShieldAlert, X, Loader2 } from 'lucide-react';
 import { Navbar } from './components/layout/Navbar';
+import { LoginPage } from './components/auth/LoginPage';
+import { useAuth } from './context/AuthContext';
 import { CampaignForm } from './components/campaign/CampaignForm';
 import { DagTimeline } from './components/timeline/DagTimeline';
 import { DeliverableInspector } from './components/inspector/DeliverableInspector';
@@ -9,6 +11,7 @@ import { useCampaignStream } from './hooks/useCampaignStream';
 import type { StageKey } from './types/campaign';
 
 export function App() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const {
     session,
     isStreaming,
@@ -28,6 +31,23 @@ export function App() {
       setSelectedStage(session.currentStage as StageKey);
     }
   }, [session?.currentStage]);
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0a0f1d] text-slate-300">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <span className="text-xs tracking-wider uppercase text-slate-400 font-medium">
+            Loading Nova Electronics MVC...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#0a0f1d] text-slate-100">

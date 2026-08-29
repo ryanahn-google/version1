@@ -350,6 +350,11 @@ resource "google_cloud_run_v2_service" "app" {
         name  = "A2A_P4_URL"
         value = "https://${var.region}-aiplatform.googleapis.com/reasoningEngines/v1/projects/${data.google_project.project[each.key].number}/locations/${var.region}/reasoningEngines/${google_vertex_ai_reasoning_engine.subagents["${each.key}_performance_insights"].name}/api/a2a/performance_insights"
       }
+
+      env {
+        name  = "GOOGLE_OAUTH_CLIENT_ID"
+        value = local.google_oauth_client_ids[each.key] != null ? local.google_oauth_client_ids[each.key] : ""
+      }
     }
 
     service_account                = google_service_account.app_sa[each.key].email

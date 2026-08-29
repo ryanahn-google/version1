@@ -31,7 +31,7 @@ export function CreativeContentView({ data }: { data?: CreativeContentDeliverabl
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                 Draft (In-Memory — Pending Approval)
               </span>
-            ) : data.assetUrl?.startsWith('http') ? (
+            ) : data.assetUrl?.includes('/visual') || data.assetUrl?.startsWith('http') ? (
               <span className="text-[10px] text-emerald-300 font-medium bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/80 flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 Cloud Storage Verified

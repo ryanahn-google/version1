@@ -138,6 +138,9 @@ class CampaignSessionResponse(BaseModel):
     """Complete campaign session details."""
 
     sessionId: str = Field(..., description="Unique campaign session identifier")
+    userId: str | None = Field(
+        default=None, description="Owner user ID for user-isolated access"
+    )
     tenantId: str = Field(
         default="default", description="Tenant identifier for multi-tenancy"
     )

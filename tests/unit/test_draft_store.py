@@ -77,7 +77,7 @@ def test_draft_store_commit_to_gcs():
         gcs_url = store.commit_draft_to_gcs(session_id)
 
     assert gcs_url == expected_gcs_url
-    mock_save.assert_called_once_with(fake_png, session_id=session_id)
+    mock_save.assert_called_once_with(fake_png, session_id=session_id, user_id=None)
     # Draft should be cleared from memory after commit
     assert store.has_draft(session_id) is False
     assert store.get_draft(session_id) is None

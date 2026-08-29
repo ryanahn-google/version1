@@ -63,5 +63,10 @@ locals {
     "creative_content",
     "performance_insights"
   ]
+
+  google_oauth_client_ids = {
+    staging = var.staging_google_oauth_client_id
+    prod    = var.prod_google_oauth_client_id
+  }
 }
 

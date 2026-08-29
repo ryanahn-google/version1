@@ -143,3 +143,15 @@ variable "feedback_logs_filter" {
   default     = "jsonPayload.log_type=\"feedback\" jsonPayload.service_name=\"v1\""
 }
 
+variable "staging_google_oauth_client_id" {
+  type        = string
+  description = "Google OAuth 2.0 Client ID for Staging environment."
+  default     = null
+}
+
+variable "prod_google_oauth_client_id" {
+  type        = string
+  description = "Google OAuth 2.0 Client ID for Production environment."
+  default     = null
+}
+

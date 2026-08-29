@@ -81,6 +81,16 @@ class SecuritySettings(BaseAppSettings):
         validation_alias=AliasChoices("_ID_TOKEN", "ID_TOKEN", "id_token"),
         description="Optional OIDC ID token for authenticated testing.",
     )
+    session_cookie_name: str = Field(
+        default="mvc_session",
+        validation_alias=AliasChoices("SESSION_COOKIE_NAME", "session_cookie_name"),
+        description="Cookie name for browser session authentication.",
+    )
+    session_expire_days: int = Field(
+        default=7,
+        validation_alias=AliasChoices("SESSION_EXPIRE_DAYS", "session_expire_days"),
+        description="Session cookie expiration duration in days.",
+    )
 
 
 class A2AClientSettings(BaseAppSettings):

@@ -8,6 +8,10 @@ export type CampaignBriefDeliverable = components['schemas']['CampaignBriefDeliv
 export type CreativeContentDeliverable = components['schemas']['CreativeContentDeliverable'];
 export type PerformanceInsightsDeliverable = components['schemas']['PerformanceInsightsDeliverable'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
+export type GoogleAuthRequest = components['schemas']['GoogleAuthRequest'];
+export type DevLoginRequest = components['schemas']['DevLoginRequest'];
+export type UserProfileResponse = components['schemas']['UserProfileResponse'];
+export type LogoutResponse = components['schemas']['LogoutResponse'];
 
 export type CampaignStatus = CampaignSessionResponse['status'];
 export type StageKey =
