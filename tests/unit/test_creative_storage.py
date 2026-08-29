@@ -44,17 +44,90 @@ def test_save_visual_marketing_asset_gcs_success(
             image_bytes=b"fake_png_data",
             filename="mockup.png",
             session_id="test_session",
+            user_id="user-123",
         )
 
     assert (
         url
-        == "https://storage.googleapis.com/test-artifacts-bucket/users/default/campaigns/test_session/mockup.png"
+        == "https://storage.googleapis.com/test-artifacts-bucket/users/user-123/campaigns/test_session/mockup.png"
     )
     fake_blob.upload_from_string.assert_called_once_with(
         b"fake_png_data", content_type="image/png"
     )
     assert not os.path.exists("static/generated")
     assert not os.path.exists("static")
+
+
+def test_save_visual_marketing_asset_default_filename(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify default filename format creative_{session_id}_{hash}.png when filename is omitted."""
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv(
+        "ARTIFACTS_BUCKET_NAME", "capstone-staging-506811-version1-artifacts"
+    )
+    monkeypatch.setenv("ENV", "staging")
+
+    fake_client = MagicMock()
+    fake_bucket = MagicMock()
+    fake_blob = MagicMock()
+    fake_client.bucket.return_value = fake_bucket
+    fake_bucket.blob.return_value = fake_blob
+
+    with patch("google.cloud.storage.Client", return_value=fake_client):
+        url = save_visual_marketing_asset(
+            image_bytes=b"fake_png_data",
+            session_id="camp-50954146",
+            user_id="f4aeb07f-9778-4328-ada4-f9f8236e1191",
+        )
+
+    expected_prefix = (
+        "https://storage.googleapis.com/capstone-staging-506811-version1-artifacts/users/"
+        "f4aeb07f-9778-4328-ada4-f9f8236e1191/campaigns/camp-50954146/creative_camp-50954146_"
+    )
+    assert url.startswith(expected_prefix)
+    assert url.endswith(".png")
+    fake_blob.upload_from_string.assert_called_once_with(
+        b"fake_png_data", content_type="image/png"
+    )
+
+
+def test_save_visual_marketing_asset_rejects_missing_or_default_user() -> None:
+    """Verify ValueError is raised if user_id is missing or 'default'."""
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        save_visual_marketing_asset(
+            image_bytes=b"fake_png_data",
+            filename="mockup.png",
+            session_id="test_session",
+            user_id=None,
+        )
+
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        save_visual_marketing_asset(
+            image_bytes=b"fake_png_data",
+            filename="mockup.png",
+            session_id="test_session",
+            user_id="default",
+        )
+
+
+def test_save_visual_marketing_asset_rejects_missing_or_default_session() -> None:
+    """Verify ValueError is raised if session_id is missing or 'default'."""
+    with pytest.raises(ValueError, match="Invalid session_id"):
+        save_visual_marketing_asset(
+            image_bytes=b"fake_png_data",
+            filename="mockup.png",
+            session_id=None,
+            user_id="user-123",
+        )
+
+    with pytest.raises(ValueError, match="Invalid session_id"):
+        save_visual_marketing_asset(
+            image_bytes=b"fake_png_data",
+            filename="mockup.png",
+            session_id="default",
+            user_id="user-123",
+        )
 
 
 def test_save_visual_marketing_asset_fallback_without_local_write(
@@ -76,6 +149,7 @@ def test_save_visual_marketing_asset_fallback_without_local_write(
             image_bytes=b"fake_png_data",
             filename="fallback.png",
             session_id="test_session",
+            user_id="user-123",
         )
 
     assert url == FALLBACK_ASSET_URL

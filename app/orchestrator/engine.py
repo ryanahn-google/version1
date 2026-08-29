@@ -304,11 +304,20 @@ class CampaignOrchestrationEngine:
                 # Purge old in-memory draft image before re-running P3
                 get_draft_image_store().delete_draft(session_id)
 
+                effective_user_id = session.userId or user_id
                 deliv3 = await self.a2a.run_creative_content(
                     campaign_brief,
                     feedback=feedback,
-                    context_id=f"{session_id}-p3-rev",
+                    context_id=session_id,
+                    user_id=effective_user_id,
                 )
+                if deliv3.assetUrl and (
+                    deliv3.assetUrl.startswith("http")
+                    or deliv3.assetUrl.startswith("gs://")
+                ):
+                    deliv3.storageUri = deliv3.assetUrl
+                    deliv3.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
+
                 await self.repo.update_session(
                     session_id,
                     status=CampaignStatus.PAUSED_FOR_REVIEW,
@@ -464,9 +473,19 @@ class CampaignOrchestrationEngine:
                     },
                 )
             )
+            effective_user_id = session.userId or user_id
             deliv_p3 = await self.a2a.run_creative_content(
-                campaign_brief, context_id=f"{session_id}-p3"
+                campaign_brief,
+                context_id=session_id,
+                user_id=effective_user_id,
             )
+            if deliv_p3.assetUrl and (
+                deliv_p3.assetUrl.startswith("http")
+                or deliv_p3.assetUrl.startswith("gs://")
+            ):
+                deliv_p3.storageUri = deliv_p3.assetUrl
+                deliv_p3.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
+
             updated = await self.repo.update_session(
                 session_id,
                 status=CampaignStatus.PAUSED_FOR_REVIEW,
@@ -509,14 +528,17 @@ class CampaignOrchestrationEngine:
                 )
                 return
             # HITL Approval: Commit in-memory draft image to Cloud Storage (GCS)
+            effective_user_id = session.userId or user_id
             committed_gcs_url = get_draft_image_store().commit_draft_to_gcs(
-                session_id, user_id=session.userId or user_id
+                session_id, user_id=effective_user_id
             )
-            if committed_gcs_url and session.deliverables.creativeContent:
-                session.deliverables.creativeContent.storageUri = committed_gcs_url
-                session.deliverables.creativeContent.assetUrl = (
-                    f"/api/v1/campaigns/{session_id}/visual"
-                )
+            if session.deliverables.creativeContent:
+                if committed_gcs_url:
+                    session.deliverables.creativeContent.storageUri = committed_gcs_url
+                if session.deliverables.creativeContent.storageUri:
+                    session.deliverables.creativeContent.assetUrl = (
+                        f"/api/v1/campaigns/{session_id}/visual"
+                    )
                 await self.repo.update_session(
                     session_id,
                     deliverables={

@@ -365,10 +365,14 @@ class A2ASubAgentClient:
         brief: CampaignBriefDeliverable,
         feedback: str | None = None,
         context_id: str | None = None,
+        user_id: str | None = None,
     ) -> CreativeContentDeliverable:
         """Run [P3] Creative Content Agent."""
+        campaign_id = context_id or "default"
+        user_line = f"User ID: {user_id}\n" if user_id else ""
         prompt = (
-            f"Campaign ID / Session ID: {context_id or 'default'}\n"
+            f"{user_line}"
+            f"Campaign ID / Session ID: {campaign_id}\n"
             f"Campaign Brief: {brief.model_dump_json()}\n"
             f"Human Revision Instructions: {feedback or 'None'}\n\n"
             "Translate the brief into marketing headline, body copy, CTA, and a photorealistic 16:9 visual prompt for Nano Banana. "
@@ -380,7 +384,15 @@ class A2ASubAgentClient:
                 data = await self._call_remote_a2a(
                     self.p3_url, prompt, context_id=context_id
                 )
-                return CreativeContentDeliverable.model_validate(data)
+                deliv = CreativeContentDeliverable.model_validate(data)
+                # Normalize assetUrl and storageUri if remote subagent returned direct GCS URL
+                if deliv.assetUrl and (
+                    deliv.assetUrl.startswith("http")
+                    or deliv.assetUrl.startswith("gs://")
+                ):
+                    deliv.storageUri = deliv.assetUrl
+                    deliv.assetUrl = f"/api/v1/campaigns/{campaign_id}/visual"
+                return deliv
             except Exception as e:
                 logger.warning(
                     "Remote [P3] A2A call failed: %s. Falling back to local agent execution.",
@@ -396,7 +408,8 @@ class A2ASubAgentClient:
         return await run_creative_content_pipeline(
             brief=brief,
             feedback=feedback,
-            session_id=context_id,
+            session_id=campaign_id,
+            user_id=user_id,
         )
 
     async def run_performance_insights(
