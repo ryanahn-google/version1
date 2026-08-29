@@ -73,6 +73,7 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
     _REGION                        = var.region
     _CONTAINER_NAME                = var.project_name
     _ARTIFACT_REGISTRY_REPO_NAME   = resource.google_artifact_registry_repository.repo-artifacts-genai.repository_id
+    _STAGING_GOOGLE_OAUTH_CLIENT_ID = var.staging_google_oauth_client_id != null ? var.staging_google_oauth_client_id : ""
     # Your other CD Pipeline substitutions
   }
   depends_on = [
@@ -106,6 +107,7 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
     _REGION                      = var.region
     _CONTAINER_NAME              = var.project_name
     _ARTIFACT_REGISTRY_REPO_NAME = resource.google_artifact_registry_repository.repo-artifacts-genai.repository_id
+    _PROD_GOOGLE_OAUTH_CLIENT_ID = var.prod_google_oauth_client_id != null ? var.prod_google_oauth_client_id : ""
     # Your other Deploy to Prod Pipeline substitutions
   }
   depends_on = [
