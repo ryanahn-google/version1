@@ -127,6 +127,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{sessionId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rollback campaign session strictly to immediately preceding stage (N - 1) */
+        post: operations["rollbackCampaignStage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{sessionId}": {
         parameters: {
             query?: never;
@@ -260,6 +277,10 @@ export interface components {
             feedback?: string;
             /** @default true */
             stream: boolean;
+            /** @description Optional dictionary containing updated deliverable fields modified by marketer */
+            deliverableUpdates?: {
+                [key: string]: unknown;
+            };
         };
         CampaignSessionResponse: {
             /** @example camp-9f8a3c21 */
@@ -275,7 +296,7 @@ export interface components {
              * @example MARKET_SENSING
              * @enum {string}
              */
-            currentStage: "MARKET_SENSING" | "STRATEGY_BRIEF" | "CREATIVE_CONTENT" | "PERFORMANCE_INSIGHTS" | "COMPLETED";
+            currentStage: "MARKET_SENSING" | "STRATEGY_BRIEF" | "CREATIVE_CONTENT" | "PERFORMANCE_INSIGHTS" | "MEDIA_EXECUTION" | "COMPLETED";
             /** @example default */
             tenantId?: string;
             channels?: string[];
@@ -660,6 +681,55 @@ export interface operations {
             };
             /** @description Unauthorized / invalid Google OAuth ID token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rollbackCampaignStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session state successfully rolled back to preceding stage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignSessionResponse"];
+                };
+            };
+            /** @description Invalid rollback attempt (cannot rollback from initial stage or skip stages) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized / invalid Google OAuth ID token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Campaign session not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

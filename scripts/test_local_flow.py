@@ -37,6 +37,8 @@ async def run_flow():
     print("=" * 70)
 
     transport = ASGITransport(app=app)
+    auth_headers = {"Authorization": "Bearer dev-marketer-token"}
+
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Health Check
         print("\n[Step 0] Checking service health & metadata...")
@@ -56,13 +58,20 @@ async def run_flow():
             "currency": "USD",
             "stream": False,
         }
-        armor_res = await client.post("/api/v1/campaigns", json=malicious)
+        armor_res = await client.post(
+            "/api/v1/campaigns",
+            json=malicious,
+            headers=auth_headers,
+        )
         print(f"  🛡️ Status Code: {armor_res.status_code}")
         print(f"  🛡️ Blocked Message: {armor_res.json()['detail']}")
         assert armor_res.status_code == 400
+        assert "Model Armor" in armor_res.json()["detail"]
 
-        # 3. Create Campaign (Stage 1: P1 Market Sensing)
-        print("\n[Step 1] Initializing Campaign -> Executing [P1] Market Sensing...")
+        # 3. Create Campaign (Stage 1 Simulation: P1 Market Sensing + P2 Strategy Brief)
+        print(
+            "\n[Step 1] Initializing Campaign -> Executing [P1] Market Sensing & [P2] Strategy..."
+        )
         campaign_req = {
             "brandName": "Nova Electronics Corp",
             "productName": "Galaxy S27 Ultra",
@@ -78,7 +87,11 @@ async def run_flow():
             ],
             "stream": False,
         }
-        res = await client.post("/api/v1/campaigns", json=campaign_req)
+        res = await client.post(
+            "/api/v1/campaigns",
+            json=campaign_req,
+            headers=auth_headers,
+        )
         assert res.status_code == 200, res.text
         data = res.json()
         session_id = data["sessionId"]
@@ -90,45 +103,48 @@ async def run_flow():
         print(
             f"  📊 Sentiment Score: {p1['sentimentOverview']['overallSentimentScore']}"
         )
-
-        # 4. Approve P1 -> Stage 2: P2 Strategy & Brief
-        print("\n[Step 2] Marketer Approves P1 -> Executing [P2] Strategy & Brief...")
-        res = await client.post(
-            f"/api/v1/campaigns/{session_id}/approve",
-            json={"action": "approve", "stream": False},
-        )
-        assert res.status_code == 200
-        data = res.json()
-        print(f"  ✨ Current Stage: {data['currentStage']}")
         p2 = data["deliverables"]["campaignBrief"]
         print(f"  📋 Campaign Title: {p2['campaignTitle']}")
         print(f"  📋 Value Proposition: {p2['coreValueProposition']}")
 
-        # 5. Approve P2 -> Stage 3: P3 Creative Content
-        print("\n[Step 3] Marketer Approves P2 -> Executing [P3] Creative Content...")
+        # 4. Approve Stage 1 -> Stage 2: [P3] Creative Content
+        print(
+            "\n[Step 2] Marketer Approves Stage 1 -> Executing [P3] Creative Content..."
+        )
         res = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
             json={"action": "approve", "stream": False},
+            headers=auth_headers,
         )
         assert res.status_code == 200
         data = res.json()
         print(f"  ✨ Current Stage: {data['currentStage']}")
+        print(f"  ✨ Status: {data['status']}")
         p3 = data["deliverables"]["creativeContent"]
         print(f"  🎨 Visual Prompt: {p3['visualPromptUsed'][:80]}...")
         print(f"  🎨 Asset URL: {p3['assetUrl']}")
 
-        # 6. Approve P3 -> Stage 4: P4 Performance & Insights
+        # 5. Approve Stage 2 -> Stage 3: [P4] Performance Insights (MMM)
         print(
-            "\n[Step 4] Marketer Approves P3 -> Executing [P4] Performance Insights..."
+            "\n[Step 3] Marketer Approves Stage 2 -> Executing [P4] Performance Insights..."
         )
         res = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
-            json={"action": "approve", "stream": False},
+            json={
+                "action": "approve",
+                "stream": False,
+                "deliverableUpdates": {
+                    "creativeContent": {
+                        "headlineCopy": "Edited Headline for Black Friday",
+                    }
+                },
+            },
+            headers=auth_headers,
         )
         assert res.status_code == 200
         data = res.json()
         print(f"  ✨ Current Stage: {data['currentStage']}")
-        print(f"  ✨ Status: {data['status']} (DAG COMPLETE!)")
+        print(f"  ✨ Status: {data['status']}")
         p4 = data["deliverables"]["performanceInsights"]
         print(f"  📈 Expected ROAS: {p4['expectedRoas']}x")
         print(f"  📈 Total Budget: ${p4['totalBudget']:,.2f}")
@@ -137,9 +153,40 @@ async def run_flow():
                 f"     - {ch['channel']}: {ch['percentage']}% (${ch['allocationAmount']:,.2f})"
             )
 
-        # 7. Final Session Verification
-        print("\n[Step 5] Fetching final session state from persistent repository...")
-        get_res = await client.get(f"/api/v1/campaigns/{session_id}")
+        # 6. Approve Stage 3 -> Stage 4: Media Execution
+        print(
+            "\n[Step 4] Marketer Approves Stage 3 -> Advancing to [Stage 4] Media Execution..."
+        )
+        res = await client.post(
+            f"/api/v1/campaigns/{session_id}/approve",
+            json={"action": "approve", "stream": False},
+            headers=auth_headers,
+        )
+        assert res.status_code == 200
+        data = res.json()
+        print(f"  ✨ Current Stage: {data['currentStage']}")
+        print(f"  ✨ Status: {data['status']}")
+
+        # 7. Approve Stage 4 -> Stage 5: Completed
+        print(
+            "\n[Step 5] Marketer Approves Stage 4 -> Finalizing Campaign [Stage 5 Complete]..."
+        )
+        res = await client.post(
+            f"/api/v1/campaigns/{session_id}/approve",
+            json={"action": "approve", "stream": False},
+            headers=auth_headers,
+        )
+        assert res.status_code == 200
+        data = res.json()
+        print(f"  ✨ Current Stage: {data['currentStage']}")
+        print(f"  ✨ Status: {data['status']} (DAG COMPLETE!)")
+
+        # 8. Final Session Verification
+        print("\n[Step 6] Fetching final session state from persistent repository...")
+        get_res = await client.get(
+            f"/api/v1/campaigns/{session_id}",
+            headers=auth_headers,
+        )
         assert get_res.status_code == 200
         print(
             f"  ✅ Retrieved session '{session_id}' successfully. Deliverables count: {len(get_res.json()['deliverables'])}"

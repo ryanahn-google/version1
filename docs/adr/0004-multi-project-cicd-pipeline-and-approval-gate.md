@@ -63,3 +63,13 @@ Deploy both Staging and Production workloads within a single GCP project, partit
 
 ## Conditions to Revisit
 - If business requirements mandate automated multi-step canary rollouts with automated metric-based rollback, migrate deployment stages to Google Cloud Deploy.
+
+## References
+- [docs/design/TDD.md](../design/TDD.md)
+- [.cloudbuild/pr_checks.yaml](../../.cloudbuild/pr_checks.yaml)
+- [.cloudbuild/staging.yaml](../../.cloudbuild/staging.yaml)
+- [.cloudbuild/deploy-to-prod.yaml](../../.cloudbuild/deploy-to-prod.yaml)
+- [deployment/terraform/cicd/build_triggers.tf](../../deployment/terraform/cicd/build_triggers.tf)
+
+## Changelog
+- 2026-08-28: Initial proposal and acceptance.

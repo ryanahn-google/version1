@@ -43,3 +43,22 @@ We implement a dual-mode, environment-aware asset storage architecture managed b
 - Production adheres to stateless container best practices with GCS lifecycle management.
 - Local developer ergonomics are preserved with zero cloud setup for asset preview.
 - Resilient fallback prevents intermittent image generation failures from blocking marketer workflows.
+
+### Negative / accepted trade-offs
+- Local testing does not render freshly generated dynamic images unless live GCP credentials and GCS buckets are configured.
+- Visual assets require separate signed URL / streaming routing to satisfy enterprise security policies (see ADR-0007).
+
+### Risks (and mitigations)
+- GCS bucket permission denial for subagents $\to$ Subagent service account (`version1-subagent`) granted `roles/storage.objectAdmin` and `roles/serviceusage.serviceUsageConsumer`.
+
+## Conditions to revisit
+- If local offline image synthesis becomes necessary, evaluate local containerized diffusion sidecars.
+- If storage retention needs to exceed 30 days, update GCS bucket lifecycle management rules in Terraform.
+
+## References
+- [docs/design/TDD.md](../design/TDD.md)
+- [ADR-0002](0002-model-selection-and-location-pinning.md)
+- [ADR-0007](0007-domain-restricted-sharing-and-asset-streaming-proxy.md)
+
+## Changelog
+- 2026-08-29: Initial proposal and acceptance.

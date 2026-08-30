@@ -80,7 +80,11 @@ export function useCampaignStream() {
   );
 
   const handleApproveOrRevise = useCallback(
-    async (action: 'approve' | 'revise', feedback?: string) => {
+    async (
+      action: 'approve' | 'revise',
+      feedback?: string,
+      deliverableUpdates?: Record<string, unknown>
+    ) => {
       if (!session) return;
       setIsStreaming(true);
       setError(null);
@@ -96,6 +100,7 @@ export function useCampaignStream() {
         const updated = await apiClient.approveStage(session.sessionId, {
           action,
           feedback,
+          deliverableUpdates,
           stream: false,
         });
         setSession(updated);
@@ -145,6 +150,38 @@ export function useCampaignStream() {
     [addLog]
   );
 
+  const handleRollback = useCallback(async () => {
+    if (!session) return;
+    setIsStreaming(true);
+    setError(null);
+    const currStage = session.currentStage as StageKey;
+    addLog(`Rolling back to immediately preceding stage from ${currStage}...`, 'warn', currStage);
+    try {
+      const updated = await apiClient.rollbackStage(session.sessionId);
+      setSession(updated);
+      const newStage = updated.currentStage as StageKey;
+      addLog(`Reverted to Stage [${newStage}]. Ready for revision or direct editing.`, 'info', newStage);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+        addLog(`Error rolling back stage: ${err.message}`, 'error');
+      } else if (err instanceof Error) {
+        setError(err.message);
+        addLog(`Unexpected error: ${err.message}`, 'error');
+      }
+    } finally {
+      setIsStreaming(false);
+    }
+  }, [session, addLog]);
+
+  const resetSession = useCallback(() => {
+    setSession(null);
+    setLogs([]);
+    setError(null);
+    setModelArmorBlocked(false);
+    setIsStreaming(false);
+  }, []);
+
   return {
     session,
     isStreaming,
@@ -153,7 +190,9 @@ export function useCampaignStream() {
     logs,
     startCampaign,
     handleApproveOrRevise,
+    handleRollback,
     loadSession,
     setSession,
+    resetSession,
   };
 }

@@ -156,7 +156,7 @@ async def get_campaign_visual(
                 blob_path=blob_path, bucket_name=bucket_name
             ),
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=86400"},
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
         )
     except Exception as stream_exc:
         logger.error("Failed streaming blob %s from GCS: %s", blob_path, stream_exc)

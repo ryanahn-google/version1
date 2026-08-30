@@ -3,11 +3,13 @@
 ## 1. Metadata
 - **Status**: Approved / Production Deployed (Staging Verified, Prod Awaiting Approval)
 - **Stakes tier**: `standard`
-- **Sections dropped**: `none`
-- **Date last updated**: 2026-08-28
+- **Sections dropped**: `none (SRE burn-rate alerts, standalone RELIABILITY.md, CHANGES.md, LINEAGE.md, and FINOPS.md are intentionally consolidated into §§11–15 per project architecture directives)`
+- **Date last updated**: 2026-08-30
 - **Authors**: Ryan Ahn (ryanahn@, Forward Deployed Engineer)
 - **Approvers**: Executive Sponsor, FDE Engineering Manager
 - **Source repo**: ryanahn-google/version1
+- **ADR registry**: [docs/adr/README.md](../adr/README.md)
+- **Eval plan**: [docs/EVAL.md](../EVAL.md)
 - **Live Staging Endpoint**: `https://version1-797135441724.asia-northeast3.run.app`
 
 ---
@@ -52,6 +54,7 @@ Previous attempts using standard chat interfaces failed due to context loss, lac
 - **Operational Metric**: Sub-agent text turn latency $< 3.0\text{s}$ (Gemini 3.5 Flash Lite); Image generation $< 8.0\text{s}$ (Nano Banana 2 Lite); Full E2E DAG turnaround $< 15.0\text{s}$ (excluding human pause time); Service availability $99.5\%$.
 - **Verification Metric**: $100\%$ pass rate on automated Locust load test (sessions & SSE streaming) executed in Cloud Build prior to production promotion gate.
 - **Adoption Metric**: $100\%$ successful end-to-end execution of golden test scenarios (e.g. "Galaxy S27 Black Friday Global Campaign") during final capstone acceptance.
+- **Eval Plan**: Detailed evaluation dataset schema, multi-turn metrics, and judge calibration documented in [docs/EVAL.md](../EVAL.md).
 
 ---
 
@@ -321,8 +324,29 @@ The deployment pipeline spans three dedicated GCP projects:
 
 ---
 
-## 16. CI/CD Pipeline & Approval Gate Workflow
+## 16. Operations and Runbooks
+- **Operational Runbook Inventory**:
+  - [30-Day Model Swap Runbook](../runbooks/model-swap.md): Canary traffic ramp (10% $\to$ 50% $\to$ 100%), shadow evaluation, and auto-rollback mechanics.
+  - [Incident Response Runbook](../runbooks/incident-response.md): Triage procedures for LLM API 429 quota exhaustion, Model Armor false-positive blocks, Cloud SQL Auth Proxy socket loss, and GCS signed URL token expiry.
+- **On-Call & Support Structure**:
+  - L1: Automated Cloud Monitoring & Alert Policies (Cloud Run uptime checks, 5xx rate alerts).
+  - L2: Release Operator / SRE on-duty during deployment windows.
+  - L3: FDE Engineering Support Lead (escalation for architecture, quota, or model regressions).
+- **Postmortem Policy**:
+  - A blameless postmortem must be published within 48 hours for any Sev-1/Sev-2 outage, unexpected failover, or $>2\times$ cost-budget excursion.
 
+---
+
+## 17. Rollout Plan & CI/CD Pipeline Workflow
+
+### 17.1 Rollout Stage Matrix
+| Stage | Target / Environment | Scope & Traffic | Exit Gates |
+| :--- | :--- | :--- | :--- |
+| **Stage 1: Dev / PR** | Cloud Build `capstone-cicd` | Automated unit & integration tests | 100% pytest pass (`tests/unit`, `tests/integration`), ruff clean, zero schema drift |
+| **Stage 2: Staging Deploy & Soak** | Cloud Run `capstone-staging-506811` | Automated deployment via `agents-cli deploy` | 30s headless Locust load test (0 errors), test report upload to GCS |
+| **Stage 3: Production Promotion** | Cloud Run `capstone-prod-506811` | 100% Production Marketer Traffic | Cloud Build Native Approval Gate (`approval_config { approval_required = true }`) manual sign-off |
+
+### 17.2 CI/CD Sequence Flow
 ```mermaid
 sequenceDiagram
     autonumber
@@ -351,18 +375,49 @@ sequenceDiagram
     CB_Prod->>Prod: 8. Deploy verified container to Production
 ```
 
-### Approval Gate Details
+### 17.3 Approval Gate Details
 - The trigger `deploy-version1` is defined with `approval_config { approval_required = true }`.
-- When triggered, it stays in `PENDING` state.
-- Authorizers approve directly in the Google Cloud Build Console: `https://console.cloud.google.com/cloud-build/builds;region=asia-northeast3?project=capstone-cicd`.
+- When triggered, it enters `PENDING` state until authorizers approve directly in the Google Cloud Build Console: `https://console.cloud.google.com/cloud-build/builds;region=asia-northeast3?project=capstone-cicd`.
 
 ---
 
-## 17. Alternatives Considered (Summary)
+## 18. Open Questions and Risks — The Honesty Section
 
-| Alternative | Why it was attractive | Why it lost |
-| :--- | :--- | :--- |
-| **Private Services Access (PSA) Peering for Cloud SQL** | Traditional private-only IP network isolation | PSA peering creates rigid VPC route locks that cause slow/failing Terraform teardowns; Cloud SQL Auth Proxy over IAM + mTLS provides equivalent security with zero teardown latency. |
-| **Google Cloud Deploy with Skaffold** | Multi-target release promotion UI | Added unnecessary Skaffold manifest rendering complexity; Cloud Build's native `approval_config` provides the required human gate directly with `agents-cli deploy`. |
-| **Separate Cloud Run Services for UI and API** | Decoupled frontend/backend release cycles | Introduced CORS preflight latency, dual OAuth redirect configurations, and doubled infrastructure maintenance. |
-| **Single Monolithic Prompt Agent** | Simpler code, zero inter-agent network calls | Severe context dilution, inability to perform step-by-step HITL revisions, and lack of visual asset generation. |
+| ID | Item / Risk Description | Severity | Owner | Mitigation & Resolution Strategy | Status |
+| :-: | :--- | :---: | :---: | :--- | :---: |
+| **R-01** | Model Armor latency overhead impacting P95 TTFT latency ($<2.0\text{s}$) | Medium | Ryan Ahn | Pre-warmed regional template `version1-guardrails` in `asia-northeast3`; measured actual latency overhead: $\sim 45\text{ms}$. | **Closed** |
+| **R-02** | Vertex AI `global` quota exhaustion during peak concurrent simulations | High | Ryan Ahn | Pinned to `global` endpoint with $>33\times$ RPM headroom; bounded 3-attempt exponential backoff with fallback placeholder in P3. | **Closed** |
+| **R-03** | Cloud Run scale-to-zero cold-start latency ($4\sim 6\text{s}$) during marketer review pauses | Medium | Ryan Ahn | State and session history restored from Cloud SQL PostgreSQL 15; container CPU configured with `cpu_idle = false`. | **Closed** |
+| **R-04** | Regional endpoint availability for Nano Banana 2 Lite in `asia-northeast3` | Low | Ryan Ahn | Vertex AI endpoint pinned to `global` via ADR-0002; revisit when regional model endpoint is launched. | **Tracked** |
+
+---
+
+## 19. Alternatives Considered (Top-Level)
+
+| Alternative | Why it was attractive | Why it lost | ADR Reference |
+| :--- | :--- | :--- | :--- |
+| **Monolithic Single-Container In-Process Agents** | Zero network overhead, simpler local debugging | Violates enterprise governance separation, lacks independent scaling and isolated deployment on Agent Runtime | [ADR-0001](../adr/0001-ai-multi-agent-pattern.md) |
+| **Uniform Gemini 3.1 Pro Across All Agents** | Single uniform model, simplified prompt templates | Sub-agent turn latency exceeded P95 $<3.0\text{s}$ budget; inflated unit task cost by $\sim 3\times$ ($0.14 vs $0.0455) | [ADR-0002](../adr/0002-model-selection-and-location-pinning.md) |
+| **Strict Remote-Only A2A Client & PostgreSQL** | Pure production fidelity in all development environments | Severely degraded local developer velocity; broke CI pipelines without live GCP credentials or Cloud SQL proxies | [ADR-0003](../adr/0003-dual-mode-a2a-and-hybrid-session-persistence.md) |
+| **Google Cloud Deploy with Skaffold** | Built-in multi-target release promotion UI and metric canary | Added unnecessary Skaffold manifest rendering complexity; Cloud Build native `approval_config` provides required human gate with zero added operational dependencies | [ADR-0004](../adr/0004-multi-project-cicd-pipeline-and-approval-gate.md) |
+| **Private Services Access (PSA) Peering for Cloud SQL** | Traditional private-only IP network isolation | PSA peering creates rigid VPC route locks that cause slow/failing Terraform teardowns; Cloud SQL Auth Proxy over IAM + mTLS provides equivalent security | [ADR-0005](../adr/0005-direct-vpc-egress-and-cloud-sql-auth-proxy.md) |
+| **Local Disk File Mounts for Visual Assets (`/static/generated`)** | Simple relative URL access without cloud dependencies | Ephemeral Cloud Run container disks drop files on restart; violates 12-factor stateless design | [ADR-0006](../adr/0006-hybrid-generated-asset-storage.md) |
+| **Public Cloud Storage Bucket (`allUsers`)** | Simple direct image display in browser | Violates enterprise Domain-Restricted Sharing (DRS) Org Policy (`constraints/iam.allowedPolicyMemberDomains`); fails Terraform apply | [ADR-0007](../adr/0007-domain-restricted-sharing-and-asset-streaming-proxy.md) |
+| **Separate Cloud Run Services for UI and API** | Decoupled frontend/backend release cycles | Introduced CORS preflight latency, dual OAuth redirect configurations, and doubled infrastructure maintenance | *Design Decision (TDD §7, FRONTEND §3)* |
+
+---
+
+## 20. References
+- **Customer Scoping Document**: [docs/design/SCOPING.md](SCOPING.md)
+- **Frontend Technical Design**: [docs/design/FRONTEND.md](FRONTEND.md)
+- **Evaluation Plan**: [docs/EVAL.md](../EVAL.md)
+- **API Contract (OpenAPI 3.1)**: [api/openapi.yaml](../../api/openapi.yaml)
+- **ADR Registry**: [docs/adr/README.md](../adr/README.md)
+- **Operational Runbooks**:
+  - [30-Day Model Swap Runbook](../runbooks/model-swap.md)
+  - [Incident Response Runbook](../runbooks/incident-response.md)
+- **Google Cloud Reference Documentation**:
+  - Vertex AI Agent Runtime & Reasoning Engine Documentation
+  - Google Cloud Model Armor Guide
+  - Cloud Run Direct VPC Egress Best Practices
+  - Cloud SQL Auth Proxy over Unix Domain Sockets

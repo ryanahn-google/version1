@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app: FastAPI = get_fast_api_app(
     agents_dir=str(BASE_DIR),
-    web=True,
+    web=False,
     allow_origins=["*"],
     artifact_service_uri=services.ARTIFACT_SERVICE_URI,
     session_service_uri=services.SESSION_SERVICE_URI,

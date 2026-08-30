@@ -136,4 +136,33 @@ export const apiClient = {
     );
     return handleResponse<CampaignSessionResponse>(res);
   },
+
+  async rollbackStage(sessionId: string): Promise<CampaignSessionResponse> {
+    const res = await fetch(
+      `${API_BASE}/api/v1/campaigns/${encodeURIComponent(sessionId)}/rollback`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      }
+    );
+    return handleResponse<CampaignSessionResponse>(res);
+  },
+
+  async updateSessionDeliverables(
+    sessionId: string,
+    deliverables: Record<string, unknown>
+  ): Promise<CampaignSessionResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/campaigns/${encodeURIComponent(sessionId)}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ deliverables }),
+    });
+    return handleResponse<CampaignSessionResponse>(res);
+  },
 };

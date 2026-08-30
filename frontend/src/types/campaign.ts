@@ -2,7 +2,9 @@ import type { components } from '../api/schema';
 
 export type CreateCampaignRequest = components['schemas']['CreateCampaignRequest'];
 export type CampaignSessionResponse = components['schemas']['CampaignSessionResponse'];
-export type StageApprovalRequest = components['schemas']['StageApprovalRequest'];
+export type StageApprovalRequest = components['schemas']['StageApprovalRequest'] & {
+  deliverableUpdates?: Record<string, unknown>;
+};
 export type MarketSensingDeliverable = components['schemas']['MarketSensingDeliverable'];
 export type CampaignBriefDeliverable = components['schemas']['CampaignBriefDeliverable'];
 export type CreativeContentDeliverable = components['schemas']['CreativeContentDeliverable'];
@@ -18,7 +20,9 @@ export type StageKey =
   | 'MARKET_SENSING'
   | 'STRATEGY_BRIEF'
   | 'CREATIVE_CONTENT'
-  | 'PERFORMANCE_INSIGHTS';
+  | 'PERFORMANCE_INSIGHTS'
+  | 'MEDIA_EXECUTION'
+  | 'COMPLETED';
 
 export interface StageInfo {
   id: StageKey;
