@@ -14,6 +14,9 @@
 
 """Authentication and Model Armor security guardrail middleware."""
 
+import base64
+import hashlib
+import json
 import logging
 import re
 from typing import Any
@@ -200,14 +203,59 @@ async def get_current_user(
             token = auth_header.split("Bearer ", 1)[1].strip()
 
     if token:
-        user = await repo.get_user_by_session_token(token)
-        if user:
-            return user
+        # 1. First check if it's a valid session token from user_sessions table
+        if len(token) <= 128:
+            user = await repo.get_user_by_session_token(token)
+            if user:
+                return user
 
-    # Development / local testing mock user fallback if token provided
+        # 2. Check if it's a Google OIDC ID token (JWT format: 3 dot-separated parts)
+        if token.startswith("ey") and token.count(".") == 2:
+            # 2a. Attempt official Google ID token verification
+            try:
+                profile = security.verify_google_credential(token)
+                return await repo.create_or_update_google_user(
+                    google_sub=profile["sub"],
+                    email=profile["email"],
+                    name=profile.get("name", "Google User"),
+                    picture=profile.get("picture"),
+                )
+            except Exception:
+                # 2b. In non-production environments (e.g. Staging Locust load tests where gcloud token
+                # is signed for Cloud Build rather than the OAuth client ID), safely extract claims
+                if security.env != "production":
+                    try:
+                        payload_b64 = token.split(".")[1]
+                        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+                        claims = json.loads(
+                            base64.urlsafe_b64decode(padded.encode("ascii")).decode(
+                                "utf-8"
+                            )
+                        )
+                        email = claims.get("email") or "service-account@nova.com"
+                        sub = str(claims.get("sub") or claims.get("user_id") or email)
+                        name = claims.get("name") or email.split("@")[0]
+                        return await repo.create_or_update_google_user(
+                            google_sub=sub,
+                            email=email,
+                            name=name,
+                            picture=claims.get("picture"),
+                        )
+                    except Exception as parse_err:
+                        logger.warning(
+                            "Failed to extract JWT claims from Bearer token: %s",
+                            parse_err,
+                        )
+
+    # 3. Development / local testing mock user fallback if token provided
     if security.env != "production" and token:
-        mock_sub = f"mock-sub-{token}"
-        email = "dev-marketer@nova.com" if "dev" in token else f"{token}@nova.com"
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        mock_sub = f"mock-sub-{token_hash[:24]}"
+        email = (
+            "dev-marketer@nova.com"
+            if "dev" in token.lower()
+            else f"user-{token_hash[:12]}@nova.com"
+        )
         return await repo.create_or_update_google_user(
             google_sub=mock_sub,
             email=email,
@@ -217,5 +265,5 @@ async def get_current_user(
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=("Not authenticated. Valid session cookie or Bearer token required."),
+        detail="Not authenticated. Valid session cookie or Bearer token required.",
     )
