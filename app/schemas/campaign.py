@@ -61,16 +61,21 @@ class CreateCampaignRequest(BaseModel):
 
     brandName: str = Field(
         ...,
+        min_length=1,
+        max_length=128,
         description="Brand or enterprise name",
         json_schema_extra={"example": "Nova Electronics Corp"},
     )
     productName: str = Field(
         ...,
+        min_length=1,
+        max_length=128,
         description="Product or service name",
         json_schema_extra={"example": "Galaxy S27 Ultra"},
     )
     campaignObjective: str = Field(
         ...,
+        min_length=1,
         description="High level campaign target or narrative goal",
         json_schema_extra={
             "example": "Black Friday Global Campaign targeting premium tech enthusiasts with AI camera features."
@@ -78,6 +83,7 @@ class CreateCampaignRequest(BaseModel):
     )
     targetAudience: str = Field(
         ...,
+        min_length=1,
         description="Target customer segment description",
         json_schema_extra={
             "example": "Tech-savvy professionals and mobile photographers aged 25-45."
@@ -91,11 +97,14 @@ class CreateCampaignRequest(BaseModel):
     )
     currency: str = Field(
         default="USD",
+        min_length=1,
+        max_length=16,
         description="Currency ISO code",
         json_schema_extra={"example": "USD"},
     )
     language: str = Field(
         default="ko",
+        max_length=8,
         description="Preferred output language: 'ko' or 'en'",
         json_schema_extra={"example": "ko"},
     )

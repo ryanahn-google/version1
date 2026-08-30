@@ -16,135 +16,29 @@
 
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, timedelta
 from typing import Any
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    DateTime,
-    Float,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    desc,
-    select,
-)
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from app.models import (
+    Base,
+    CampaignSessionModel,
+    UserModel,
+    UserSessionModel,
+    utcnow,
+)
 from app.schemas.campaign import (
     CampaignDeliverables,
     CampaignSessionResponse,
     CampaignStage,
     CampaignStatus,
 )
-
-
-class Base(DeclarativeBase):
-    """Base class for SQLAlchemy declarative models."""
-
-
-def utcnow() -> datetime:
-    """Return timezone-naive UTC datetime."""
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
-class UserModel(Base):
-    """SQLAlchemy model mapping users table."""
-
-    __tablename__ = "users"
-
-    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    google_sub: Mapped[str] = mapped_column(
-        String(128), unique=True, index=True, nullable=False
-    )
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, index=True, nullable=False
-    )
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    picture: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    role: Mapped[str] = mapped_column(String(32), default="MARKETER", nullable=False)
-    tenant_id: Mapped[str] = mapped_column(
-        String(64), default="default", nullable=False
-    )
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, onupdate=utcnow, nullable=False
-    )
-    last_login_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, nullable=False
-    )
-
-
-class UserSessionModel(Base):
-    """SQLAlchemy model mapping user_sessions table for cookie auth."""
-
-    __tablename__ = "user_sessions"
-
-    session_token: Mapped[str] = mapped_column(String(128), primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(64),
-        ForeignKey("users.user_id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, nullable=False
-    )
-    last_accessed_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, nullable=False
-    )
-    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    user_agent: Mapped[str | None] = mapped_column(String(256), nullable=True)
-
-
-class CampaignSessionModel(Base):
-    """SQLAlchemy model mapping orchestrator_sessions table."""
-
-    __tablename__ = "orchestrator_sessions"
-
-    session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[str | None] = mapped_column(
-        String(64),
-        ForeignKey("users.user_id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    tenant_id: Mapped[str] = mapped_column(
-        String(64), default="default", nullable=False
-    )
-    status: Mapped[str] = mapped_column(
-        String(32), default=CampaignStatus.INITIALIZING.value, nullable=False
-    )
-    current_stage: Mapped[str] = mapped_column(
-        String(32), default=CampaignStage.MARKET_SENSING.value, nullable=False
-    )
-    brand_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    product_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    campaign_objective: Mapped[str] = mapped_column(Text, nullable=False)
-    budget_amount: Mapped[float] = mapped_column(Float, nullable=False)
-    currency: Mapped[str] = mapped_column(String(16), default="USD", nullable=False)
-    channels: Mapped[list[Any]] = mapped_column(JSON, default=list, nullable=False)
-    deliverables: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, nullable=False
-    )
-    revision_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utcnow, onupdate=utcnow, nullable=False
-    )
 
 
 def _get_database_url() -> str:
@@ -163,25 +57,39 @@ class SessionRepository:
 
     def __init__(self, db_url: str | None = None) -> None:
         self.db_url = db_url or _get_database_url()
-        self.engine = create_async_engine(self.db_url, echo=False)
+        engine_kwargs: dict[str, Any] = {"echo": False}
+        if "sqlite" not in self.db_url:
+            engine_kwargs.update(
+                {
+                    "pool_size": 5,
+                    "max_overflow": 5,
+                    "pool_timeout": 30.0,
+                    "pool_recycle": 1800,
+                    "pool_pre_ping": True,
+                }
+            )
+        self.engine = create_async_engine(self.db_url, **engine_kwargs)
         self.session_factory = async_sessionmaker(
             self.engine, expire_on_commit=False, class_=AsyncSession
         )
         self._initialized = False
 
     async def init_db(self) -> None:
-        """Create tables if they do not exist."""
+        """Ensure database readiness. For SQLite, create tables if absent."""
         if not self._initialized:
-            try:
-                async with self.engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.create_all)
-                self._initialized = True
-            except Exception as exc:
-                import logging
+            if "sqlite" in self.db_url:
+                try:
+                    async with self.engine.begin() as conn:
+                        await conn.run_sync(Base.metadata.create_all)
+                    self._initialized = True
+                except Exception as exc:
+                    import logging
 
-                logging.getLogger(__name__).warning(
-                    "Database initialization delayed or failed: %s", exc
-                )
+                    logging.getLogger(__name__).warning(
+                        "Database initialization delayed or failed: %s", exc
+                    )
+            else:
+                self._initialized = True
 
     async def create_or_update_google_user(
         self,
@@ -460,3 +368,14 @@ def get_session_repo() -> SessionRepository:
     if _global_repo is None:
         _global_repo = SessionRepository()
     return _global_repo
+
+
+__all__ = [
+    "Base",
+    "CampaignSessionModel",
+    "SessionRepository",
+    "UserModel",
+    "UserSessionModel",
+    "get_session_repo",
+    "utcnow",
+]

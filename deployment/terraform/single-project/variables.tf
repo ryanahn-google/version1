@@ -29,6 +29,18 @@ variable "region" {
   default     = "asia-northeast3"
 }
 
+variable "vpc_network" {
+  type        = string
+  description = "Custom VPC network name for Cloud Run and db_migrate Direct VPC Egress"
+  default     = "version1-vpc"
+}
+
+variable "vpc_subnetwork" {
+  type        = string
+  description = "Custom VPC subnetwork name for Cloud Run and db_migrate Direct VPC Egress"
+  default     = "asia-northeast3-subnet"
+}
+
 variable "telemetry_logs_filter" {
   type        = string
   description = "Log Sink filter for capturing telemetry data. Captures logs with the `traceloop.association.properties.log_type` attribute set to `tracing`."
@@ -49,7 +61,7 @@ variable "app_sa_roles" {
     "roles/aiplatform.user",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/serviceusage.serviceUsageConsumer",
     "roles/cloudsql.client",
     "roles/secretmanager.secretAccessor",

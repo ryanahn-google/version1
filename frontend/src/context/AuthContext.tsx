@@ -47,8 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (authMeta?.googleClientId && typeof authMeta.googleClientId === 'string') {
             setGoogleClientId(authMeta.googleClientId);
           }
+          const isLocalDevHost =
+            typeof window !== 'undefined' &&
+            (window.location.hostname === 'localhost' ||
+              window.location.hostname === '127.0.0.1' ||
+              window.location.hostname.endsWith('.googlers.com'));
+
           if (authMeta && typeof authMeta.devLoginEnabled === 'boolean') {
-            setDevLoginEnabled(authMeta.devLoginEnabled);
+            setDevLoginEnabled(authMeta.devLoginEnabled && isLocalDevHost);
           }
         }
       } catch (err) {

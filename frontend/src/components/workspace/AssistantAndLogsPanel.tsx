@@ -52,15 +52,6 @@ export function AssistantAndLogsPanel({
             {logs.length}
           </span>
         )}
-
-        <div className="flex-1 flex items-center justify-center">
-          <span
-            className="text-[11px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap"
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-          >
-            {t.logs.title}
-          </span>
-        </div>
       </aside>
     );
   }
