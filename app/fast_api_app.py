@@ -73,15 +73,43 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app: FastAPI = get_fast_api_app(
-    agents_dir=str(BASE_DIR),
-    web=False,
-    allow_origins=["*"],
-    artifact_service_uri=services.ARTIFACT_SERVICE_URI,
-    session_service_uri=services.SESSION_SERVICE_URI,
-    otel_to_cloud=get_settings().otel_to_cloud,
-    lifespan=lifespan,
-)
+def _create_app() -> FastAPI:
+    """Initialize FastAPI app, passing docs_url=None and redoc_url=None in production."""
+    settings = get_settings()
+    if settings.is_production:
+        _orig_init = FastAPI.__init__
+
+        def _prod_init(self, *args, **kwargs):
+            kwargs["docs_url"] = None
+            kwargs["redoc_url"] = None
+            return _orig_init(self, *args, **kwargs)
+
+        FastAPI.__init__ = _prod_init
+        try:
+            return get_fast_api_app(
+                agents_dir=str(BASE_DIR),
+                web=False,
+                allow_origins=["*"],
+                artifact_service_uri=services.ARTIFACT_SERVICE_URI,
+                session_service_uri=services.SESSION_SERVICE_URI,
+                otel_to_cloud=settings.otel_to_cloud,
+                lifespan=lifespan,
+            )
+        finally:
+            FastAPI.__init__ = _orig_init
+
+    return get_fast_api_app(
+        agents_dir=str(BASE_DIR),
+        web=False,
+        allow_origins=["*"],
+        artifact_service_uri=services.ARTIFACT_SERVICE_URI,
+        session_service_uri=services.SESSION_SERVICE_URI,
+        otel_to_cloud=settings.otel_to_cloud,
+        lifespan=lifespan,
+    )
+
+
+app: FastAPI = _create_app()
 app.title = "Marketing Value Creator (MVC) API"
 app.description = (
     "Enterprise multi-agent campaign planning platform on Cloud Run and Agent Runtime"

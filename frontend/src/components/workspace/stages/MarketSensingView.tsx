@@ -252,7 +252,9 @@ export function MarketSensingView({
     onApproveOrRevise('approve', undefined, getDeliverableUpdates());
   };
 
-  const isFormDisabled = Boolean(session && session.status === 'RUNNING');
+  const isSimulationExecuted = Boolean(session || marketData);
+  const isFormDisabled =
+    Boolean(session && session.status === 'RUNNING') || isSimulationExecuted;
   const isReviewPending =
     session?.status === 'PAUSED_FOR_REVIEW' &&
     session?.currentStage === 'MARKET_SENSING';
@@ -508,18 +510,31 @@ export function MarketSensingView({
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isFormDisabled || isLoading}
-                  className="w-full bg-[#1a56db] hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-xs transition disabled:opacity-50 text-xs"
+                  disabled={isSimulationExecuted || isFormDisabled || isLoading}
+                  className={`w-full font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition text-xs ${
+                    isSimulationExecuted
+                      ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                      : 'bg-[#1a56db] hover:bg-blue-700 text-white shadow-xs disabled:opacity-50'
+                  }`}
                 >
-                  <Play className="h-3.5 w-3.5 fill-white" />
+                  {isSimulationExecuted ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5 fill-white" />
+                  )}
                   <span>
                     {isLoading
                       ? t.planning.runningSimulation
-                      : isReviewPending || marketData
-                      ? t.planning.reRunSimulation
+                      : isSimulationExecuted
+                      ? t.planning.simulationExecuted
                       : t.planning.startSimulation}
                   </span>
                 </button>
+                {isSimulationExecuted && (
+                  <p className="mt-2 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5 leading-relaxed">
+                    {t.planning.simulationExecutedDesc}
+                  </p>
+                )}
               </div>
             </form>
           </div>

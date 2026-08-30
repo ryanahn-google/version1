@@ -153,6 +153,7 @@ def test_api_auth_flow():
     meta_json = meta_res.json()
     assert "auth" in meta_json
     assert "googleClientId" in meta_json["auth"]
+    assert meta_json["auth"]["devLoginEnabled"] is True
 
     # 2. /api/v1/auth/me without cookie should be 401
     unauth_res = client.get("/api/v1/auth/me")
@@ -218,3 +219,61 @@ def test_long_bearer_token_and_jwt():
     )
     assert resp2.status_code == 200
     assert isinstance(resp2.json(), list)
+
+
+@pytest.mark.parametrize("env_name", ["staging", "production", "prod"])
+def test_dev_login_disabled_in_staging_and_prod(
+    monkeypatch: pytest.MonkeyPatch, env_name: str
+) -> None:
+    """Verify /meta and /dev-login behavior in staging and production."""
+    from app.settings import get_settings
+
+    monkeypatch.setenv("ENV", env_name)
+    get_settings.cache_clear()
+
+    client = TestClient(app)
+
+    # 1. /meta should return devLoginEnabled = False and correct env
+    meta_res = client.get("/meta")
+    assert meta_res.status_code == 200
+    meta_json = meta_res.json()
+    assert meta_json["env"] == env_name
+    assert meta_json["auth"]["devLoginEnabled"] is False
+
+    # 2. /api/v1/auth/dev-login should return 403 Forbidden
+    login_res = client.post(
+        "/api/v1/auth/dev-login",
+        json={"email": "hacker@gmail.com", "name": "Hacker"},
+    )
+    assert login_res.status_code == 403
+    assert (
+        "Developer quick login is disabled in staging and production"
+        " environments." in login_res.json()["detail"]
+    )
+
+
+def test_dev_login_enabled_in_development(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify /meta and /dev-login behavior in development environment."""
+    from app.settings import get_settings
+
+    monkeypatch.setenv("ENV", "development")
+    get_settings.cache_clear()
+
+    client = TestClient(app)
+
+    # 1. /meta should return devLoginEnabled = True and env = development
+    meta_res = client.get("/meta")
+    assert meta_res.status_code == 200
+    meta_json = meta_res.json()
+    assert meta_json["env"] == "development"
+    assert meta_json["auth"]["devLoginEnabled"] is True
+
+    # 2. /api/v1/auth/dev-login should succeed
+    login_res = client.post(
+        "/api/v1/auth/dev-login",
+        json={"email": "dev-user@gmail.com", "name": "Dev User"},
+    )
+    assert login_res.status_code == 200
+    assert login_res.json()["email"] == "dev-user@gmail.com"

@@ -30,7 +30,7 @@ export function MediaPlanMmmView({
   onRollbackStage,
   isLoading = false,
 }: MediaPlanMmmViewProps) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const currency: 'USD' | 'KRW' =
     (session?.currency as 'USD' | 'KRW') ||
     (session?.deliverables?.performanceInsights?.currency as 'USD' | 'KRW') ||
@@ -109,10 +109,10 @@ export function MediaPlanMmmView({
     setAllocations((prev) => [
       ...prev,
       {
-        channel: 'New Channel',
+        channel: locale === 'ko' ? '신규 채널' : 'New Channel',
         percentage: 0,
         allocationAmount: 0,
-        rationale: '신규 채널 실험 및 전환 테스트',
+        rationale: t.mmm.newChannelDefaultRationale || '신규 채널 실험 및 전환 테스트',
       },
     ]);
   };
@@ -148,6 +148,12 @@ export function MediaPlanMmmView({
 
   const formatShortCurrency = (val: number): string => {
     if (currency === 'KRW') {
+      if (locale === 'en') {
+        if (val >= 1000000000) return `₩ ${(val / 1000000000).toFixed(1)}B`;
+        if (val >= 1000000) return `₩ ${(val / 1000000).toFixed(1)}M`;
+        if (val >= 1000) return `₩ ${(val / 1000).toFixed(0)}K`;
+        return `₩ ${Math.round(val).toLocaleString()}`;
+      }
       if (val >= 100000000) {
         return `₩ ${(val / 100000000).toFixed(1)}억`;
       }
@@ -241,7 +247,7 @@ export function MediaPlanMmmView({
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             <span className="text-xs font-semibold text-emerald-800">
-              {t.planning.approvedBadge}: 4단계(미디어 계획 MMM) 산출물이 승인 완료되었습니다.
+              {t.planning.approvedBadge}: {t.mmm.stage4ApprovedDesc}
             </span>
           </div>
           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
@@ -280,20 +286,20 @@ export function MediaPlanMmmView({
             />
           </div>
           <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            100% 계획 배분
+            {t.mmm.plannedAllocation}
           </span>
         </div>
 
         {/* Card 2: 예상 매출 */}
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-            예상 매출 (자동 계산)
+            {t.mmm.expectedRevenue}
           </span>
           <div className="text-xl font-bold text-blue-600 font-mono mt-1">
             {formatShortCurrency(budgetAmount * roasVal)}
           </div>
           <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            MMM 실시간 연산
+            {t.mmm.mmmRealtimeCalc}
           </span>
         </div>
 
@@ -301,11 +307,11 @@ export function MediaPlanMmmView({
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              예상 ROAS
+              {t.mmm.expectedRoas}
             </span>
             <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
               <Edit3 className="h-3 w-3" />
-              수정 가능
+              {t.mmm.editableBadge}
             </span>
           </div>
           <div className="flex items-center gap-1 mt-1">
@@ -319,7 +325,7 @@ export function MediaPlanMmmView({
             <span className="text-xl font-bold text-emerald-600 font-mono">x</span>
           </div>
           <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            목표 대비 최적화
+            {t.mmm.optimizedForTarget}
           </span>
         </div>
 
@@ -327,11 +333,11 @@ export function MediaPlanMmmView({
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              예상 구매전환수
+              {t.mmm.expectedConversions}
             </span>
             <span className="text-[10px] text-purple-600 font-medium flex items-center gap-1">
               <Edit3 className="h-3 w-3" />
-              수정 가능
+              {t.mmm.editableBadge}
             </span>
           </div>
           <input
@@ -341,7 +347,7 @@ export function MediaPlanMmmView({
             className="w-full text-xl font-bold text-purple-600 font-mono bg-[#f8fafc] border border-slate-200 rounded-lg px-2 py-0.5 mt-1 focus:bg-white focus:border-purple-500 focus:outline-none transition"
           />
           <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            전환 시뮬레이션
+            {t.mmm.conversionSimulation}
           </span>
         </div>
 
@@ -349,16 +355,16 @@ export function MediaPlanMmmView({
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              예상 노출 / 클릭 / CTR
+              {t.mmm.metricsLabel}
             </span>
             <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
               <Edit3 className="h-3 w-3" />
-              수정 가능
+              {t.mmm.editableBadge}
             </span>
           </div>
           <div className="space-y-1.5 mt-1.5 text-xs">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] text-slate-500 font-medium">노출수:</span>
+              <span className="text-[10px] text-slate-500 font-medium">{t.mmm.impressionsLabel}</span>
               <input
                 type="number"
                 value={impressionsVal}
@@ -367,7 +373,7 @@ export function MediaPlanMmmView({
               />
             </div>
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] text-slate-500 font-medium">클릭수:</span>
+              <span className="text-[10px] text-slate-500 font-medium">{t.mmm.clicksLabel}</span>
               <input
                 type="number"
                 value={clicksVal}
@@ -376,7 +382,7 @@ export function MediaPlanMmmView({
               />
             </div>
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] text-slate-500 font-medium">CTR(%):</span>
+              <span className="text-[10px] text-slate-500 font-medium">{t.mmm.ctrLabel}</span>
               <input
                 type="number"
                 step="0.1"
@@ -394,10 +400,10 @@ export function MediaPlanMmmView({
         <div className="mb-4">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <PieChart className="h-4 w-4 text-blue-600" />
-            <span>채널 별 예산 제안 (Budget Allocation)</span>
+            <span>{t.mmm.allocationMatrixTitle}</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            MMM(Marketing Mix Modeling) 인텔리전스를 통해 최적화된 채널별 예산 배분입니다. 채널명, 비중, 배분액, 근거를 직접 수정할 수 있습니다.
+            {t.mmm.allocationMatrixDesc}
           </p>
         </div>
 
@@ -432,7 +438,7 @@ export function MediaPlanMmmView({
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
                 <span className="text-[10px] text-slate-400 font-medium uppercase">
-                  총 예산
+                  {t.mmm.totalBudget}
                 </span>
                 <span className="text-xs font-bold text-slate-800 font-mono">
                   {totalBudgetStr}
@@ -462,7 +468,7 @@ export function MediaPlanMmmView({
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <Edit3 className="h-3.5 w-3.5 text-blue-600" />
-                <span>채널별 비중 직접 수정 (합계: </span>
+                <span>{t.mmm.directEditShare}</span>
                 <span
                   className={`font-mono font-bold ${
                     totalPercentage === 100 ? 'text-emerald-600' : 'text-amber-600'
@@ -475,7 +481,7 @@ export function MediaPlanMmmView({
               <div className="flex items-center gap-2">
                 {totalPercentage !== 100 && (
                   <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium border border-amber-200">
-                    비중 합계가 100%가 되도록 조정해주세요
+                    {t.mmm.totalPercentageNotice}
                   </span>
                 )}
                 <button
@@ -562,7 +568,7 @@ export function MediaPlanMmmView({
                           setAllocations(next);
                         }}
                         className="w-full bg-[#f8fafc] border border-slate-200 rounded px-2 py-0.5 text-[11px] text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none"
-                        placeholder="전략적 근거 입력"
+                        placeholder={t.mmm.rationalePlaceholder}
                       />
                     </td>
                     <td className="py-2 text-center">
@@ -571,7 +577,7 @@ export function MediaPlanMmmView({
                         onClick={() => handleDeleteChannel(idx)}
                         disabled={allocations.length <= 1}
                         className="text-slate-400 hover:text-red-500 transition disabled:opacity-30 p-1"
-                        title="채널 삭제"
+                        title={t.mmm.deleteChannelTitle}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -590,19 +596,19 @@ export function MediaPlanMmmView({
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-blue-600" />
             <div>
-              <h3 className="text-base font-bold text-slate-900">AI 성과 최적화 추천사항 (Recommendations)</h3>
+              <h3 className="text-base font-bold text-slate-900">{t.mmm.recommendationsTitle}</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                성과 분석 에이전트가 제안한 최적화 전략을 검토하고 필요 시 직접 수정하거나 추가하세요.
+                {t.mmm.recommendationsDesc}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => setRecommendations([...recommendations, '신규 채널 타깃팅 및 크리에이티브 A/B 테스트 권장'])}
+            onClick={() => setRecommendations([...recommendations, t.mmm.defaultNewRecommendation])}
             className="px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition flex items-center gap-1"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span>추천 항목 추가</span>
+            <span>{t.mmm.addRecommendationBtn}</span>
           </button>
         </div>
         <div className="space-y-2.5">
@@ -618,14 +624,14 @@ export function MediaPlanMmmView({
                   setRecommendations(next);
                 }}
                 className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none transition"
-                placeholder="추천 전략 입력"
+                placeholder={t.mmm.recommendationPlaceholder}
               />
               <button
                 type="button"
                 onClick={() => setRecommendations(recommendations.filter((_, i) => i !== idx))}
                 disabled={recommendations.length <= 1}
                 className="text-slate-400 hover:text-red-500 p-1.5 transition disabled:opacity-30 rounded-lg hover:bg-red-50"
-                title="추천 삭제"
+                title={t.mmm.deleteRecommendationTitle}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

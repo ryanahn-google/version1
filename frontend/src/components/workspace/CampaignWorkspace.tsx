@@ -51,6 +51,7 @@ export function CampaignWorkspace({
 }: CampaignWorkspaceProps) {
   const { locale, t } = useLanguage();
   const [activeStep, setActiveStep] = useState<WorkspaceStep>(1);
+  const [isLogPanelOpen, setIsLogPanelOpen] = useState<boolean>(true);
 
   const WORKSPACE_STEPS: StepMeta[] = [
     {
@@ -331,6 +332,8 @@ export function CampaignWorkspace({
           logs={logs}
           isStreaming={isLoading}
           campaignTitle={campaignTitle}
+          isOpen={isLogPanelOpen}
+          onToggle={() => setIsLogPanelOpen((prev) => !prev)}
         />
       </div>
     </div>

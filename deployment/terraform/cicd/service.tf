@@ -238,6 +238,11 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name  = "ENV"
+        value = each.key
+      }
+
+      env {
         name  = "GOOGLE_GENAI_USE_ENTERPRISE"
         value = "True"
       }

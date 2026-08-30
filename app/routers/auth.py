@@ -16,7 +16,14 @@
 
 from datetime import UTC
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 
 from app.orchestrator.security import (
     SecurityManager,
@@ -99,6 +106,7 @@ async def login_with_google(
 @router.post(
     "/dev-login",
     response_model=UserProfileResponse,
+    responses={403: {"model": ErrorResponse}},
 )
 async def dev_login(
     response: Response,
@@ -109,6 +117,14 @@ async def dev_login(
 ) -> UserProfileResponse:
     """Local development mock login establishing valid session cookie."""
     settings = get_settings()
+    if settings.env.lower() in ("staging", "production", "prod"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Developer quick login is disabled in staging and production"
+                " environments."
+            ),
+        )
     email = (payload and payload.email) or "dev-marketer@gmail.com"
     name = (payload and payload.name) or "Dev Marketer"
     user = await repo.create_or_update_google_user(
