@@ -67,7 +67,7 @@ export function CampaignForm({ onSubmit, isLoading, disabled }: CampaignFormProp
   };
 
   return (
-    <aside className="w-full md:w-80 lg:w-96 flex-shrink-0 bg-slate-950/60 border-r border-slate-800 p-5 flex flex-col justify-between overflow-y-auto">
+    <div className="flex flex-col justify-between h-full">
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
@@ -211,6 +211,6 @@ export function CampaignForm({ onSubmit, isLoading, disabled }: CampaignFormProp
         <p>&bull; Automated FinOps unit cost: ~$0.0455 / run</p>
         <p>&bull; Orchestrator: Gemini 3.1 Pro (global)</p>
       </div>
-    </aside>
+    </div>
   );
 }

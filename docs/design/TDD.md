@@ -170,10 +170,11 @@ The deployment pipeline spans three dedicated GCP projects:
 | **Artifact Registry** | Container image repository for Cloud Run | `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1` | Tagged by `$SHORT_SHA` | Google-managed | HTTPS / IAM |
 
 ### 9.2 Cloud SQL Relational Schemas (`version1` Database)
-- **`orchestrator_sessions` Table**:
+- **`campaign_sessions` Table**:
   ```sql
-  CREATE TABLE orchestrator_sessions (
+  CREATE TABLE campaign_sessions (
       session_id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64),
       tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
       status VARCHAR(32) NOT NULL,
       current_stage VARCHAR(32) NOT NULL,
@@ -189,6 +190,34 @@ The deployment pipeline spans three dedicated GCP projects:
       updated_at TIMESTAMP NOT NULL
   );
   ```
+- **`user_sessions` Table (OIDC Cookie Session Store)**:
+  ```sql
+  CREATE TABLE user_sessions (
+      session_token VARCHAR(128) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      ip_address VARCHAR(45),
+      user_agent TEXT,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP NOT NULL,
+      last_accessed_at TIMESTAMP NOT NULL
+  );
+  ```
+- **`users` Table (Google OAuth Marketer Identity)**:
+  ```sql
+  CREATE TABLE users (
+      user_id VARCHAR(64) PRIMARY KEY,
+      google_sub VARCHAR(64) UNIQUE,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      picture TEXT,
+      role VARCHAR(32) NOT NULL DEFAULT 'MARKETER',
+      tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL,
+      last_login_at TIMESTAMP NOT NULL
+  );
+  ```
 - **Google ADK Sessions Schema**:
   - `sessions`: User ID, App Name, Session ID, Update Time.
   - `events`: Individual turn events, user prompts, agent author (`strategy_brief_agent`, etc.), and model parts.
@@ -201,13 +230,22 @@ The deployment pipeline spans three dedicated GCP projects:
 ### 10.1 Orchestrator API Endpoints
 | Endpoint | Method | Auth | Description |
 | :--- | :---: | :---: | :--- |
-| `/api/v1/campaigns` | `POST` | Google OAuth (Bearer) | Initialize campaign workflow; streams SSE events |
-| `/api/v1/campaigns/{sessionId}` | `GET` | Google OAuth (Bearer) | Fetch current session state & artifact URLs from Cloud SQL |
-| `/api/v1/campaigns/{sessionId}/approve` | `POST` | Google OAuth (Bearer) | Submit HITL stage approval or revision feedback |
+| `/api/v1/campaigns` | `POST` | Google OAuth (Bearer) / Session Cookie | Initialize campaign workflow; streams SSE events |
+| `/api/v1/campaigns` | `GET` | Google OAuth (Bearer) / Session Cookie | List recent campaign sessions owned by authenticated user |
+| `/api/v1/campaigns/{sessionId}` | `GET` | Google OAuth (Bearer) / Session Cookie | Fetch current session state & artifact URLs from Cloud SQL |
+| `/api/v1/campaigns/{sessionId}/approve` | `POST` | Google OAuth (Bearer) / Session Cookie | Submit HITL stage approval or revision feedback |
+| `/api/v1/campaigns/{sessionId}/visual` | `GET` | Google OAuth (Bearer) / Session Cookie | Access campaign visual via 307 redirect to V4 Signed URL |
+| `/api/v1/campaigns/{sessionId}/visual-token`| `GET` | Google OAuth (Bearer) / Session Cookie | Generate ephemeral V4 Signed URL token for client |
+| `/api/v1/campaigns/{sessionId}/draft-image` | `GET` | Google OAuth (Bearer) / Session Cookie | Fetch in-memory draft visual before HITL approval |
+| `/api/v1/auth/google` | `POST` | None | Google OAuth2 OIDC login and user auto-provisioning |
+| `/api/v1/auth/dev-login` | `POST` | None (Dev only) | Mock development login for local testing |
+| `/api/v1/auth/me` | `GET` | Session Cookie | Get currently authenticated user profile |
+| `/api/v1/auth/logout` | `POST` | Session Cookie | Invalidate session token and clear auth cookie |
 | `/apps/{appName}/users/{userId}/sessions` | `POST` | Internal / Bearer | Create ADK session in Cloud SQL |
 | `/run_sse` | `POST` | Internal / Bearer | Stream ADK agent response events |
 | `/healthz` | `GET` | None | Container liveness check |
 | `/meta` | `GET` | None | Service metadata & model version negotiation |
+| `/mvc` | `GET` | None | React Single Page Application (SPA) entrypoint |
 
 ### 10.2 Consumed Internal & External APIs
 | API | Endpoint Location | Expected QPS | Retry Policy | Failure Behavior |

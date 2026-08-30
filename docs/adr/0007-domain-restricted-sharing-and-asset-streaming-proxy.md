@@ -17,13 +17,14 @@ We adopt an **Authenticated Backend Streaming Proxy Architecture** on Cloud Run:
    - `google_storage_bucket_iam_member.artifacts_public_viewer` (`allUsers`) is completely removed from Terraform (`deployment/terraform/cicd/storage.tf` and `single-project/storage.tf`).
    - The GCS artifacts bucket remains strictly private, accessible only by authenticated service identities (`version1-app` and `version1-subagent`).
 
-2. **FastAPI Direct Access & Streaming Endpoint (`/generated/{filename:path}`)**:
+2. **FastAPI Direct Access & Streaming Endpoint (`/api/v1/campaigns/{sessionId}/visual`)**:
    - In Cloud Run, the endpoint dynamically issues an HTTP 307 Temporary Redirect to a GCS V4 Signed URL (valid for 1 hour) enabled by `roles/iam.serviceAccountTokenCreator` bound to `version1-app`.
    - The browser automatically follows the redirect and downloads the image **directly from Google Cloud Storage (`storage.googleapis.com`)**, ensuring **0 bytes of memory buffering** in Cloud Run and **0 bytes of Cloud Run network egress**.
+   - Before human approval, uncommitted visual assets are previewed via the in-memory draft endpoint (`/api/v1/campaigns/{sessionId}/draft-image`), avoiding unnecessary GCS writes during rejected revision cycles.
    - If signed URL generation is skipped or in local development, it gracefully falls back to zero-memory socket-to-socket chunked streaming (`StreamingResponse` with 64KB chunks) directly from GCS without buffering into memory.
 
-3. **Subagent URL Generation**:
-   - Subagents save image binaries to GCS and return canonical `/generated/{filename}` paths, ensuring that historical campaign sessions reopened days or months later from Cloud SQL always generate fresh, valid access links dynamically.
+3. **Subagent URL Generation & Persistence**:
+   - Subagents hold draft visuals in memory during iteration and commit finalized image binaries to GCS exclusively upon HITL approval under `users/{user_id}/campaigns/{sessionId}/`, ensuring historical campaign sessions reopened from Cloud SQL always generate fresh, valid signed access links dynamically.
 
 ## Alternatives Considered
 

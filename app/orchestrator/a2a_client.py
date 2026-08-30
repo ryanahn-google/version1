@@ -128,17 +128,15 @@ class A2ASubAgentClient:
     async def _execute_local_agent(
         self, prompt: str, schema_cls: type[Any], stage_name: str
     ) -> Any | None:
-        """Execute local Vertex AI agent generation for MVC subagents."""
         import asyncio
-        import os
 
-        if os.environ.get("INTEGRATION_TEST") == "TRUE":
+        settings = get_settings()
+        if settings.integration_test:
             return None
 
         try:
             from google.genai import Client
 
-            settings = get_settings()
             project = settings.google_cloud_project
             location = settings.google_cloud_location or "global"
 
@@ -504,7 +502,7 @@ class A2ASubAgentClient:
                         rationale=f"Primary driver for {ch.lower()} reach"
                         + (
                             f" [Boosted per revision: {feedback[:30]}]"
-                            if ch == boost_channel
+                            if feedback and ch == boost_channel
                             else ""
                         ),
                     )

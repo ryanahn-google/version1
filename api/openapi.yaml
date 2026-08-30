@@ -240,6 +240,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/campaigns/{sessionId}/draft-image:
+    get:
+      summary: Fetch in-memory draft marketing visual before approval
+      operationId: getCampaignDraftImage
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Image binary stream of in-memory draft visual
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: No in-memory draft image found for session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/campaigns/{sessionId}/visual-token:
     get:
       summary: Get ephemeral V4 Signed URL token for campaign visual

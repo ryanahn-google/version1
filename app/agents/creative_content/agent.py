@@ -21,13 +21,13 @@ Step 2: Native visual asset synthesis and persistence (Nano Banana 2 Lite).
 
 import asyncio
 import logging
-import os
 from typing import TYPE_CHECKING, Any
 
-from google.adk.agents import Agent, SequentialAgent
+from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.models import Gemini
 from google.adk.tools.tool_context import ToolContext
+from google.adk.workflow import START, Workflow
 from google.genai import types
 
 if TYPE_CHECKING:
@@ -78,6 +78,7 @@ copy_and_prompt_agent = Agent(
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     instruction=COPY_AND_PROMPT_INSTRUCTION,
+    mode="single_turn",
 )
 
 
@@ -146,9 +147,10 @@ def generate_marketing_visual(
                 "Could not resolve session_id/user_id from tool_context: %s", ctx_err
             )
 
-    effective_user_id = effective_user_id or os.environ.get("USER_ID")
+    settings = get_settings()
+    effective_user_id = effective_user_id or settings.user_id
 
-    if os.environ.get("INTEGRATION_TEST") == "TRUE":
+    if settings.integration_test:
         if get_draft_image_store:
             return get_draft_image_store().save_draft(
                 effective_session_id, _MOCK_PNG_BYTES
@@ -158,17 +160,13 @@ def generate_marketing_visual(
     try:
         from google.genai import Client
 
-        project = (
-            os.environ.get("GOOGLE_CLOUD_PROJECT")
-            or os.environ.get("PROJECT_ID")
-            or (
-                "capstone-prod-506811"
-                if os.environ.get("ENV") == "prod"
-                else "capstone-staging-506811"
-            )
+        project = settings.google_cloud_project or (
+            "capstone-prod-506811"
+            if settings.env == "prod"
+            else "capstone-staging-506811"
         )
-        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
-        image_model = os.environ.get("IMAGE_MODEL") or IMAGE_MODEL
+        location = settings.google_cloud_location or "global"
+        image_model = settings.image_model or IMAGE_MODEL
 
         client = Client(vertexai=True, project=project, location=location)
         logger.info(
@@ -259,12 +257,13 @@ image_synthesis_agent = Agent(
     instruction=IMAGE_SYNTHESIS_INSTRUCTION,
     tools=[generate_marketing_visual],
     output_schema=CreativeContentDeliverable,
+    mode="single_turn",
 )
 
-# Root SequentialAgent composing Step 1 (Copy & Prompt) and Step 2 (Image Synthesis)
-creative_content_agent = SequentialAgent(
+# Root Workflow composing Step 1 (Copy & Prompt) and Step 2 (Image Synthesis)
+creative_content_agent = Workflow(
     name="creative_content_agent",
-    sub_agents=[copy_and_prompt_agent, image_synthesis_agent],
+    edges=[(START, copy_and_prompt_agent, image_synthesis_agent)],
 )
 
 app = App(
@@ -300,7 +299,7 @@ async def run_creative_content_pipeline(
     deliverable: CreativeContentDeliverable | None = None
 
     # Step 1: Generate copy & prompt with LLM
-    if os.environ.get("INTEGRATION_TEST") != "TRUE":
+    if not settings.integration_test:
         try:
             from google.genai import Client
 

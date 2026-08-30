@@ -26,9 +26,31 @@ if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI"):
 elif "GOOGLE_GENAI_USE_ENTERPRISE" not in os.environ:
     os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "true"
 
+from collections.abc import Iterator
+
+import pytest
+
 try:
     from app.settings import get_settings
 
     get_settings.cache_clear()
 except ImportError:
     pass
+
+
+@pytest.fixture(autouse=True)
+def _reset_settings_cache() -> Iterator[None]:
+    """Reset get_settings LRU cache before and after each test for test isolation."""
+    try:
+        from app.settings import get_settings
+
+        get_settings.cache_clear()
+    except ImportError:
+        pass
+    yield
+    try:
+        from app.settings import get_settings
+
+        get_settings.cache_clear()
+    except ImportError:
+        pass

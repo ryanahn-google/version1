@@ -18,10 +18,14 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 import uuid
 from collections.abc import Iterator
 from typing import Any
+
+try:
+    from app.settings import get_settings
+except ImportError:
+    from settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +34,15 @@ FALLBACK_ASSET_URL = "https://storage.googleapis.com/mvc-artifacts-public/campai
 
 def _resolve_project_and_bucket() -> tuple[str, str, bool]:
     """Resolve effective (project_id, bucket_name, is_cloud_env)."""
-    env = os.environ.get("ENV", "").lower()
-    app_url = os.environ.get("APP_URL", "")
+    settings = get_settings()
+    env = (settings.env or "").lower()
+    app_url = settings.app_url or ""
 
     # Detect if running in GCP cloud environment (Agent Runtime or Cloud Run)
     is_agent_runtime = (
         "aiplatform.googleapis.com" in app_url or "reasoningEngines" in app_url
     )
-    is_cloud_run = bool(os.environ.get("K_SERVICE"))
+    is_cloud_run = settings.is_cloud_run
     is_cloud_env = (
         is_agent_runtime or is_cloud_run or env in ("prod", "production", "staging")
     )
@@ -46,12 +51,12 @@ def _resolve_project_and_bucket() -> tuple[str, str, bool]:
     is_prod = env in ("prod", "production") or "4915168819879608320" in app_url
     target_project = "capstone-prod-506811" if is_prod else "capstone-staging-506811"
 
-    # Read explicit env vars if present
-    project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID")
+    # Read explicit project from settings if present
+    project = settings.google_cloud_project
     if not project or project in ("sample-505914", "test-project") or project.isdigit():
         project = target_project
 
-    bucket_name = os.environ.get("ARTIFACTS_BUCKET_NAME")
+    bucket_name = settings.artifacts_bucket_name
     if not bucket_name:
         bucket_name = f"{project}-version1-artifacts"
 
@@ -207,9 +212,11 @@ def generate_v4_signed_url(
             except Exception as ref_exc:
                 logger.debug("Credentials refresh skipped/failed: %s", ref_exc)
 
-        sa_email = getattr(
-            credentials, "service_account_email", None
-        ) or os.environ.get("SERVICE_ACCOUNT_EMAIL")
+        settings = get_settings()
+        sa_email = (
+            getattr(credentials, "service_account_email", None)
+            or settings.service_account_email
+        )
         token = getattr(credentials, "token", None)
 
         signed_url_kwargs: dict[str, Any] = {

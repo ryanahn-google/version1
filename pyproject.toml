@@ -32,6 +32,7 @@ dev = [
     "ruff>=0.4.6,<1.0.0",
     "ty>=0.0.1a0",
     "codespell>=2.2.0,<3.0.0",
+    "httpx2>=2.12.0",
 ]
 
 [project.optional-dependencies]
@@ -110,6 +111,7 @@ filterwarnings = [
     "ignore:.*Using `@model_validator` with mode='after'.*:pydantic.warnings.PydanticDeprecatedSince212",
     "ignore:.*Please use `import python_multipart` instead.*:PendingDeprecationWarning",
     "ignore:.*EXPERIMENTAL.*:UserWarning",
+    "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:starlette.exceptions.StarletteDeprecationWarning",
 ]
 
 [tool.hatch.build.targets.wheel]

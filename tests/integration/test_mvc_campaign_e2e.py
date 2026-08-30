@@ -126,7 +126,7 @@ async def test_full_campaign_dag_golden_scenario():
         assert len(p2_deliv["targetPersonas"]) >= 2
         assert len(p2_deliv["messagingPillars"]) >= 2
 
-        # Step 3: Approve P2 -> Triggers [P3] Creative Content
+        # Step 3: Approve P2 -> triggers [P3] Creative Content
         approve_p2_resp = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
             json={"action": "approve", "stream": False},
