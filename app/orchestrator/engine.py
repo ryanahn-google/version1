@@ -28,6 +28,7 @@ from app.schemas.campaign import (
     CampaignStage,
     CampaignStatus,
     CreateCampaignRequest,
+    ParsePromptResponse,
     StageApprovalRequest,
 )
 
@@ -64,12 +65,14 @@ class CampaignOrchestrationEngine:
             channels=request.channels,
             tenant_id="nova-corp",
         )
+        lang = getattr(request, "language", "ko")
         deliv1 = await self.a2a.run_market_sensing(
             brand_name=request.brandName,
             product_name=request.productName,
             objective=request.campaignObjective,
             audience=request.targetAudience,
             context_id=f"{session_id}-p1",
+            language=lang,
         )
         deliv2 = await self.a2a.run_strategy_brief(
             brand_name=request.brandName,
@@ -77,6 +80,7 @@ class CampaignOrchestrationEngine:
             objective=request.campaignObjective,
             market_sensing=deliv1,
             context_id=f"{session_id}-p2",
+            language=lang,
         )
         updated = await self.repo.update_session(
             session_id=session_id,
@@ -177,6 +181,14 @@ class CampaignOrchestrationEngine:
                 session = updated_session
 
         # --- Case 1: Revision requested ---
+        session_lang = (
+            "ko"
+            if any(
+                "\uac00" <= ch <= "\ud7a3"
+                for ch in f"{session.campaignObjective} {session.productName} {feedback or ''}"
+            )
+            else "en"
+        )
         if action == ApprovalAction.REVISE:
             await self.repo.update_session(session_id, increment_revision=True)
 
@@ -189,6 +201,7 @@ class CampaignOrchestrationEngine:
                     audience,
                     feedback=feedback,
                     context_id=f"{session_id}-p1-rev",
+                    language=session_lang,
                 )
                 updated = await self.repo.update_session(
                     session_id,
@@ -211,6 +224,7 @@ class CampaignOrchestrationEngine:
                     market_sensing,
                     feedback=feedback,
                     context_id=f"{session_id}-p2-rev",
+                    language=session_lang,
                 )
                 updated = await self.repo.update_session(
                     session_id,
@@ -235,6 +249,7 @@ class CampaignOrchestrationEngine:
                     feedback=feedback,
                     context_id=session_id,
                     user_id=effective_user_id,
+                    language=session_lang,
                 )
                 if deliv3.assetUrl and (
                     deliv3.assetUrl.startswith("http")
@@ -265,6 +280,7 @@ class CampaignOrchestrationEngine:
                     creative=session.deliverables.creativeContent,
                     feedback=feedback,
                     context_id=f"{session_id}-p4-rev",
+                    language=session_lang,
                 )
                 updated = await self.repo.update_session(
                     session_id,
@@ -297,6 +313,7 @@ class CampaignOrchestrationEngine:
                 session.campaignObjective,
                 market_sensing,
                 context_id=f"{session_id}-p2",
+                language=session_lang,
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -319,6 +336,7 @@ class CampaignOrchestrationEngine:
                 campaign_brief,
                 context_id=session_id,
                 user_id=effective_user_id,
+                language=session_lang,
             )
             if deliv_p3.assetUrl and (
                 deliv_p3.assetUrl.startswith("http")
@@ -371,6 +389,7 @@ class CampaignOrchestrationEngine:
                 campaign_brief,
                 creative=session.deliverables.creativeContent,
                 context_id=f"{session_id}-p4",
+                language=session_lang,
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -390,15 +409,20 @@ class CampaignOrchestrationEngine:
             return updated or session
 
         elif current_stage == CampaignStage.MEDIA_EXECUTION:
-            next_stage = CampaignStage.COMPLETED
             updated = await self.repo.update_session(
                 session_id,
                 status=CampaignStatus.COMPLETED,
-                current_stage=next_stage,
+                current_stage=CampaignStage.COMPLETED,
             )
             return updated or session
 
         return session
+
+    async def parse_prompt(
+        self, prompt: str, language: str = "ko"
+    ) -> ParsePromptResponse:
+        """Parse natural language prompt into structured campaign brief parameters."""
+        return await self.a2a.parse_campaign_prompt(prompt, language=language)
 
 
 _orchestrator_engine = CampaignOrchestrationEngine()

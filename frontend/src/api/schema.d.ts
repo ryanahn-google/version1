@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/parse-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parse natural language prompt into structured campaign brief parameters */
+        post: operations["parseCampaignPrompt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns": {
         parameters: {
             query?: never;
@@ -250,6 +267,12 @@ export interface components {
              */
             currency: string;
             /**
+             * @default ko
+             * @example ko
+             * @enum {string}
+             */
+            language: "ko" | "en";
+            /**
              * @example [
              *       "Digital Video",
              *       "Paid Search",
@@ -263,6 +286,34 @@ export interface components {
              * @default true
              */
             stream: boolean;
+        };
+        ParsePromptRequest: {
+            /** @example 20대 타겟 브랜드 인지도 캠페인 기획해줘 */
+            prompt: string;
+            /**
+             * @default ko
+             * @enum {string}
+             */
+            language: "ko" | "en";
+        };
+        ParsePromptResponse: {
+            /** @example  */
+            brandName?: string;
+            /** @example  */
+            productName?: string;
+            /** @example 브랜드 인지도 캠페인 기획 */
+            campaignObjective?: string;
+            /** @example 20대 */
+            targetAudience?: string;
+            /** @example null */
+            budgetAmount?: number | null;
+            /**
+             * @default USD
+             * @example KRW
+             */
+            currency: string;
+            /** @example [] */
+            channels?: string[];
         };
         StageApprovalRequest: {
             /**
@@ -607,6 +658,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+        };
+    };
+    parseCampaignPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParsePromptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successfully parsed parameters */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParsePromptResponse"];
+                };
+            };
+            /** @description Model Armor rejection or invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

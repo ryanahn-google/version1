@@ -21,6 +21,8 @@ from app.schemas.campaign import (
     CampaignStage,
     CampaignStatus,
     CreateCampaignRequest,
+    ParsePromptRequest,
+    ParsePromptResponse,
     StageApprovalRequest,
 )
 from app.schemas.deliverables import (
@@ -51,6 +53,8 @@ __all__ = [
     "ErrorResponse",
     "MarketSensingDeliverable",
     "MessagingPillar",
+    "ParsePromptRequest",
+    "ParsePromptResponse",
     "PerformanceInsightsDeliverable",
     "ProjectedKPIs",
     "SentimentOverview",

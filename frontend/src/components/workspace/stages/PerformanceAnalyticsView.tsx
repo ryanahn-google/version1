@@ -3,7 +3,6 @@ import {
   BarChart3,
   Calendar,
   Filter,
-  Printer,
   FileDown,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -25,10 +24,7 @@ export function PerformanceAnalyticsView({
 
   const insights = session?.deliverables?.performanceInsights;
   const budget = session?.budgetAmount || 0;
-  const currency =
-    insights?.currency ||
-    session?.currency ||
-    'USD';
+  const currency = session?.currency || insights?.currency || 'USD';
   const currencySymbol = currency === 'KRW' ? '₩' : '$';
   const roas = insights?.expectedRoas || 0;
   const sales = Math.round(budget * roas).toLocaleString();
@@ -40,11 +36,7 @@ export function PerformanceAnalyticsView({
         month: '2-digit',
         day: '2-digit',
       })
-    : new Date().toLocaleDateString(locale === 'ko' ? 'ko-KR' : 'en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
+    : new Date().toLocaleDateString(locale === 'ko' ? 'ko-KR' : 'en-US');
   const endDateStr = session?.updatedAt
     ? new Date(session.updatedAt).toLocaleDateString(locale === 'ko' ? 'ko-KR' : 'en-US', {
         year: 'numeric',
@@ -71,36 +63,45 @@ export function PerformanceAnalyticsView({
   const conversions = totalConversionsNum.toLocaleString();
 
   const handleDownloadPdf = async () => {
-    if (!reportRef.current) return;
     try {
       setIsGeneratingPdf(true);
-      const element = reportRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
+      const page1 = document.getElementById('mvc-pdf-page-1');
+      const page2 = document.getElementById('mvc-pdf-page-2');
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      if (page1 && page2) {
+        const canvas1 = await html2canvas(page1, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+        });
+        const imgData1 = canvas1.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
 
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+
+        const canvas2 = await html2canvas(page2, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+        });
+        const imgData2 = canvas2.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      } else if (reportRef.current) {
+        const canvas = await html2canvas(reportRef.current, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, Math.min(pdfHeight, imgHeight));
       }
 
       const safeName = session?.productName?.replace(/[^a-zA-Z0-9가-힣_-]/g, '_') || 'campaign';
@@ -110,16 +111,12 @@ export function PerformanceAnalyticsView({
       console.error('PDF generation error:', err);
       alert(
         locale === 'ko'
-          ? 'PDF 리포트 생성 중 오류가 발생했습니다. 브라우저 인쇄 기능을 활용하실 수도 있습니다.'
-          : 'Failed to generate PDF report. You may also use browser print.'
+          ? 'PDF 리포트 생성 중 오류가 발생했습니다.'
+          : 'Failed to generate PDF report.'
       );
     } finally {
       setIsGeneratingPdf(false);
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   return (
@@ -134,15 +131,6 @@ export function PerformanceAnalyticsView({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handlePrint}
-            title={locale === 'ko' ? '인쇄하기' : 'Print Report'}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-          >
-            <Printer className="h-4 w-4 text-slate-600" />
-            <span className="hidden sm:inline">{locale === 'ko' ? '인쇄' : 'Print'}</span>
-          </button>
           <button
             type="button"
             onClick={handleDownloadPdf}

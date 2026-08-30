@@ -14,9 +14,9 @@
 
 """In-memory draft image store for Marketing Value Creator (MVC).
 
-Holds draft marketing visuals in memory prior to Human-in-the-Loop (HITL) approval.
+Holds draft marketing visuals in memory prior to Human-in-the-Loop approval.
 Upon approval, commits the draft image to Google Cloud Storage (GCS).
-Upon revision, purges the draft image from memory so a fresh asset can be generated.
+Upon revision, purges the draft image from memory so a fresh asset is created.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ def normalize_session_id(session_id: str) -> str:
 
 
 class DraftImageStore:
-    """Thread-safe in-memory store for uncommitted campaign draft marketing visuals."""
+    """Thread-safe in-memory store for campaign draft marketing visuals."""
 
     def __init__(self) -> None:
         self._cache: dict[str, tuple[bytes, str]] = {}
@@ -107,7 +107,8 @@ class DraftImageStore:
 
         if not draft:
             logger.warning(
-                "No draft image found in memory to commit for session '%s'.", clean_id
+                "No draft image found in memory to commit for session '%s'.",
+                clean_id,
             )
             return None
 
@@ -115,25 +116,14 @@ class DraftImageStore:
         try:
             from app.storage_service import save_visual_marketing_asset
         except ImportError:
-            try:
-                from app.agents.creative_content.storage_service import (
-                    save_visual_marketing_asset,
-                )
-            except ImportError:
-                try:
-                    from storage_service import (  # type: ignore[no-redef]
-                        save_visual_marketing_asset,
-                    )
-                except ImportError:
-                    from .storage_service import (  # type: ignore[no-redef]
-                        save_visual_marketing_asset,
-                    )
+            from storage_service import save_visual_marketing_asset
 
         gcs_url = save_visual_marketing_asset(
             image_bytes, session_id=clean_id, user_id=user_id
         )
         logger.info(
-            "Successfully committed draft image to GCS for session '%s' (user: '%s'): %s",
+            "Successfully committed draft image to GCS for session '%s'"
+            " (user: '%s'): %s",
             clean_id,
             user_id,
             gcs_url,

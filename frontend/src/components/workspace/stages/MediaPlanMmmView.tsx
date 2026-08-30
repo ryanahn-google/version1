@@ -31,11 +31,10 @@ export function MediaPlanMmmView({
   isLoading = false,
 }: MediaPlanMmmViewProps) {
   const { t } = useLanguage();
-  const [currency, setCurrency] = useState<'USD' | 'KRW'>(
-    (session?.deliverables?.performanceInsights?.currency as 'USD' | 'KRW') ||
+  const currency: 'USD' | 'KRW' =
     (session?.currency as 'USD' | 'KRW') ||
-    'USD'
-  );
+    (session?.deliverables?.performanceInsights?.currency as 'USD' | 'KRW') ||
+    'USD';
   const currencySymbol = currency === 'KRW' ? '₩' : '$';
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 
@@ -236,22 +235,11 @@ export function MediaPlanMmmView({
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              총 예산
+              {t.planning.budget}
             </span>
-            <div className="flex items-center gap-1.5">
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as 'USD' | 'KRW')}
-                className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
-              >
-                <option value="USD">USD ($)</option>
-                <option value="KRW">KRW (₩)</option>
-              </select>
-              <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
-                <Edit3 className="h-3 w-3" />
-                수정 가능
-              </span>
-            </div>
+            <span className="text-[10px] font-bold font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+              {currency} ({currencySymbol})
+            </span>
           </div>
           <div className="flex items-center gap-1 mt-1">
             <span className="text-lg font-bold text-slate-900 font-mono">{currencySymbol}</span>

@@ -18,6 +18,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useLanguage } from '../../../context/LanguageContext';
+import { apiClient } from '../../../api/client';
 import type {
   CampaignSessionResponse,
   CreateCampaignRequest,
@@ -78,6 +79,32 @@ export function PlanningView({
   const [selectedChannels, setSelectedChannels] = useState<string[]>(
     session?.channels || ['Social Media', 'Search Ads', 'Digital Video']
   );
+  const [isInterpretingPrompt, setIsInterpretingPrompt] = useState(false);
+
+  useEffect(() => {
+    if (initialPrompt && !session) {
+      setIsInterpretingPrompt(true);
+      apiClient
+        .parsePrompt({ prompt: initialPrompt, language: locale })
+        .then((res) => {
+          if (res.brandName) setBrandName(res.brandName);
+          if (res.productName) setProductName(res.productName);
+          if (res.campaignObjective) setObjective(res.campaignObjective);
+          else setObjective(initialPrompt);
+          if (res.targetAudience) setTargetAudience(res.targetAudience);
+          if (res.budgetAmount) setBudget(res.budgetAmount);
+          if (res.currency === 'KRW' || res.currency === 'USD') setCurrency(res.currency);
+          if (res.channels && res.channels.length > 0) setSelectedChannels(res.channels);
+        })
+        .catch((err) => {
+          console.warn('Failed to parse prompt with LLM:', err);
+          setObjective(initialPrompt);
+        })
+        .finally(() => {
+          setIsInterpretingPrompt(false);
+        });
+    }
+  }, [initialPrompt]);
 
   const [activeStrategyTab, setActiveStrategyTab] = useState<
     'SUMMARY' | 'TARGET' | 'MESSAGING' | 'CHANNELS'
@@ -186,6 +213,7 @@ export function PlanningView({
       targetAudience: targetAudience.trim() || (locale === 'ko' ? '주요 잠재 고객층' : 'Target audience segment'),
       budgetAmount: budget,
       currency,
+      language: locale,
       channels: selectedChannels,
       stream: false,
     });
@@ -195,10 +223,10 @@ export function PlanningView({
     setTargetPersonas((prev) => [
       ...prev,
       {
-        name: '신규 타겟 페르소나',
-        demographics: '연령대/직업군 입력',
-        primaryNeeds: ['주요 필요 니즈 입력'],
-        barriers: ['장애 요인 입력'],
+        name: locale === 'ko' ? '신규 타겟 페르소나' : 'New Target Persona',
+        demographics: locale === 'ko' ? '연령대/직업군 입력' : 'Age / Demographic profile',
+        primaryNeeds: [locale === 'ko' ? '주요 필요 니즈 입력' : 'Primary need statement'],
+        barriers: [locale === 'ko' ? '장애 요인 입력' : 'Key purchase barrier'],
       },
     ]);
   };
@@ -211,9 +239,9 @@ export function PlanningView({
     setMessagingPillars((prev) => [
       ...prev,
       {
-        pillar: '신규 메시지 필라',
-        keyMessage: '핵심 전달 메시지를 입력하세요.',
-        proofPoints: ['제품 기술 및 실증 근거'],
+        pillar: locale === 'ko' ? '신규 메시지 필라' : 'New Messaging Pillar',
+        keyMessage: locale === 'ko' ? '핵심 전달 메시지를 입력하세요.' : 'Enter core key message statement.',
+        proofPoints: [locale === 'ko' ? '제품 기술 및 실증 근거' : 'Supporting proof point'],
       },
     ]);
   };
@@ -223,7 +251,10 @@ export function PlanningView({
   };
 
   const handleAddTrend = () => {
-    setConsumerTrends((prev) => [...prev, '신규 시장 트렌드 입력']);
+    setConsumerTrends((prev) => [
+      ...prev,
+      locale === 'ko' ? '신규 시장 트렌드 입력' : 'New consumer behavior trend',
+    ]);
   };
 
   const handleDeleteTrend = (idx: number) => {
@@ -231,7 +262,10 @@ export function PlanningView({
   };
 
   const handleAddOpportunity = () => {
-    setStrategicOpportunities((prev) => [...prev, '신규 전략적 기회 입력']);
+    setStrategicOpportunities((prev) => [
+      ...prev,
+      locale === 'ko' ? '신규 전략적 기회 입력' : 'New strategic opportunity',
+    ]);
   };
 
   const handleDeleteOpportunity = (idx: number) => {
@@ -242,9 +276,9 @@ export function PlanningView({
     setCompetitiveAnalysis((prev) => [
       ...prev,
       {
-        competitor: '신규 경쟁사명',
-        strengths: ['경쟁사 강점'],
-        vulnerabilities: ['경쟁사 취약점 및 공략 포인트'],
+        competitor: locale === 'ko' ? '신규 경쟁사명' : 'New Competitor Brand',
+        strengths: [locale === 'ko' ? '경쟁사 강점' : 'Competitor key strength'],
+        vulnerabilities: [locale === 'ko' ? '경쟁사 취약점 및 공략 포인트' : 'Competitor vulnerability / exploit angle'],
       },
     ]);
   };
@@ -368,6 +402,17 @@ export function PlanningView({
                 {t.planning.briefDesc}
               </p>
             </div>
+
+            {isInterpretingPrompt && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-center gap-2.5 text-xs text-blue-700 animate-pulse">
+                <Sparkles className="h-4 w-4 text-blue-600 animate-spin shrink-0" />
+                <span>
+                  {locale === 'ko'
+                    ? 'AI가 자연어 프롬프트를 분석하여 캠페인 브리프를 자동으로 채우고 있습니다...'
+                    : 'AI is interpreting your natural language prompt into campaign brief parameters...'}
+                </span>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               {/* 캠페인 목표 */}
@@ -595,11 +640,11 @@ export function PlanningView({
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[11px] font-bold text-slate-700 block">
-                          캠페인 콘셉트 명칭 (Campaign Title)
+                          {t.planning.campaignTitleLabel}
                         </span>
                         <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                           <Edit3 className="h-3 w-3" />
-                          직접 수정 가능
+                          {t.content.editableBadge}
                         </span>
                       </div>
                       <input
@@ -607,7 +652,7 @@ export function PlanningView({
                         value={campaignTitle}
                         onChange={(e) => setCampaignTitle(e.target.value)}
                         className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-lg p-2.5 text-xs font-bold text-slate-900 focus:outline-none transition"
-                        placeholder="캠페인 제목 입력"
+                        placeholder={t.planning.campaignTitlePlaceholder}
                       />
                     </div>
 
@@ -616,11 +661,11 @@ export function PlanningView({
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
                             <Award className="h-3.5 w-3.5 text-blue-600" />
-                            핵심 가치 제안 (Core Value Proposition)
+                            {t.planning.coreValuePropLabel}
                           </span>
                           <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                             <Edit3 className="h-3 w-3" />
-                            직접 수정 가능
+                            {t.content.editableBadge}
                           </span>
                         </div>
                         <textarea
@@ -628,7 +673,7 @@ export function PlanningView({
                           onChange={(e) => setCoreValueProposition(e.target.value)}
                           rows={3}
                           className="w-full bg-white border border-blue-200 focus:border-blue-500 rounded-lg p-2.5 text-xs text-slate-800 font-medium leading-relaxed focus:outline-none resize-none transition"
-                          placeholder="핵심 가치 제안 입력"
+                          placeholder={t.planning.coreValuePropPlaceholder}
                         />
                       </div>
                     )}
@@ -641,11 +686,11 @@ export function PlanningView({
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[11px] font-bold text-slate-700 block">
-                          타겟 시장 분석 (Target Market)
+                          {t.planning.targetMarketLabel}
                         </span>
                         <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                           <Edit3 className="h-3 w-3" />
-                          수정 가능
+                          {t.content.editableBadge}
                         </span>
                       </div>
                       <textarea
@@ -653,7 +698,7 @@ export function PlanningView({
                         onChange={(e) => setTargetMarket(e.target.value)}
                         rows={3}
                         className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-lg p-2.5 text-xs text-slate-800 focus:outline-none resize-none transition"
-                        placeholder="타겟 시장 분석 내용 입력"
+                        placeholder={t.planning.targetMarketPlaceholder}
                       />
                     </div>
 
@@ -662,18 +707,18 @@ export function PlanningView({
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                           <Smile className="h-3.5 w-3.5 text-emerald-600" />
-                          소비자 감성 분석 (Sentiment Overview)
+                          {t.planning.sentimentTitle}
                         </span>
                         <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                           <Edit3 className="h-3 w-3" />
-                          직접 수정 가능
+                          {t.content.editableBadge}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[10px] text-emerald-700 font-semibold block mb-1">
-                            긍정 반응 요인 (Positive Themes, 쉼표 구분)
+                            {t.planning.positiveThemes}
                           </label>
                           <input
                             type="text"
@@ -688,7 +733,7 @@ export function PlanningView({
                         </div>
                         <div>
                           <label className="text-[10px] text-amber-700 font-semibold block mb-1">
-                            불편/우려 요인 (Friction Points, 쉼표 구분)
+                            {t.planning.frictionPoints}
                           </label>
                           <input
                             type="text"
@@ -705,7 +750,7 @@ export function PlanningView({
 
                       <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-2.5">
                         <span className="text-xs text-slate-600 font-medium">
-                          종합 감성 지수 (-1.0 ~ +1.0):
+                          {t.planning.sentimentScore}:
                         </span>
                         <div className="flex items-center gap-2">
                           <input
@@ -727,12 +772,12 @@ export function PlanningView({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-800 block">
-                          타겟 페르소나 (Target Personas)
+                          {t.planning.personasTitle}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                             <Edit3 className="h-3 w-3" />
-                            수정 가능
+                            {t.content.editableBadge}
                           </span>
                           <button
                             type="button"
@@ -740,7 +785,7 @@ export function PlanningView({
                             className="px-2 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition"
                           >
                             <Plus className="h-3 w-3" />
-                            <span>페르소나 추가</span>
+                            <span>{t.planning.addPersona}</span>
                           </button>
                         </div>
                       </div>
@@ -751,14 +796,14 @@ export function PlanningView({
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-slate-500">
-                              페르소나 #{idx + 1}
+                              {locale === 'ko' ? `페르소나 #${idx + 1}` : `Persona #${idx + 1}`}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleDeletePersona(idx)}
                               disabled={targetPersonas.length <= 1}
                               className="text-slate-400 hover:text-red-500 p-1 transition disabled:opacity-30"
-                              title="페르소나 삭제"
+                              title={locale === 'ko' ? '페르소나 삭제' : 'Delete Persona'}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -766,7 +811,7 @@ export function PlanningView({
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                                페르소나 이름/직무
+                                {t.planning.personaName}
                               </label>
                               <input
                                 type="text"
@@ -781,7 +826,7 @@ export function PlanningView({
                             </div>
                             <div>
                               <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                                인구통계 (Demographics)
+                                {t.planning.demographics}
                               </label>
                               <input
                                 type="text"
@@ -798,7 +843,7 @@ export function PlanningView({
 
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              주요 니즈 (Primary Needs, 쉼표 구분)
+                              {t.planning.primaryNeeds}
                             </label>
                             <input
                               type="text"
@@ -817,7 +862,7 @@ export function PlanningView({
 
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              장애 요인 (Barriers, 쉼표 구분)
+                              {t.planning.barriers}
                             </label>
                             <input
                               type="text"
@@ -847,11 +892,11 @@ export function PlanningView({
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                           <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
-                          브랜드 톤앤보이스 가이드라인 (Tone & Voice)
+                          {t.planning.toneAndVoiceTitle}
                         </span>
                         <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                           <Edit3 className="h-3 w-3" />
-                          직접 수정 가능
+                          {t.content.editableBadge}
                         </span>
                       </div>
                       <input
@@ -862,7 +907,7 @@ export function PlanningView({
                             e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
                           )
                         }
-                        placeholder="브랜드 보이스 형용사 및 가이드라인 (쉼표 구분)"
+                        placeholder={t.planning.toneAndVoicePlaceholder}
                         className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none transition"
                       />
                       <div className="flex flex-wrap gap-1.5 mt-1">
@@ -880,12 +925,12 @@ export function PlanningView({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-bold text-slate-800 block">
-                          핵심 메시지 전략 (Messaging Pillars)
+                          {t.planning.messagingTitle}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                             <Edit3 className="h-3 w-3" />
-                            수정 가능
+                            {t.content.editableBadge}
                           </span>
                           <button
                             type="button"
@@ -893,7 +938,7 @@ export function PlanningView({
                             className="px-2 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition"
                           >
                             <Plus className="h-3 w-3" />
-                            <span>필라 추가</span>
+                            <span>{t.planning.addPillar}</span>
                           </button>
                         </div>
                       </div>
@@ -904,21 +949,21 @@ export function PlanningView({
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-blue-900 font-mono">
-                              0{idx + 1}. 메시징 필라
+                              {locale === 'ko' ? `0${idx + 1}. 메시징 필라` : `0${idx + 1}. Messaging Pillar`}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleDeletePillar(idx)}
                               disabled={messagingPillars.length <= 1}
                               className="text-slate-400 hover:text-red-500 p-1 transition disabled:opacity-30"
-                              title="필라 삭제"
+                              title={locale === 'ko' ? '필라 삭제' : 'Delete Pillar'}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              필라 명칭
+                              {t.planning.pillarName}
                             </label>
                             <input
                               type="text"
@@ -934,7 +979,7 @@ export function PlanningView({
 
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              핵심 메시지 (Key Message)
+                              {t.planning.keyMessage}
                             </label>
                             <textarea
                               value={pillar.keyMessage}
@@ -950,7 +995,7 @@ export function PlanningView({
 
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              증빙 포인트 (Proof Points, 쉼표 구분)
+                              {t.planning.proofPoints}
                             </label>
                             <input
                               type="text"
@@ -979,12 +1024,12 @@ export function PlanningView({
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-800 text-xs">
-                          소비자 트렌드 (Consumer Trends)
+                          {t.planning.trendsTitle}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                             <Edit3 className="h-3 w-3" />
-                            수정 가능
+                            {t.content.editableBadge}
                           </span>
                           <button
                             type="button"
@@ -992,16 +1037,16 @@ export function PlanningView({
                             className="px-2 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition"
                           >
                             <Plus className="h-3 w-3" />
-                            <span>트렌드 추가</span>
+                            <span>{t.planning.addTrend}</span>
                           </button>
                         </div>
                       </div>
-                      {consumerTrends.map((t, idx) => (
+                      {consumerTrends.map((tVal, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <span className="text-blue-600 font-bold">•</span>
                           <input
                             type="text"
-                            value={t}
+                            value={tVal}
                             onChange={(e) => {
                               const next = [...consumerTrends];
                               next[idx] = e.target.value;
@@ -1014,7 +1059,7 @@ export function PlanningView({
                             onClick={() => handleDeleteTrend(idx)}
                             disabled={consumerTrends.length <= 1}
                             className="text-slate-400 hover:text-red-500 p-1 transition disabled:opacity-30"
-                            title="트렌드 삭제"
+                            title={locale === 'ko' ? '트렌드 삭제' : 'Delete Trend'}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1026,12 +1071,12 @@ export function PlanningView({
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-800 text-xs">
-                          전략적 기회 (Strategic Opportunities)
+                          {t.planning.opportunitiesTitle}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                             <Edit3 className="h-3 w-3" />
-                            수정 가능
+                            {t.content.editableBadge}
                           </span>
                           <button
                             type="button"
@@ -1039,7 +1084,7 @@ export function PlanningView({
                             className="px-2 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition"
                           >
                             <Plus className="h-3 w-3" />
-                            <span>기회 추가</span>
+                            <span>{t.planning.addOpportunity}</span>
                           </button>
                         </div>
                       </div>
@@ -1061,7 +1106,7 @@ export function PlanningView({
                             onClick={() => handleDeleteOpportunity(idx)}
                             disabled={strategicOpportunities.length <= 1}
                             className="text-slate-400 hover:text-red-500 p-1 transition disabled:opacity-30"
-                            title="기회 삭제"
+                            title={locale === 'ko' ? '기회 삭제' : 'Delete Opportunity'}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1073,12 +1118,12 @@ export function PlanningView({
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-800 text-xs block">
-                          경쟁사 분석 (Competitive Analysis)
+                          {t.planning.competitorsTitle}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                             <Edit3 className="h-3 w-3" />
-                            수정 가능
+                            {t.content.editableBadge}
                           </span>
                           <button
                             type="button"
@@ -1086,7 +1131,7 @@ export function PlanningView({
                             className="px-2 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition"
                           >
                             <Plus className="h-3 w-3" />
-                            <span>경쟁사 추가</span>
+                            <span>{t.planning.addCompetitor}</span>
                           </button>
                         </div>
                       </div>
@@ -1094,7 +1139,7 @@ export function PlanningView({
                         <div key={idx} className="p-3 rounded-xl bg-white border border-slate-200 space-y-2 text-xs shadow-xs">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 flex-1 mr-2">
-                              <span className="text-slate-400 font-semibold text-[10px]">경쟁사:</span>
+                              <span className="text-slate-400 font-semibold text-[10px]">{t.planning.competitorName}:</span>
                               <input
                                 type="text"
                                 value={comp.competitor}
@@ -1104,7 +1149,7 @@ export function PlanningView({
                                   setCompetitiveAnalysis(next);
                                 }}
                                 className="font-bold text-slate-900 bg-[#f8fafc] border border-slate-200 rounded px-2 py-0.5 text-xs w-36"
-                                placeholder="경쟁사명"
+                                placeholder={t.planning.competitorName}
                               />
                             </div>
                             <button
@@ -1112,14 +1157,14 @@ export function PlanningView({
                               onClick={() => handleDeleteCompetitor(idx)}
                               disabled={competitiveAnalysis.length <= 1}
                               className="text-slate-400 hover:text-red-500 p-1 transition disabled:opacity-30"
-                              title="경쟁사 삭제"
+                              title={locale === 'ko' ? '경쟁사 삭제' : 'Delete Competitor'}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              강점 (Strengths, 쉼표 구분)
+                              {t.planning.strengths}
                             </label>
                             <input
                               type="text"
@@ -1133,12 +1178,12 @@ export function PlanningView({
                                 setCompetitiveAnalysis(next);
                               }}
                               className="w-full bg-[#f8fafc] border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 focus:bg-white focus:outline-none"
-                              placeholder="강점 키워드 입력"
+                              placeholder={t.planning.strengths}
                             />
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                              취약점 및 공략 포인트 (Vulnerabilities, 쉼표 구분)
+                              {t.planning.vulnerabilities}
                             </label>
                             <input
                               type="text"
@@ -1152,7 +1197,7 @@ export function PlanningView({
                                 setCompetitiveAnalysis(next);
                               }}
                               className="w-full bg-[#f8fafc] border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 focus:bg-white focus:outline-none"
-                              placeholder="취약점 키워드 입력"
+                              placeholder={t.planning.vulnerabilities}
                             />
                           </div>
                         </div>

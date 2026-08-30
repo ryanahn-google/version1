@@ -30,15 +30,12 @@ export function MediaExecutionView({
   onRollbackStage,
   isLoading = false,
 }: MediaExecutionViewProps) {
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 
   const insights = session?.deliverables?.performanceInsights;
   const budget = session?.budgetAmount || 0;
-  const currency =
-    insights?.currency ||
-    session?.currency ||
-    'USD';
+  const currency = session?.currency || insights?.currency || 'USD';
   const currencySymbol = currency === 'KRW' ? '₩' : '$';
 
   const allocations = insights?.channelAllocations || [];
@@ -145,7 +142,7 @@ export function MediaExecutionView({
 
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-3.5 shadow-sm">
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-            목표 전환수
+            {locale === 'ko' ? '목표 전환수' : 'Target Conversions'}
           </span>
           <div className="text-base font-bold text-purple-600 font-mono mt-1">
             {insights?.projectedKpis?.estimatedConversions
@@ -153,13 +150,13 @@ export function MediaExecutionView({
               : '-'}
           </div>
           <span className="text-[10px] text-purple-600 font-medium mt-0.5 block">
-            예측 구매 전환
+            {locale === 'ko' ? '예측 구매 전환' : 'Projected Conversions'}
           </span>
         </div>
 
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-3.5 shadow-sm">
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-            목표 노출수
+            {locale === 'ko' ? '목표 노출수' : 'Target Impressions'}
           </span>
           <div className="text-base font-bold text-slate-800 font-mono mt-1">
             {insights?.projectedKpis?.estimatedImpressions
@@ -167,13 +164,13 @@ export function MediaExecutionView({
               : '-'}
           </div>
           <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            예상 총 도달
+            {locale === 'ko' ? '예상 총 도달' : 'Estimated Total Reach'}
           </span>
         </div>
 
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-3.5 shadow-sm">
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-            목표 클릭수
+            {locale === 'ko' ? '목표 클릭수' : 'Target Clicks'}
           </span>
           <div className="text-base font-bold text-slate-800 font-mono mt-1">
             {insights?.projectedKpis?.estimatedClicks
@@ -181,7 +178,7 @@ export function MediaExecutionView({
               : '-'}
           </div>
           <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            예상 클릭 볼륨
+            {locale === 'ko' ? '예상 클릭 볼륨' : 'Estimated Click Volume'}
           </span>
         </div>
       </div>
@@ -256,7 +253,7 @@ export function MediaExecutionView({
         <section className="bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-purple-600" />
-            <span>AI 최적화 권고 사항 (P4 Insights)</span>
+            <span>{locale === 'ko' ? 'AI 최적화 권고 사항 (P4 Insights)' : 'AI Optimization Recommendations (P4 Insights)'}</span>
           </h3>
 
           <div className="space-y-2.5">
@@ -271,7 +268,9 @@ export function MediaExecutionView({
               ))
             ) : (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center text-slate-400 text-xs">
-                3단계에서 생성된 채널 최적화 권고가 전달되었습니다.
+                {locale === 'ko'
+                  ? '3단계에서 생성된 채널 최적화 권고가 전달되었습니다.'
+                  : 'Channel optimization recommendations generated in Stage 3 have been delivered.'}
               </div>
             )}
           </div>
@@ -281,7 +280,7 @@ export function MediaExecutionView({
         <section className="bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
             <SlidersHorizontal className="h-4 w-4 text-blue-600" />
-            <span>집행 프로세스</span>
+            <span>{locale === 'ko' ? '집행 프로세스' : 'Execution Process'}</span>
           </h3>
 
           <div className="space-y-2 text-xs">
@@ -289,8 +288,14 @@ export function MediaExecutionView({
               <div className="flex items-center gap-2.5">
                 <DollarSign className="h-4 w-4 text-blue-600" />
                 <div>
-                  <span className="font-semibold text-slate-800 block">채널 배분 일치 검증</span>
-                  <span className="text-[11px] text-slate-500">3단계 MMM 예산 배분 스키마와 100% 동기화되었습니다.</span>
+                  <span className="font-semibold text-slate-800 block">
+                    {locale === 'ko' ? '채널 배분 일치 검증' : 'Channel Allocation Verification'}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {locale === 'ko'
+                      ? '3단계 MMM 예산 배분 스키마와 100% 동기화되었습니다.'
+                      : '100% synchronized with Stage 3 MMM budget allocation schema.'}
+                  </span>
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-slate-400" />
@@ -299,8 +304,14 @@ export function MediaExecutionView({
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 <div>
-                  <span className="font-semibold text-slate-800 block">Human-in-the-Loop 최종 승인</span>
-                  <span className="text-[11px] text-slate-500">마케터 승인 완료 시 캠페인이 완료되고 5단계 성과 분석이 생성됩니다.</span>
+                  <span className="font-semibold text-slate-800 block">
+                    {locale === 'ko' ? 'Human-in-the-Loop 최종 승인' : 'Human-in-the-Loop Final Signoff'}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {locale === 'ko'
+                      ? '마케터 승인 완료 시 캠페인이 완료되고 5단계 성과 분석이 생성됩니다.'
+                      : 'Upon marketer approval, campaign execution completes and Stage 5 Performance Analytics is generated.'}
+                  </span>
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-slate-400" />

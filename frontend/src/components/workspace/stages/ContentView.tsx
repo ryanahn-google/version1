@@ -222,7 +222,7 @@ export function ContentView({
                   type="button"
                   onClick={() => setLightboxOpen(true)}
                   className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
-                  title="크게 보기"
+                  title={t.content.maximize}
                 >
                   <Maximize2 className="h-4 w-4" />
                 </button>
@@ -232,7 +232,7 @@ export function ContentView({
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
-                    title="새 창에서 열기"
+                    title={t.content.openNewTab}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>

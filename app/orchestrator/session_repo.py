@@ -226,14 +226,6 @@ class SessionRepository:
             await session.refresh(user)
             return user
 
-    async def get_user_by_id(self, user_id: str) -> UserModel | None:
-        """Retrieve user by UUID."""
-        await self.init_db()
-        async with self.session_factory() as session:
-            stmt = select(UserModel).where(UserModel.user_id == user_id)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
     async def create_auth_session(
         self,
         user_id: str,

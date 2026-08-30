@@ -14,15 +14,13 @@
 
 """Authentication and Model Armor security guardrail middleware."""
 
-import json
 import logging
 import re
-import urllib.error
-import urllib.request
 from typing import Any
 
 import google.auth
-from fastapi import Depends, Header, HTTPException, Request, status
+import httpx
+from fastapi import Depends, HTTPException, Request, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 
@@ -46,7 +44,7 @@ SUSPICIOUS_PROMPT_PATTERNS = [
 
 
 class SecurityManager:
-    """Manages Google OAuth OIDC verification and Model Armor prompt sanitization."""
+    """Manages Google OAuth OIDC and Model Armor prompt sanitization."""
 
     def __init__(self, settings: SecuritySettings | None = None) -> None:
         cfg = settings or get_settings()
@@ -69,11 +67,12 @@ class SecurityManager:
             "Content-Type": "application/json",
         }
 
-    def _call_model_armor_api(self, text: str) -> None:
-        """Calls Google Cloud Model Armor sanitizeUserPrompt API (TDD Section 10.2)."""
+    async def _call_model_armor_api(self, text: str) -> None:
+        """Calls Google Cloud Model Armor sanitizeUserPrompt API."""
         template = self.model_armor_template
         if not template:
             return
+
         parts = template.split("/")
         loc = parts[3] if len(parts) >= 4 and parts[2] == "locations" else ""
         endpoint = (
@@ -82,67 +81,50 @@ class SecurityManager:
             else "https://modelarmor.googleapis.com/v1"
         )
         url = f"{endpoint}/{template}:sanitizeUserPrompt"
-        payload = json.dumps({"userPromptData": {"text": text}}).encode("utf-8")
+        payload = {"userPromptData": {"text": text}}
         headers = self._get_auth_headers()
-        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
 
         try:
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
-                body = json.loads(resp.read().decode("utf-8"))
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                body = resp.json()
                 result = body.get("sanitizationResult", {})
                 action_taken = (
                     result.get("actionTaken") or result.get("filterMatchState") or ""
                 )
-                if action_taken.upper() in ("BLOCK", "MATCH_FOUND", "BLOCKED"):
-                    logger.warning(
-                        "Model Armor blocked input prompt. Action taken: %s",
-                        action_taken,
-                    )
+                if action_taken.upper() in (
+                    "BLOCK",
+                    "MATCH_FOUND",
+                    "BLOCKED",
+                ):
+                    logger.warning("Model Armor blocked input prompt: %s", action_taken)
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Prompt blocked: Model Armor policy violation ({action_taken}).",
+                        detail=(
+                            "Prompt blocked: Model Armor policy violation "
+                            f"({action_taken})."
+                        ),
                     )
-        except urllib.error.HTTPError as http_err:
+        except httpx.HTTPStatusError as http_err:
             logger.error("Model Armor service error: %s", http_err)
-            # TDD Section 10.2: Fail-closed policy - block prompt if service unavailable
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Prompt blocked: Model Armor security service inspection failed (fail-closed).",
+                detail=(
+                    "Prompt blocked: Model Armor security service "
+                    "inspection failed (fail-closed)."
+                ),
             ) from http_err
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error("Model Armor request failed: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Prompt blocked: Model Armor security service unavailable (fail-closed).",
-            ) from exc
-
-    def verify_auth_token(self, authorization: str | None = Header(None)) -> str:
-        """Validate Google OAuth 2.0 OIDC bearer token."""
-        if self.env != "production":
-            # Development / test mode allows mock or bearer tokens
-            if not authorization:
-                return "dev-marketer@nova.com"
-            token = authorization.replace("Bearer ", "").strip()
-            return token or "dev-marketer@nova.com"
-
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing or malformed Authorization header. Expected 'Bearer <token>'.",
-            )
-
-        token = authorization.split("Bearer ", 1)[1].strip()
-        try:
-            req = google_requests.Request()
-            id_info = id_token.verify_oauth2_token(
-                token, req, audience=self.oauth_client_id
-            )
-            return id_info.get("email", "unknown_principal")
-        except Exception as exc:
-            logger.warning("OAuth token verification failed: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Google OAuth ID token.",
+                detail=(
+                    "Prompt blocked: Model Armor security service "
+                    "unavailable (fail-closed)."
+                ),
             ) from exc
 
     def verify_google_credential(self, credential: str) -> dict[str, Any]:
@@ -171,8 +153,8 @@ class SecurityManager:
                 detail="Invalid Google OAuth ID token.",
             ) from exc
 
-    def inspect_prompt_safety(self, text: str) -> None:
-        """Inspect prompt for prompt injection using Model Armor or local guardrail rules."""
+    async def inspect_prompt_safety(self, text: str) -> None:
+        """Inspect prompt for prompt injection via local heuristics & Armor."""
         if not text:
             return
 
@@ -181,16 +163,20 @@ class SecurityManager:
         for pattern in SUSPICIOUS_PROMPT_PATTERNS:
             if re.search(pattern, lower_text):
                 logger.warning(
-                    "Prompt rejected by Model Armor guardrails: matched %s", pattern
+                    "Prompt rejected by Model Armor guardrails: matched %s",
+                    pattern,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Prompt blocked: Potential prompt injection detected by Model Armor inspection.",
+                    detail=(
+                        "Prompt blocked: Potential prompt injection detected "
+                        "by Model Armor inspection."
+                    ),
                 )
 
-        # 2. Remote Google Cloud Model Armor inspection (when template configured in cloud)
+        # 2. Remote Model Armor inspection (when template configured)
         if self.model_armor_template:
-            self._call_model_armor_api(text)
+            await self._call_model_armor_api(text)
 
 
 _security_manager = SecurityManager()
@@ -206,7 +192,7 @@ async def get_current_user(
     repo: SessionRepository = Depends(get_session_repo),
     security: SecurityManager = Depends(get_security_manager),
 ) -> UserModel:
-    """Extract session token from cookie or Authorization header and return active user."""
+    """Extract session token from cookie/header and return active user."""
     token = request.cookies.get(security.session_cookie_name)
     if not token:
         auth_header = request.headers.get("Authorization")
@@ -231,17 +217,5 @@ async def get_current_user(
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated. Valid session cookie or Bearer token required.",
+        detail=("Not authenticated. Valid session cookie or Bearer token required."),
     )
-
-
-async def get_optional_user(
-    request: Request,
-    repo: SessionRepository = Depends(get_session_repo),
-    security: SecurityManager = Depends(get_security_manager),
-) -> UserModel | None:
-    """Extract active user if present without throwing 401."""
-    try:
-        return await get_current_user(request, repo, security)
-    except HTTPException:
-        return None

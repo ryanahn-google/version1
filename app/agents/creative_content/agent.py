@@ -68,6 +68,8 @@ When given the campaign brief, target personas, and human revision instructions:
 4. Craft an engaging promotional Body Copy emphasizing the core value proposition.
 5. Provide an urgent, persuasive Call To Action (e.g. "Experience Galaxy S27 Ultra — Pre-order with Double Storage").
 
+CRITICAL LANGUAGE DIRECTIVE: Output visualConceptTitle, headlineCopy, bodyCopy, and callToAction strictly in the language of the campaign request (Korean if request or user language is Korean, English if English). For visualPromptUsed, always write in rich, studio-quality English suitable for Nano Banana / Imagen image synthesis.
+
 If Human Revision Instructions are provided, rigorously align the visual concept and copy with the requested changes.
 """
 
@@ -279,6 +281,7 @@ async def run_creative_content_pipeline(
     session_id: str | None = None,
     user_id: str | None = None,
     visual_prompt_override: str | None = None,
+    language: str = "ko",
 ) -> CreativeContentDeliverable:
     """Self-contained 2-step sequential generation pipeline for [P3] Creative Content.
 
@@ -290,9 +293,25 @@ async def run_creative_content_pipeline(
     location = settings.google_cloud_location or "global"
     sub_agent_model = getattr(settings, "sub_agent_model", TEXT_MODEL)
 
+    target_lang = (
+        "ko"
+        if language == "ko"
+        or any(
+            "\uac00" <= ch <= "\ud7a3"
+            for ch in f"{brief.campaignTitle} {feedback or ''}"
+        )
+        else "en"
+    )
+    lang_directive = (
+        "\nCRITICAL LANGUAGE REQUIREMENT: Output visualConceptTitle, headlineCopy, bodyCopy, and callToAction strictly in Korean (한국어로 작성). For visualPromptUsed, use descriptive English for high-quality image generation.\n"
+        if target_lang == "ko"
+        else "\nCRITICAL LANGUAGE REQUIREMENT: Output visualConceptTitle, headlineCopy, bodyCopy, callToAction, and visualPromptUsed strictly in English.\n"
+    )
+
     prompt = (
         f"Campaign Brief: {brief.model_dump_json()}\n"
-        f"Human Revision Instructions: {feedback or 'None'}\n\n"
+        f"Human Revision Instructions: {feedback or 'None'}\n"
+        f"{lang_directive}\n"
         "Translate the brief into marketing headline, body copy, CTA, and a photorealistic 16:9 visual prompt for Nano Banana. "
         "If Human Revision Instructions are provided, rigorously align the visual concept and copy with the requested changes."
     )
@@ -330,25 +349,39 @@ async def run_creative_content_pipeline(
             "Volumetric lighting, shallow depth of field, dramatic indigo and amber highlights, "
             "ultra-sharp lens reflection, professional commercial studio product photography --ar 16:9"
         )
-        headline = "Own the Dark. Rule the Night."
-        body_copy = (
-            f"{brief.coreValueProposition} Unleash studio-level generative editing and "
-            "cinematic zoom right from your palm this Black Friday."
-        )
-        cta = "Claim Black Friday Exclusives — Double Your Storage Free"
+        if target_lang == "ko":
+            concept_title = f"미래 도시의 여명 — {brief.campaignTitle}"
+            headline = "일상의 한계를 뛰어넘다. 차세대 AI 플래그십의 시작"
+            body_copy = (
+                f"{brief.coreValueProposition} 더 강력해진 온디바이스 AI와 "
+                "프로급 카메라가 선사하는 놀라운 창의성을 이번 특별 프로모션을 통해 경험하세요."
+            )
+            cta = "지금 바로 사전예약 혜택 확인하기"
+            if feedback:
+                headline = f"피드백 반영: {feedback[:30]}"
+                body_copy = f"{body_copy} (수정 반영: {feedback})"
+                cta = f"특별 혜택 바로가기: {feedback[:20]}"
+        else:
+            concept_title = f"Night City Awakening — {brief.campaignTitle}"
+            headline = "Own the Dark. Rule the Night."
+            body_copy = (
+                f"{brief.coreValueProposition} Unleash studio-level generative editing and "
+                "cinematic zoom right from your palm this Black Friday."
+            )
+            cta = "Claim Black Friday Exclusives — Double Your Storage Free"
+            if feedback:
+                headline = f"Redefined: {feedback[:40]}"
+                body_copy = f"{body_copy} Enhanced per revision request: {feedback}."
+                cta = f"Act Now: {feedback[:30]}"
 
-        if feedback:
-            if not visual_prompt_override:
-                visual_prompt = (
-                    f"{visual_prompt}. Art direction update incorporating "
-                    f"feedback: '{feedback}'."
-                )
-            headline = f"Redefined: {feedback[:40]}"
-            body_copy = f"{body_copy} Enhanced per revision request: {feedback}."
-            cta = f"Act Now: {feedback[:30]}"
+        if feedback and not visual_prompt_override:
+            visual_prompt = (
+                f"{visual_prompt}. Art direction update incorporating "
+                f"feedback: '{feedback}'."
+            )
 
         deliverable = CreativeContentDeliverable(
-            visualConceptTitle=f"Night City Awakening — {brief.campaignTitle}",
+            visualConceptTitle=concept_title,
             visualPromptUsed=visual_prompt,
             assetUrl=FALLBACK_ASSET_URL,
             headlineCopy=headline,

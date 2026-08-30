@@ -210,8 +210,8 @@ export function HomeDashboard({
                   <tr>
                     <th className="pb-3 font-semibold">{locale === 'ko' ? '캠페인명' : 'Campaign Name'}</th>
                     <th className="pb-3 font-semibold">{t.common.step}</th>
-                    <th className="pb-3 font-semibold text-right">{t.planning.budget}</th>
-                    <th className="pb-3 font-semibold">{locale === 'ko' ? '진행률' : 'Progress'}</th>
+                    <th className="pb-3 font-semibold text-right pr-8">{t.planning.budget}</th>
+                    <th className="pb-3 font-semibold pl-6 min-w-[140px]">{locale === 'ko' ? '진행률' : 'Progress'}</th>
                     <th className="pb-3 font-semibold text-right">ROAS</th>
                     <th className="pb-3 font-semibold text-center">{t.common.status}</th>
                   </tr>
@@ -243,10 +243,10 @@ export function HomeDashboard({
                           {title}
                         </td>
                         <td className="py-3 text-slate-600">{stageLabel}</td>
-                        <td className="py-3 text-right font-mono text-slate-700">
+                        <td className="py-3 text-right font-mono text-slate-700 pr-8">
                           {budget}
                         </td>
-                        <td className="py-3 min-w-[100px]">
+                        <td className="py-3 pl-6 min-w-[140px]">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
