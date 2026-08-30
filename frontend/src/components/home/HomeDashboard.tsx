@@ -1,0 +1,265 @@
+import { useState } from 'react';
+import {
+  Sparkles,
+  Send,
+  Layers,
+} from 'lucide-react';
+import type { CampaignSessionResponse } from '../../types/campaign';
+
+interface HomeDashboardProps {
+  campaigns: CampaignSessionResponse[];
+  isLoadingCampaigns: boolean;
+  onOpenCampaign: (session: CampaignSessionResponse) => void;
+  onNewCampaign: (prefillPrompt?: string) => void;
+}
+
+const QUICK_PROMPT_CHIPS = [
+  '유사 제품 캠페인 성과 요약해줘',
+  '신제품 런칭 캠페인 아이디어 제안해줘',
+  '최적의 미디어 믹스 제안해줘',
+  '20대 타겟 브랜드 인지도 캠페인 기획해줘',
+];
+
+export function HomeDashboard({
+  campaigns,
+  isLoadingCampaigns,
+  onOpenCampaign,
+  onNewCampaign,
+}: HomeDashboardProps) {
+  const [promptText, setPromptText] = useState('');
+
+  const handlePromptSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promptText.trim()) return;
+    onNewCampaign(promptText.trim());
+  };
+
+  const getStageLabel = (stage?: string) => {
+    switch (stage) {
+      case 'MARKET_SENSING':
+      case 'STRATEGY_BRIEF':
+        return '기획 중';
+      case 'CREATIVE_CONTENT':
+        return '콘텐츠 제작';
+      case 'PERFORMANCE_INSIGHTS':
+        return '미디어 집행';
+      case 'COMPLETED':
+        return '분석 완료';
+      default:
+        return '기획 중';
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'PAUSED_FOR_REVIEW':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+            승인 대기
+          </span>
+        );
+      case 'RUNNING':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+            진행 중
+          </span>
+        );
+      case 'COMPLETED':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            완료
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+            정상
+          </span>
+        );
+    }
+  };
+
+  const getProgressPercentage = (campaign: CampaignSessionResponse) => {
+    if (campaign.status === 'COMPLETED') return 100;
+    switch (campaign.currentStage) {
+      case 'MARKET_SENSING':
+        return 20;
+      case 'STRATEGY_BRIEF':
+        return 40;
+      case 'CREATIVE_CONTENT':
+        return 60;
+      case 'PERFORMANCE_INSIGHTS':
+        return 80;
+      default:
+        return 20;
+    }
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-8 space-y-8">
+      {/* Hero Box: AI Marketing Assistant */}
+      <section className="bg-white border border-[#e2e8f0] rounded-2xl p-6 lg:p-8 shadow-sm relative overflow-hidden">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+            <span>AI 마케팅 어시스턴트</span>
+          </div>
+
+          <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-4 tracking-tight">
+            오늘 어떤 마케팅을 도와드릴까요?
+          </h2>
+
+          {/* Quick Prompt Chips */}
+          <div className="flex flex-wrap gap-2 mb-5">
+            {QUICK_PROMPT_CHIPS.map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => onNewCampaign(chip)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f1f5f9] hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-medium border border-[#e2e8f0] hover:border-blue-200 transition"
+              >
+                <span className="text-blue-500 font-bold">+</span>
+                <span>{chip}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Conversational Prompt Box */}
+          <form onSubmit={handlePromptSubmit} className="relative">
+            <input
+              type="text"
+              value={promptText}
+              onChange={(e) => setPromptText(e.target.value)}
+              placeholder="AI에게 무엇이든 물어보세요..."
+              className="w-full bg-[#f8fafc] border border-[#cbd5e1] focus:border-blue-500 focus:bg-white rounded-xl pl-4 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition shadow-inner"
+            />
+            <button
+              type="submit"
+              disabled={!promptText.trim()}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#1a56db] hover:bg-blue-700 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              title="질문 전송 및 캠페인 생성"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+
+          <p className="text-[11px] text-slate-400 mt-2.5">
+            AI는 실수를 할 수 있습니다. 중요한 정보는 반드시 확인하세요.
+          </p>
+        </div>
+      </section>
+
+      {/* Recent Campaigns Table (Full Width) */}
+      <section className="w-full bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">최근 캠페인</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                진행 중이거나 완료된 캠페인 세션 목록입니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNewCampaign()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a56db] hover:bg-blue-700 text-white text-xs font-semibold transition shadow-sm"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>새 캠페인 시작</span>
+            </button>
+          </div>
+
+          {isLoadingCampaigns ? (
+            <div className="h-56 flex items-center justify-center text-slate-400 text-xs">
+              캠페인 데이터를 불러오는 중...
+            </div>
+          ) : campaigns.length === 0 ? (
+            <div className="h-56 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+              <Layers className="h-8 w-8 text-slate-300 mb-2" />
+              <p className="text-xs font-medium text-slate-600 mb-1">
+                아직 생성된 캠페인이 없습니다.
+              </p>
+              <p className="text-[11px] text-slate-400 max-w-sm mb-3">
+                위의 AI 마케팅 어시스턴트에게 명령을 전달하거나 새 캠페인 시작 버튼을 눌러보세요.
+              </p>
+              <button
+                type="button"
+                onClick={() => onNewCampaign()}
+                className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium hover:bg-blue-100 transition"
+              >
+                캠페인 시뮬레이션 시작
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <tr>
+                    <th className="pb-3 font-semibold">캠페인명</th>
+                    <th className="pb-3 font-semibold">단계</th>
+                    <th className="pb-3 font-semibold text-right">예산</th>
+                    <th className="pb-3 font-semibold">진행률</th>
+                    <th className="pb-3 font-semibold text-right">ROAS</th>
+                    <th className="pb-3 font-semibold text-center">상태</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {campaigns.map((camp) => {
+                    const title =
+                      camp.productName ||
+                      camp.sessionId.slice(0, 18) ||
+                      'Galaxy S27 캠페인';
+                    const stageLabel = getStageLabel(camp.currentStage);
+                    const progress = getProgressPercentage(camp);
+                    const budget = camp.budgetAmount
+                      ? `$ ${camp.budgetAmount.toLocaleString()}`
+                      : '$ 2,000,000';
+                    const roas =
+                      camp.deliverables?.performanceInsights?.expectedRoas
+                        ? `${camp.deliverables.performanceInsights.expectedRoas}x`
+                        : '-';
+
+                    return (
+                      <tr
+                        key={camp.sessionId}
+                        onClick={() => onOpenCampaign(camp)}
+                        className="hover:bg-slate-50 cursor-pointer transition group"
+                      >
+                        <td className="py-3 font-semibold text-slate-800 group-hover:text-blue-600">
+                          {title}
+                        </td>
+                        <td className="py-3 text-slate-600">{stageLabel}</td>
+                        <td className="py-3 text-right font-mono text-slate-700">
+                          {budget}
+                        </td>
+                        <td className="py-3 min-w-[100px]">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-600 rounded-full"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {progress}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 text-right font-mono font-semibold text-emerald-600">
+                          {roas}
+                        </td>
+                        <td className="py-3 text-center">
+                          {getStatusBadge(camp.status)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
