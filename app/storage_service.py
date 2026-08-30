@@ -198,11 +198,13 @@ def generate_v4_signed_url(
         blob = bucket.blob(clean_blob_path)
 
         credentials = client._credentials
-        if hasattr(credentials, "refresh") and (
-            not credentials.valid or not getattr(credentials, "token", None)
+        refresh_fn = getattr(credentials, "refresh", None)
+        if callable(refresh_fn) and (
+            not getattr(credentials, "valid", False)
+            or not getattr(credentials, "token", None)
         ):
             try:
-                credentials.refresh(Request())
+                refresh_fn(Request())
             except Exception as ref_exc:
                 logger.debug("Credentials refresh skipped/failed: %s", ref_exc)
 

@@ -192,17 +192,20 @@ class SessionRepository:
         tenant_id: str = "default",
     ) -> UserModel:
         """Create or update user authenticated via Google OAuth2."""
+        clean_sub = (google_sub or "")[:128]
+        clean_email = (email or "")[:255]
+        clean_name = (name or "")[:128]
         await self.init_db()
         now = utcnow()
         async with self.session_factory() as session:
             stmt = select(UserModel).where(
-                (UserModel.google_sub == google_sub) | (UserModel.email == email)
+                (UserModel.google_sub == clean_sub) | (UserModel.email == clean_email)
             )
             result = await session.execute(stmt)
             user = result.scalar_one_or_none()
             if user:
-                user.google_sub = google_sub
-                user.name = name
+                user.google_sub = clean_sub
+                user.name = clean_name
                 if picture:
                     user.picture = picture
                 user.last_login_at = now
@@ -210,9 +213,9 @@ class SessionRepository:
             else:
                 user = UserModel(
                     user_id=str(uuid.uuid4()),
-                    google_sub=google_sub,
-                    email=email,
-                    name=name,
+                    google_sub=clean_sub,
+                    email=clean_email,
+                    name=clean_name,
                     picture=picture,
                     role="MARKETER",
                     tenant_id=tenant_id,
@@ -253,6 +256,8 @@ class SessionRepository:
 
     async def get_user_by_session_token(self, token: str) -> UserModel | None:
         """Validate session token, apply sliding-window refresh, and return user."""
+        if not token or len(token) > 128:
+            return None
         await self.init_db()
         now = utcnow()
         async with self.session_factory() as session:

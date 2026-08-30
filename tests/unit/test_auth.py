@@ -184,3 +184,37 @@ def test_api_auth_flow():
     logout_res = client.post("/api/v1/auth/logout")
     assert logout_res.status_code == 200
     assert logout_res.json()["status"] == "logged_out"
+
+
+def test_long_bearer_token_and_jwt():
+    """Verify that oversized Bearer tokens and JWT ID tokens don't overflow DB columns."""
+    client = TestClient(app)
+
+    # 1. Bearer token with long simulated Google ID token (JWT)
+    import base64
+    import json
+
+    payload = {
+        "email": "loadtest-sa@capstone-staging-506811.iam.gserviceaccount.com",
+        "sub": "104829381923891",
+        "name": "Load Test SA",
+    }
+    b64_payload = (
+        base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    )
+    fake_jwt = f"eyJhbGciOiJSUzI1NiJ9.{b64_payload}." + "sig" * 200
+    assert len(fake_jwt) > 600
+
+    resp = client.get(
+        "/api/v1/campaigns", headers={"Authorization": f"Bearer {fake_jwt}"}
+    )
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+    # 2. Bearer token with long arbitrary non-JWT string (>500 chars)
+    long_string = "dev-token-" + "x" * 500
+    resp2 = client.get(
+        "/api/v1/campaigns", headers={"Authorization": f"Bearer {long_string}"}
+    )
+    assert resp2.status_code == 200
+    assert isinstance(resp2.json(), list)

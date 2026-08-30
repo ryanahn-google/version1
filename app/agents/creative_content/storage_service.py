@@ -199,11 +199,13 @@ def generate_v4_signed_url(
         blob = bucket.blob(clean_blob_path)
 
         credentials = client._credentials
-        if hasattr(credentials, "refresh") and (
-            not credentials.valid or not getattr(credentials, "token", None)
+        refresh_fn = getattr(credentials, "refresh", None)
+        if callable(refresh_fn) and (
+            not getattr(credentials, "valid", False)
+            or not getattr(credentials, "token", None)
         ):
             try:
-                credentials.refresh(Request())
+                refresh_fn(Request())
             except Exception as ref_exc:
                 logger.debug("Credentials refresh skipped/failed: %s", ref_exc)
 
@@ -236,24 +238,3 @@ def generate_v4_signed_url(
             "GCS V4 Signed URL generation failed for '%s' (%s).", clean_blob_path, exc
         )
         return None
-
-
-def stream_gcs_blob(
-    blob_path: str,
-    bucket_name: str | None = None,
-    chunk_size: int = 64 * 1024,
-) -> Iterator[bytes]:
-    """Zero-memory socket-to-socket chunked stream fallback directly from GCS."""
-    project, default_bucket, _ = _resolve_project_and_bucket()
-    target_bucket = bucket_name or default_bucket
-    clean_blob_path = extract_blob_path_from_gcs_url(blob_path, target_bucket)
-
-    from google.cloud import storage
-
-    client = storage.Client(project=project)
-    bucket = client.bucket(target_bucket)
-    blob = bucket.blob(clean_blob_path)
-
-    with blob.open("rb") as f:
-        while chunk := f.read(chunk_size):
-            yield chunk
