@@ -44,10 +44,16 @@ async def health_check() -> dict[str, str]:
 async def get_metadata() -> dict[str, Any]:
     """Service metadata and foundation model configuration."""
     settings = get_settings()
+    dev_login_enabled = settings.env.lower() not in (
+        "staging",
+        "production",
+        "prod",
+    )
     return {
         "name": "Marketing Value Creator (MVC)",
         "version": "1.0.0",
         "region": "asia-northeast3",
+        "env": settings.env,
         "models": {
             "orchestrator": "gemini-3.1-pro",
             "sub_agents": "gemini-3.5-flash-lite",
@@ -55,6 +61,7 @@ async def get_metadata() -> dict[str, Any]:
         },
         "auth": {
             "googleClientId": settings.google_oauth_client_id,
+            "devLoginEnabled": dev_login_enabled,
         },
     }
 

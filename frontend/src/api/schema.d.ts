@@ -540,6 +540,8 @@ export interface operations {
                         version?: string;
                         /** @example asia-northeast3 */
                         region?: string;
+                        /** @example development */
+                        env?: string;
                         models?: {
                             /** @example gemini-3.1-pro */
                             orchestrator?: string;
@@ -550,6 +552,8 @@ export interface operations {
                         };
                         auth?: {
                             googleClientId?: string | null;
+                            /** @example true */
+                            devLoginEnabled?: boolean;
                         };
                     };
                 };
@@ -609,6 +613,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserProfileResponse"];
+                };
+            };
+            /** @description Developer quick login is disabled in staging and production */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

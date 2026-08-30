@@ -79,6 +79,12 @@ class SecuritySettings(BaseAppSettings):
         validation_alias=AliasChoices("ENV", "env"),
         description="Deployment environment (development, staging, prod).",
     )
+
+    @property
+    def is_production(self) -> bool:
+        """Return True if running in a production environment."""
+        return self.env.strip().lower() in ("prod", "production")
+
     google_oauth_client_id: str | None = Field(
         default=None,
         validation_alias=AliasChoices(

@@ -26,8 +26,8 @@ if ! uv run ruff check . || ! uv run codespell; then
 fi
 
 # 3. Type Checking
-echo "▶ [3/4] Running type checking (ty check)..."
-if ! uv run ty check; then
+echo "▶ [3/4] Running frontend type checking (tsc --noEmit)..."
+if ! (cd frontend && npm run typecheck); then
     echo "❌ Type check failed! Fix type errors before committing."
     exit 1
 fi

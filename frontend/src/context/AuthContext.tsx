@@ -8,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   googleClientId: string | null;
+  devLoginEnabled: boolean;
   loginWithGoogle: (credential: string) => Promise<void>;
   devLogin: (email?: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -21,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [devLoginEnabled, setDevLoginEnabled] = useState<boolean>(false);
 
   const refreshUser = async () => {
     try {
@@ -44,6 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const authMeta = (meta as Record<string, unknown>).auth as Record<string, unknown> | undefined;
           if (authMeta?.googleClientId && typeof authMeta.googleClientId === 'string') {
             setGoogleClientId(authMeta.googleClientId);
+          }
+          if (authMeta && typeof authMeta.devLoginEnabled === 'boolean') {
+            setDevLoginEnabled(authMeta.devLoginEnabled);
           }
         }
       } catch (err) {
@@ -124,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         error,
         googleClientId,
+        devLoginEnabled,
         loginWithGoogle,
         devLogin,
         logout,
