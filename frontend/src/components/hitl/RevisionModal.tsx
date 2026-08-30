@@ -35,14 +35,25 @@ export function RevisionModal({
   const getStageDisplay = (s: StageKey) => {
     switch (s) {
       case 'MARKET_SENSING':
+        return locale === 'ko'
+          ? '1단계: 시장 감지 (Market Sensing)'
+          : 'Stage 1: Market Sensing';
       case 'STRATEGY_BRIEF':
-        return locale === 'ko' ? '1단계: 마케팅 전략 기획' : 'Stage 1: Planning & Brief';
+        return locale === 'ko'
+          ? '2단계: 전략 브리프 (Strategy & Brief)'
+          : 'Stage 2: Strategy & Brief';
       case 'CREATIVE_CONTENT':
-        return locale === 'ko' ? '2단계: 크리에이티브 콘텐츠' : 'Stage 2: Creative Content';
+        return locale === 'ko'
+          ? '3단계: 크리에이티브 콘텐츠 (Creative Content)'
+          : 'Stage 3: Creative Content';
       case 'PERFORMANCE_INSIGHTS':
-        return locale === 'ko' ? '3단계: 미디어 계획 (MMM)' : 'Stage 3: Media Planning (MMM)';
+        return locale === 'ko'
+          ? '4단계: 미디어 계획 (Media Plan MMM)'
+          : 'Stage 4: Media Plan MMM';
       case 'MEDIA_EXECUTION':
-        return locale === 'ko' ? '4단계: 미디어 집행' : 'Stage 4: Media Execution';
+        return locale === 'ko'
+          ? '5단계: 집행 및 분석 (Execution & Analytics)'
+          : 'Stage 5: Execution & Analytics';
       default:
         return s;
     }

@@ -111,11 +111,11 @@ export function HomeDashboard({
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold mb-3">
             <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-            <span>AI 마케팅 어시스턴트</span>
+            <span>{t.home.aiMarketingAssistant}</span>
           </div>
 
           <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-4 tracking-tight">
-            오늘 어떤 마케팅을 도와드릴까요?
+            {t.home.heroTitle}
           </h2>
 
           {/* Quick Prompt Chips */}
@@ -139,23 +139,21 @@ export function HomeDashboard({
               type="text"
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder={locale === 'ko' ? "AI에게 무엇이든 물어보세요..." : "Ask AI to plan any campaign..."}
+              placeholder={t.home.askAiPlaceholder}
               className="w-full bg-[#f8fafc] border border-[#cbd5e1] focus:border-blue-500 focus:bg-white rounded-xl pl-4 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition shadow-inner"
             />
             <button
               type="submit"
               disabled={!promptText.trim()}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#1a56db] hover:bg-blue-700 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              title={locale === 'ko' ? "질문 전송 및 캠페인 생성" : "Send prompt and create campaign"}
+              title={t.home.sendPromptTitle}
             >
               <Send className="h-4 w-4" />
             </button>
           </form>
 
           <p className="text-[11px] text-slate-400 mt-2.5">
-            {locale === 'ko'
-              ? 'AI는 실수를 할 수 있습니다. 중요한 정보는 반드시 확인하세요.'
-              : 'AI can make mistakes. Please verify important information.'}
+            {t.home.heroSubtitle}
           </p>
         </div>
       </section>
@@ -165,11 +163,9 @@ export function HomeDashboard({
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900">{t.nav.sessions}</h3>
+              <h3 className="text-base font-bold text-slate-900">{t.home.campaignHistoryTitle}</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                {locale === 'ko'
-                  ? '진행 중이거나 완료된 캠페인 세션 목록입니다.'
-                  : 'List of active and completed campaign sessions.'}
+                {t.home.campaignHistoryDesc}
               </p>
             </div>
             <button
@@ -205,14 +201,22 @@ export function HomeDashboard({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs table-fixed">
+                <colgroup>
+                  <col className="w-[28%]" /> {/* Campaign Name */}
+                  <col className="w-[18%]" /> {/* Step */}
+                  <col className="w-[18%]" /> {/* Budget */}
+                  <col className="w-[18%]" /> {/* Progress */}
+                  <col className="w-[9%]" />  {/* ROAS */}
+                  <col className="w-[9%]" />  {/* Status */}
+                </colgroup>
                 <thead className="text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
                   <tr>
-                    <th className="pb-3 font-semibold">{locale === 'ko' ? '캠페인명' : 'Campaign Name'}</th>
-                    <th className="pb-3 font-semibold">{t.common.step}</th>
-                    <th className="pb-3 font-semibold text-right pr-8">{t.planning.budget}</th>
-                    <th className="pb-3 font-semibold pl-6 min-w-[140px]">{locale === 'ko' ? '진행률' : 'Progress'}</th>
-                    <th className="pb-3 font-semibold text-right">ROAS</th>
+                    <th className="pb-3 font-semibold pl-2">{t.home.campaignName}</th>
+                    <th className="pb-3 font-semibold pl-2">{t.common.step}</th>
+                    <th className="pb-3 font-semibold pl-2">{t.planning.budget}</th>
+                    <th className="pb-3 font-semibold pl-2 pr-4">{t.home.progress}</th>
+                    <th className="pb-3 font-semibold text-right pr-2">ROAS</th>
                     <th className="pb-3 font-semibold text-center">{t.common.status}</th>
                   </tr>
                 </thead>
@@ -239,14 +243,14 @@ export function HomeDashboard({
                         onClick={() => onOpenCampaign(camp)}
                         className="hover:bg-slate-50 cursor-pointer transition group"
                       >
-                        <td className="py-3 font-semibold text-slate-800 group-hover:text-blue-600">
+                        <td className="py-3 font-semibold text-slate-800 group-hover:text-blue-600 truncate pl-2">
                           {title}
                         </td>
-                        <td className="py-3 text-slate-600">{stageLabel}</td>
-                        <td className="py-3 text-right font-mono text-slate-700 pr-8">
+                        <td className="py-3 text-slate-600 truncate pl-2">{stageLabel}</td>
+                        <td className="py-3 text-slate-700 font-mono pl-2">
                           {budget}
                         </td>
-                        <td className="py-3 pl-6 min-w-[140px]">
+                        <td className="py-3 pl-2 pr-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
@@ -259,7 +263,7 @@ export function HomeDashboard({
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 text-right font-mono font-semibold text-emerald-600">
+                        <td className="py-3 text-right font-mono font-semibold text-emerald-600 pr-2">
                           {roas}
                         </td>
                         <td className="py-3 text-center">

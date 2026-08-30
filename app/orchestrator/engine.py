@@ -74,21 +74,12 @@ class CampaignOrchestrationEngine:
             context_id=f"{session_id}-p1",
             language=lang,
         )
-        deliv2 = await self.a2a.run_strategy_brief(
-            brand_name=request.brandName,
-            product_name=request.productName,
-            objective=request.campaignObjective,
-            market_sensing=deliv1,
-            context_id=f"{session_id}-p2",
-            language=lang,
-        )
         updated = await self.repo.update_session(
             session_id=session_id,
             status=CampaignStatus.PAUSED_FOR_REVIEW,
-            current_stage=CampaignStage.STRATEGY_BRIEF,
+            current_stage=CampaignStage.MARKET_SENSING,
             deliverables={
                 "marketSensing": deliv1.model_dump(mode="json"),
-                "campaignBrief": deliv2.model_dump(mode="json"),
             },
             user_id=user_id,
         )
@@ -112,6 +103,7 @@ class CampaignOrchestrationEngine:
         current_stage = session.currentStage
         # Map of valid single-step rollbacks: Current Stage -> Preceding Stage
         rollback_map = {
+            CampaignStage.STRATEGY_BRIEF: CampaignStage.MARKET_SENSING,
             CampaignStage.CREATIVE_CONTENT: CampaignStage.STRATEGY_BRIEF,
             CampaignStage.PERFORMANCE_INSIGHTS: CampaignStage.CREATIVE_CONTENT,
             CampaignStage.MEDIA_EXECUTION: CampaignStage.PERFORMANCE_INSIGHTS,
@@ -123,7 +115,7 @@ class CampaignOrchestrationEngine:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     f"Cannot roll back from stage '{current_stage.value}'. "
-                    "Stage 1 (Planning / Market Sensing & Strategy Brief) is the initial stage."
+                    "Stage 1 (Market Sensing) is the initial stage."
                 ),
             )
 
@@ -193,7 +185,12 @@ class CampaignOrchestrationEngine:
             await self.repo.update_session(session_id, increment_revision=True)
 
             if current_stage == CampaignStage.MARKET_SENSING:
-                audience = getattr(session, "targetAudience", "General")
+                market_sensing = session.deliverables.marketSensing
+                audience = (
+                    market_sensing.targetMarket
+                    if market_sensing and market_sensing.targetMarket
+                    else "General"
+                )
                 deliv1 = await self.a2a.run_market_sensing(
                     session.brandName,
                     session.productName,
@@ -403,7 +400,7 @@ class CampaignOrchestrationEngine:
             next_stage = CampaignStage.MEDIA_EXECUTION
             updated = await self.repo.update_session(
                 session_id,
-                status=CampaignStatus.PAUSED_FOR_REVIEW,
+                status=CampaignStatus.COMPLETED,
                 current_stage=next_stage,
             )
             return updated or session

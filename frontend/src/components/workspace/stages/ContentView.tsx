@@ -32,12 +32,14 @@ export function ContentView({
   onRollbackStage,
   isLoading,
 }: ContentViewProps) {
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 
   const creativeData = session?.deliverables?.creativeContent;
-  const isReviewPending = session?.status === 'PAUSED_FOR_REVIEW';
+  const isReviewPending =
+    session?.status === 'PAUSED_FOR_REVIEW' &&
+    session?.currentStage === 'CREATIVE_CONTENT';
   const isApproved =
     session?.status === 'COMPLETED' ||
     (session?.currentStage &&
@@ -155,6 +157,23 @@ export function ContentView({
         </div>
       )}
 
+      {/* Stage Approved Indicator Banner */}
+      {isApproved && (
+        <div className="bg-emerald-50/90 border border-emerald-300 rounded-2xl p-3.5 px-5 shadow-xs flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <span className="text-xs font-semibold text-emerald-800">
+              {locale === 'ko'
+                ? `${t.planning.approvedBadge}: 크리에이티브 콘텐츠 산출물이 승인 완료되었습니다.`
+                : `${t.planning.approvedBadge}: Creative content deliverable has been approved.`}
+            </span>
+          </div>
+          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+            {t.planning.approvedBadge}
+          </span>
+        </div>
+      )}
+
       {/* Main Content Grid */}
       {!hasCreativeDeliverable ? (
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-12 text-center flex flex-col items-center justify-center">
@@ -176,16 +195,9 @@ export function ContentView({
                   <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                     {t.content.aspectRatio}
                   </span>
-                  <select
-                    value={aspectRatio}
-                    onChange={(e) => setAspectRatio(e.target.value)}
-                    className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 focus:bg-white focus:outline-none cursor-pointer"
-                  >
-                    <option value="16:9">16:9 (Landscape)</option>
-                    <option value="1:1">1:1 (Square)</option>
-                    <option value="9:16">9:16 (Vertical Story)</option>
-                    <option value="4:3">4:3 (Standard)</option>
-                  </select>
+                  <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded px-2 py-0.5 font-mono">
+                    {aspectRatio || '16:9'}
+                  </span>
                 </div>
                 <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                   <Edit3 className="h-3 w-3" />

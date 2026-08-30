@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FolderOpen, Image as ImageIcon, ExternalLink, Maximize2 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import type { CampaignSessionResponse } from '../../types/campaign';
 
 interface AssetLibraryViewProps {
@@ -7,6 +8,7 @@ interface AssetLibraryViewProps {
 }
 
 export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
+  const { t } = useLanguage();
   const [selectedAssetUrl, setSelectedAssetUrl] = useState<string | null>(null);
 
   // Extract all creative assets from loaded campaigns
@@ -27,14 +29,14 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-blue-600" />
-            <span>에셋 라이브러리 (Asset Library)</span>
+            <span>{t.assets.title}</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            GCS(Google Cloud Storage)에 저장된 고해상도 생성 마케팅 비주얼 에셋 목록입니다.
+            {t.assets.desc}
           </p>
         </div>
         <span className="text-xs font-semibold px-3 py-1 bg-white border border-[#e2e8f0] rounded-full text-slate-700">
-          총 {assets.length}개 에셋
+          {t.assets.totalCount.replace('{count}', String(assets.length))}
         </span>
       </div>
 
@@ -42,10 +44,10 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-12 text-center flex flex-col items-center justify-center">
           <ImageIcon className="h-10 w-10 text-slate-300 mb-2" />
           <h4 className="text-sm font-bold text-slate-800 mb-1">
-            등록된 마케팅 에셋이 없습니다.
+            {t.assets.noAssets}
           </h4>
           <p className="text-xs text-slate-400 max-w-sm">
-            캠페인 시뮬레이션을 실행하여 Nano Banana 2 Lite 모델이 생성한 에셋을 확인해보세요.
+            {t.assets.noAssetsDesc}
           </p>
         </div>
       ) : (
@@ -67,7 +69,7 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
                     type="button"
                     onClick={() => setSelectedAssetUrl(asset.url)}
                     className="p-2 rounded-full bg-white text-slate-800 shadow"
-                    title="확대"
+                    title={t.assets.zoom}
                   >
                     <Maximize2 className="h-4 w-4" />
                   </button>
@@ -76,7 +78,7 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 rounded-full bg-white text-slate-800 shadow"
-                    title="새 창에서 열기"
+                    title={t.assets.openNewTab}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
@@ -91,7 +93,7 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
                   {asset.title}
                 </h4>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[10px]">
-                  <span className="text-slate-400 font-mono">비율: {asset.aspectRatio}</span>
+                  <span className="text-slate-400 font-mono">{t.assets.ratio}: {asset.aspectRatio}</span>
                   <span
                     className={`px-2 py-0.5 rounded-full font-medium ${
                       asset.isApproved
@@ -99,7 +101,7 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
                         : 'bg-amber-50 text-amber-700'
                     }`}
                   >
-                    {asset.isApproved ? 'GCS 영구 저장' : '임시 보관'}
+                    {asset.isApproved ? t.assets.savedGcs : t.assets.tempDraft}
                   </span>
                 </div>
               </div>
@@ -127,7 +129,7 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
               onClick={() => setSelectedAssetUrl(null)}
               className="absolute top-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-slate-800 transition"
             >
-              닫기
+              {t.assets.close}
             </button>
           </div>
         </div>

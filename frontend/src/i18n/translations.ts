@@ -73,16 +73,16 @@ export const translations = {
 
     // Workspace Stepper
     stepper: {
-      step1: '1. 기획',
-      step1Sub: 'Planning',
-      step2: '2. 콘텐츠',
-      step2Sub: 'Content',
-      step3: '3. 미디어 계획',
-      step3Sub: 'MMM',
-      step4: '4. 미디어 집행',
-      step4Sub: 'Execution',
-      step5: '5. 성과 분석',
-      step5Sub: 'Analytics',
+      step1: '1. 시장 감지',
+      step1Sub: 'Market Sensing',
+      step2: '2. 전략 브리프',
+      step2Sub: 'Strategy & Brief',
+      step3: '3. 크리에이티브',
+      step3Sub: 'Creative',
+      step4: '4. 미디어 계획',
+      step4Sub: 'Media Plan',
+      step5: '5. 집행 및 성과',
+      step5Sub: 'Execution & Analytics',
       rollbackConfirm: '이전 단계({step})로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)',
     },
 
@@ -156,14 +156,14 @@ export const translations = {
       approvedBadge: '승인 완료',
     },
 
-    // Stage 2 (Content)
+    // Stage 3 (Creative Content)
     content: {
-      hitlPending: 'Stage 2 승인 필요',
-      hitlDesc: '생성된 시각물 및 광고 카피를 검토하고 필요 시 직접 수정한 후 승인해주세요. 승인 시 3단계(미디어 계획 MMM)로 진행됩니다.',
-      rollbackBtn: '← 1단계(기획)로 복귀',
-      approveBtn: '승인 및 3단계 진행',
+      hitlPending: 'Stage 3 승인 필요',
+      hitlDesc: '생성된 시각물 및 광고 카피를 검토하고 필요 시 직접 수정한 후 승인해주세요. 승인 시 4단계(미디어 계획 MMM)로 진행됩니다.',
+      rollbackBtn: '← 2단계(전략 브리프)로 복귀',
+      approveBtn: '승인 및 4단계 진행',
       waitingTitle: '콘텐츠 생성 대기 중',
-      waitingDesc: '1단계(기획)에서 시뮬레이션을 실행하면 Nano Banana 2 Lite 모델이 고해상도 마케팅 에셋과 광고 카피를 자동 생성합니다.',
+      waitingDesc: '2단계(전략 브리프)를 승인하면 Nano Banana 2 Lite 모델이 고해상도 마케팅 에셋과 광고 카피를 자동 생성합니다.',
       aspectRatio: '화면 비율:',
       visualTitlePlaceholder: '비주얼 콘셉트 제목 입력',
       renderingDone: '이미지 렌더링 완료',
@@ -183,12 +183,12 @@ export const translations = {
       vpcEgressNotice: 'Direct VPC Egress GCS Storage',
     },
 
-    // Stage 3 (Media Plan MMM)
+    // Stage 4 (Media Plan MMM)
     mmm: {
-      hitlPending: 'Stage 3 승인 필요',
-      hitlDesc: 'MMM 예측 결과 및 채널별 예산 배분을 검토하고 필요 시 비중을 수정한 후 승인해주세요. 승인 시 4단계(미디어 집행)로 진행됩니다.',
-      rollbackBtn: '← 2단계(콘텐츠)로 복귀',
-      approveBtn: '미디어 플랜 승인 및 4단계 진행',
+      hitlPending: 'Stage 4 승인 필요',
+      hitlDesc: 'MMM 예측 결과 및 채널별 예산 배분을 검토하고 필요 시 비중을 수정한 후 승인해주세요. 승인 시 최종 집행 및 성과 분석으로 완료됩니다.',
+      rollbackBtn: '← 3단계(크리에이티브)로 복귀',
+      approveBtn: '미디어 플랜 승인 및 최종 집행 완료',
       budgetTitle: '채널 별 예산 제안 (Budget Allocation)',
       budgetDesc: 'MMM(Marketing Mix Modeling) 인텔리전스를 통해 최적화된 채널별 예산 배분입니다. 채널명, 비중, 배분액, 근거를 직접 수정할 수 있습니다.',
       totalBudget: '총 예산',
@@ -209,11 +209,11 @@ export const translations = {
       addRecommendation: '추천 항목 추가',
     },
 
-    // Stage 4 (Media Execution)
+    // Stage 5 (Media Execution & Analytics)
     execution: {
-      hitlPending: 'Stage 4 승인 필요',
+      hitlPending: 'Stage 5 승인 필요',
       hitlDesc: '설정된 채널별 광고 집행 계획과 목표 파라미터를 검토하고 최종 승인해주세요. 승인 시 캠페인이 완료되며 성과 분석(5단계)으로 진행됩니다.',
-      rollbackBtn: '← 3단계(미디어 계획)로 복귀',
+      rollbackBtn: '← 4단계(미디어 계획)로 복귀',
       approveBtn: '집행 최종 승인 및 완료',
       totalPlannedBudget: '총 계획 예산',
       plannedChannelsCount: '집행 채널 수',
@@ -223,14 +223,14 @@ export const translations = {
       targetClicks: '목표 클릭수',
       channelsUnit: '개 채널',
       managementTitle: '미디어 집행 채널 관리',
-      managementDesc: '3단계(미디어 계획 MMM)에서 확정된 채널별 배분 예산 및 집행 준비 현황입니다.',
+      managementDesc: '4단계(미디어 계획 MMM)에서 확정된 채널별 배분 예산 및 집행 준비 현황입니다.',
       statusReady: '집행 준비 완료',
-      noChannels: '집행 채널 데이터가 없습니다. 3단계(미디어 계획)에서 채널을 설정해주세요.',
+      noChannels: '집행 채널 데이터가 없습니다. 4단계(미디어 계획)에서 채널을 설정해주세요.',
       aiRecommendationsTitle: 'AI 최적화 권고 사항 (P4 Insights)',
-      noRecommendations: '3단계에서 생성된 채널 최적화 권고가 전달되었습니다.',
+      noRecommendations: '4단계에서 생성된 채널 최적화 권고가 전달되었습니다.',
       processTitle: '집행 프로세스',
       verificationItem1Title: '채널 배분 일치 검증',
-      verificationItem1Desc: '3단계 MMM 예산 배분 스키마와 100% 동기화되었습니다.',
+      verificationItem1Desc: '4단계 MMM 예산 배분 스키마와 100% 동기화되었습니다.',
       verificationItem2Title: 'Human-in-the-Loop 최종 승인',
       verificationItem2Desc: '마케터 승인 완료 시 캠페인이 완료되고 5단계 성과 분석이 생성됩니다.',
     },
@@ -327,6 +327,63 @@ export const translations = {
       submitRevision: '수정 요청 전송',
       lightboxClose: '닫기',
     },
+
+    // Home Dashboard
+    home: {
+      aiMarketingAssistant: 'AI 마케팅 어시스턴트',
+      heroTitle: '오늘 어떤 마케팅을 도와드릴까요?',
+      heroSubtitle: 'AI는 실수를 할 수 있습니다. 중요한 정보는 반드시 확인하세요.',
+      campaignHistoryTitle: '캠페인 히스토리',
+      campaignHistoryDesc: '진행 중이거나 완료된 캠페인 세션 목록입니다.',
+      campaignName: '캠페인명',
+      progress: '진행률',
+      askAiPlaceholder: 'AI에게 무엇이든 물어보세요...',
+      sendPromptTitle: '질문 전송 및 캠페인 생성',
+    },
+
+    // Agent Logs Panel
+    logs: {
+      title: '에이전트 로그',
+      liveStream: '실시간 수신 중...',
+      idle: '대기 중',
+      timeline: '실행 이벤트 타임라인',
+      noLogs: '기록된 로그가 없습니다.',
+      noLogsDesc: '시뮬레이션을 시작하면 서브 에이전트(P1~P4)의 실행 이벤트가 실시간으로 수신됩니다.',
+      directStream: 'Direct A2A Stream',
+      connected: '연결됨',
+    },
+
+    // Asset Library
+    assets: {
+      title: '에셋 라이브러리 (Asset Library)',
+      desc: 'GCS(Google Cloud Storage)에 저장된 고해상도 생성 마케팅 비주얼 에셋 목록입니다.',
+      totalCount: '총 {count}개 에셋',
+      noAssets: '등록된 마케팅 에셋이 없습니다.',
+      noAssetsDesc: '캠페인 시뮬레이션을 실행하여 Nano Banana 2 Lite 모델이 생성한 에셋을 확인해보세요.',
+      ratio: '비율',
+      savedGcs: 'GCS 영구 저장',
+      tempDraft: '임시 보관',
+      zoom: '확대',
+      openNewTab: '새 창에서 열기',
+      close: '닫기',
+    },
+
+    // Settings
+    settings: {
+      title: '시스템 설정 & 환경 정보',
+      desc: 'MVC 1.0 플랫폼 인프라, 보안 거버넌스 및 에이전트 런타임 설정입니다.',
+      cardSecurityTitle: '보안 & Model Armor 가드레일',
+      cardTopologyTitle: 'AI 모델 토폴로지',
+      modelArmorTemplate: 'Model Armor 템플릿',
+      piiMasking: '민감정보(PII) 자동 마스킹',
+      piiEnabled: '활성화됨',
+      authMethod: '인증 방식',
+      storageIsolation: '스토리지 격리 (GCS)',
+      orchestratorModel: '오케스트레이터 모델',
+      subagentsModel: '마켓 센싱 / 브리프 / 성과 에이전트',
+      creativeVisualModel: '크리에이티브 비주얼 생성 모델',
+      gcpLocation: 'GCP 리소스 위치',
+    },
   },
 
   en: {
@@ -387,15 +444,15 @@ export const translations = {
 
     // Workspace Stepper
     stepper: {
-      step1: '1. Planning',
-      step1Sub: 'Planning',
-      step2: '2. Content',
-      step2Sub: 'Content',
-      step3: '3. Media Plan',
-      step3Sub: 'MMM',
-      step4: '4. Media Execution',
-      step4Sub: 'Execution',
-      step5: '5. Performance Analytics',
+      step1: '1. Market Sensing',
+      step1Sub: 'Sensing',
+      step2: '2. Strategy Brief',
+      step2Sub: 'Brief',
+      step3: '3. Creative',
+      step3Sub: 'Visuals',
+      step4: '4. Media Plan',
+      step4Sub: 'MMM',
+      step5: '5. Execution & ROI',
       step5Sub: 'Analytics',
       rollbackConfirm: 'Return to previous stage ({step})? (This will reset subsequent stage deliverables for revision)',
     },
@@ -470,14 +527,14 @@ export const translations = {
       approvedBadge: 'Approved',
     },
 
-    // Stage 2 (Content)
+    // Stage 3 (Creative Content)
     content: {
-      hitlPending: 'Stage 2 Approval Required',
-      hitlDesc: 'Review visual deliverables and promotional copies. Edit as needed and approve to advance to Stage 3 (Media Plan MMM).',
-      rollbackBtn: '← Rollback to Stage 1 (Planning)',
-      approveBtn: 'Approve & Proceed to Stage 3',
+      hitlPending: 'Stage 3 Review Required',
+      hitlDesc: 'Review visual deliverables and promotional copies. Edit as needed and approve to advance to Stage 4 (Media Plan MMM).',
+      rollbackBtn: '← Rollback to Stage 2 (Strategy & Brief)',
+      approveBtn: 'Approve & Proceed to Stage 4',
       waitingTitle: 'Awaiting Content Generation',
-      waitingDesc: 'Execute Stage 1 simulation to trigger Nano Banana 2 Lite model for high-resolution marketing assets and copy.',
+      waitingDesc: 'Approving Stage 2 triggers Nano Banana 2 Lite model for high-resolution marketing assets and copy.',
       aspectRatio: 'Aspect Ratio:',
       visualTitlePlaceholder: 'Enter visual concept title',
       renderingDone: 'Image Rendered',
@@ -497,12 +554,12 @@ export const translations = {
       vpcEgressNotice: 'Direct VPC Egress GCS Storage',
     },
 
-    // Stage 3 (Media Plan MMM)
+    // Stage 4 (Media Plan MMM)
     mmm: {
-      hitlPending: 'Stage 3 Approval Required',
-      hitlDesc: 'Review MMM budget distribution across media channels. Adjust percentages if needed and approve to advance to Stage 4.',
-      rollbackBtn: '← Rollback to Stage 2 (Content)',
-      approveBtn: 'Approve Media Plan & Proceed to Stage 4',
+      hitlPending: 'Stage 4 Review Required',
+      hitlDesc: 'Review MMM budget distribution across media channels. Adjust percentages if needed and approve to finalize campaign and advance to Stage 5.',
+      rollbackBtn: '← Rollback to Stage 3 (Creative)',
+      approveBtn: 'Approve Media Plan & Complete Campaign',
       budgetTitle: 'Channel Budget Allocation (MMM Intelligence)',
       budgetDesc: 'Optimized budget allocation modeled by Marketing Mix Modeling. Adjust channel names, shares, budgets, and rationales directly.',
       totalBudget: 'Total Budget',
@@ -523,11 +580,11 @@ export const translations = {
       addRecommendation: 'Add Recommendation',
     },
 
-    // Stage 4 (Media Execution)
+    // Stage 5 (Media Execution & Analytics)
     execution: {
-      hitlPending: 'Stage 4 Approval Required',
+      hitlPending: 'Stage 5 Approval Required',
       hitlDesc: 'Review finalized channel execution readiness and pacing parameters. Approving completes the campaign to Stage 5 Analytics.',
-      rollbackBtn: '← Rollback to Stage 3 (Media Plan)',
+      rollbackBtn: '← Rollback to Stage 4 (Media Plan)',
       approveBtn: 'Approve Final Execution & Complete',
       totalPlannedBudget: 'Planned Budget',
       plannedChannelsCount: 'Active Channels',
@@ -537,14 +594,14 @@ export const translations = {
       targetClicks: 'Target Clicks',
       channelsUnit: 'Channels',
       managementTitle: 'Media Execution Management',
-      managementDesc: 'Channel budget allocations and live deployment readiness synchronized from Stage 3 MMM.',
+      managementDesc: 'Channel budget allocations and live deployment readiness synchronized from Stage 4 MMM.',
       statusReady: 'Ready for Execution',
-      noChannels: 'No channel data available. Please configure channels in Stage 3 Media Plan.',
+      noChannels: 'No channel data available. Please configure channels in Stage 4 Media Plan.',
       aiRecommendationsTitle: 'Optimization Recommendations (P4 Insights)',
-      noRecommendations: 'Channel recommendations from Stage 3 synchronized successfully.',
+      noRecommendations: 'Channel recommendations from Stage 4 synchronized successfully.',
       processTitle: 'Execution Workflow',
       verificationItem1Title: 'Channel Allocation Verified',
-      verificationItem1Desc: 'Synchronized 100% with Stage 3 MMM budget schema.',
+      verificationItem1Desc: 'Synchronized 100% with Stage 4 MMM budget schema.',
       verificationItem2Title: 'Human-in-the-Loop Final Sign-Off',
       verificationItem2Desc: 'Signing off completes the campaign and renders Stage 5 performance analytics.',
     },
@@ -640,6 +697,63 @@ export const translations = {
       feedbackPlaceholder: 'e.g. Focus messaging more on camera AI capabilities and adjust audience targeting to tech professionals.',
       submitRevision: 'Submit Revision Request',
       lightboxClose: 'Close',
+    },
+
+    // Home Dashboard
+    home: {
+      aiMarketingAssistant: 'AI Marketing Assistant',
+      heroTitle: 'How can I assist your marketing today?',
+      heroSubtitle: 'AI can make mistakes. Please verify important information.',
+      campaignHistoryTitle: 'Campaign History',
+      campaignHistoryDesc: 'List of active and completed campaign sessions.',
+      campaignName: 'Campaign Name',
+      progress: 'Progress',
+      askAiPlaceholder: 'Ask AI to plan any campaign...',
+      sendPromptTitle: 'Send prompt and create campaign',
+    },
+
+    // Agent Logs Panel
+    logs: {
+      title: 'Agent Logs',
+      liveStream: 'Receiving live stream...',
+      idle: 'Idle',
+      timeline: 'Execution Event Timeline',
+      noLogs: 'No logs recorded.',
+      noLogsDesc: 'When simulation starts, sub-agent (P1~P4) execution events will stream in real-time.',
+      directStream: 'Direct A2A Stream',
+      connected: 'Connected',
+    },
+
+    // Asset Library
+    assets: {
+      title: 'Asset Library',
+      desc: 'List of high-resolution generated marketing visual assets stored in Google Cloud Storage.',
+      totalCount: '{count} Total Assets',
+      noAssets: 'No marketing assets registered.',
+      noAssetsDesc: 'Run campaign simulation to inspect generated visual assets.',
+      ratio: 'Ratio',
+      savedGcs: 'Permanent GCS Storage',
+      tempDraft: 'Temporary Draft',
+      zoom: 'Zoom',
+      openNewTab: 'Open in new tab',
+      close: 'Close',
+    },
+
+    // Settings
+    settings: {
+      title: 'System Settings & Environment',
+      desc: 'MVC 1.0 platform infrastructure, security governance, and agent runtime configurations.',
+      cardSecurityTitle: 'Security & Model Armor Guardrails',
+      cardTopologyTitle: 'AI Model Topology',
+      modelArmorTemplate: 'Model Armor Template',
+      piiMasking: 'Automated PII Masking',
+      piiEnabled: 'Enabled',
+      authMethod: 'Authentication Method',
+      storageIsolation: 'Storage Isolation (GCS)',
+      orchestratorModel: 'Orchestrator Model',
+      subagentsModel: 'Market Sensing / Brief / Insights Agents',
+      creativeVisualModel: 'Creative Visual Generation Model',
+      gcpLocation: 'GCP Resource Location',
     },
   },
 } as const;

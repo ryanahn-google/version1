@@ -40,7 +40,13 @@ export function MediaPlanMmmView({
 
   const insights = session?.deliverables?.performanceInsights;
   const initialBudget = session?.budgetAmount || (currency === 'KRW' ? 2500000000 : 2000000);
-  const isReviewPending = session?.status === 'PAUSED_FOR_REVIEW';
+  const isReviewPending =
+    session?.status === 'PAUSED_FOR_REVIEW' &&
+    session?.currentStage === 'PERFORMANCE_INSIGHTS';
+  const isStage4Approved =
+    session?.status === 'COMPLETED' ||
+    session?.currentStage === 'MEDIA_EXECUTION' ||
+    session?.currentStage === 'COMPLETED';
 
   // Editable deliverable states
   const [budgetAmount, setBudgetAmount] = useState<number>(
@@ -226,6 +232,21 @@ export function MediaPlanMmmView({
               <span>{t.mmm.approveBtn}</span>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Stage 4 Approved Indicator Banner */}
+      {isStage4Approved && (
+        <div className="bg-emerald-50/90 border border-emerald-300 rounded-2xl p-3.5 px-5 shadow-xs flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <span className="text-xs font-semibold text-emerald-800">
+              {t.planning.approvedBadge}: 4단계(미디어 계획 MMM) 산출물이 승인 완료되었습니다.
+            </span>
+          </div>
+          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+            {t.planning.approvedBadge}
+          </span>
         </div>
       )}
 
