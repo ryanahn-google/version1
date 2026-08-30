@@ -59,9 +59,10 @@ async def get_metadata() -> dict[str, Any]:
     }
 
 
+@router.get("/", include_in_schema=False)
 @router.get("/mvc", include_in_schema=False)
-async def serve_mvc() -> Response:
-    """Serve compiled React SPA at /mvc entrypoint."""
+async def serve_frontend() -> Response:
+    """Serve compiled React SPA at root and /mvc entrypoints."""
     if INDEX_HTML.is_file():
         return FileResponse(str(INDEX_HTML))
     return Response(

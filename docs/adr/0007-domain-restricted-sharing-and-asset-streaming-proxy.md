@@ -43,3 +43,24 @@ Request an exemption on `constraints/iam.allowedPolicyMemberDomains` for the art
 - **Zero Cloud Run Egress & Memory**: Eliminates server-side memory buffering and egress bandwidth consumption.
 - **100% DRS Compliance**: The bucket remains strictly private, passing all Terraform CI/CD checks without org policy violations.
 - **Unified Frontend Experience**: The React SPA accesses images via standard relative `/generated/` HTTP paths with zero CORS preflight or auth token URL embedding issues.
+
+### Negative / Accepted Trade-offs
+- Cloud Run requires `roles/iam.serviceAccountTokenCreator` to sign GCS V4 URLs locally without embedding private keys.
+- Signed URLs have a fixed 1-hour expiration window; historical sessions reopened later must dynamically request fresh signed URLs from Cloud Run.
+
+### Risks (and mitigations)
+- Service account token signing permission latency $\to$ Client signs using cached Google Credentials; signed URLs generated in $<5\text{ms}$.
+- Fallback in offline local testing $\to$ Streaming proxy falls back to static sample assets if GCS bucket is unreachable.
+
+## Conditions to Revisit
+- If Cloud CDN signed cookies / signed URLs with external load balancing are added in front of GCS.
+- If Organization Policy `constraints/iam.allowedPolicyMemberDomains` is relaxed by central IAM security.
+
+## References
+- [docs/design/TDD.md](../design/TDD.md)
+- [deployment/terraform/cicd/storage.tf](../../deployment/terraform/cicd/storage.tf)
+- [app/routers/visuals.py](../../app/routers/visuals.py)
+- Google Cloud Domain-Restricted Sharing (DRS) Policy Documentation
+
+## Changelog
+- 2026-08-29: Initial proposal and acceptance.

@@ -5,7 +5,7 @@
 - **Version**: 1.0.0
 - **Authors**: Ryan Ahn (ryanahn@, Forward Deployed Engineer)
 - **Approvers**: Executive Sponsor, FDE Lead
-- **Related Documents**: [docs/design/TDD.md](TDD.md), [api/openapi.yaml](../../api/openapi.yaml), [docs/adr/0001-0005](../adr/)
+- **Related Documents**: [docs/design/TDD.md](TDD.md), [api/openapi.yaml](../../api/openapi.yaml), [docs/adr/0001-0007](../adr/)
 - **Live Staging Endpoint**: `https://version1-797135441724.asia-northeast3.run.app`
 
 ---

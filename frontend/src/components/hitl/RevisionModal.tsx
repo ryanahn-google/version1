@@ -33,13 +33,14 @@ export function RevisionModal({
   const getStageDisplay = (s: StageKey) => {
     switch (s) {
       case 'MARKET_SENSING':
-        return '1단계: 마켓 센싱';
       case 'STRATEGY_BRIEF':
-        return '1단계: 캠페인 브리프';
+        return '1단계: 마케팅 전략 기획';
       case 'CREATIVE_CONTENT':
         return '2단계: 크리에이티브 콘텐츠';
       case 'PERFORMANCE_INSIGHTS':
-        return '3단계: 미디어 계획 / 성과 분석';
+        return '3단계: 미디어 계획 (MMM)';
+      case 'MEDIA_EXECUTION':
+        return '4단계: 미디어 집행';
       default:
         return s;
     }

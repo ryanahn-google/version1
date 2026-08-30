@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-27
 - **Deciders**: Ryan Ahn (FDE Lead), Nova Electronics Corp Sponsor
-- **Related**: [docs/design/TDD.md](docs/design/TDD.md)
+- **Related**: [docs/design/TDD.md](../design/TDD.md)
 
 ## Context
 Marketing Value Creator (MVC) requires a multi-stage campaign planning pipeline (Market Sensing -> Strategy & Brief -> Creative Content -> Performance & Insights) with Human-in-the-Loop (HITL) review gates.
@@ -42,3 +42,11 @@ Chain direct Gemini API calls with function calling inside FastAPI.
 ## Conditions to revisit
 - If Agent Runtime network latency P95 exceeds 2.0s per turn, evaluate VPC Service Controls / Direct VPC peering or local agent co-location.
 - If A2A specification undergoes breaking protocol changes.
+
+## References
+- [docs/design/TDD.md](../design/TDD.md)
+- [docs/design/SCOPING.md](../design/SCOPING.md)
+- Google Agent Development Kit (ADK) A2A Communication Specification
+
+## Changelog
+- 2026-08-27: Initial proposal and acceptance.

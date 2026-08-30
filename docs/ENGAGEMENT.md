@@ -4,20 +4,24 @@ Entry mode:   build                       # build = greenfield, evaluate = audit
 Customer bar: enterprise                  # enterprise standard bar
 Stage:        During                      # customer-facing overlay only
 Success statement (draft): Build Nova Electronics Corp's Marketing Value Creator (MVC) v1.0, an enterprise multi-agent campaign planning platform on Cloud Run and Agent Runtime that automates 4-to-6-week campaign planning into an interactive simulation taking minutes under strict corporate brand guardrails.
-Last refreshed: 2026-08-29 by Ryan Ahn (FDE Lead)
+Last refreshed: 2026-08-30 by Ryan Ahn (FDE Lead)
 
 | Phase | Skill | Status | Artifact |
 | ----- | ----- | ------ | -------- |
 | 0 — Orient | ai-fde-engagement | done | docs/ENGAGEMENT.md |
 | 1 — Discover & scope | ai-fde-scoping | done | docs/design/SCOPING.md |
-| 2 — Document & design | ai-fde-design-docs | done | docs/design/TDD.md, docs/adr/README.md, docs/adr/0001-0005, api/openapi.yaml |
-| 3 — Architect & stand up the AI | ai-fde-architecture | done | agents/market_sensing/, agents/strategy_brief/, agents/creative_content/, agents/performance_insights/, agents/*/eval/datasets/golden-dataset.json |
+| 2 — Document & design | ai-fde-design-docs | done | docs/design/TDD.md, docs/adr/README.md, docs/adr/0001-0007, api/openapi.yaml |
+| 3 — Architect & stand up the AI | ai-fde-architecture | done | app/agents/market_sensing/, app/agents/strategy_brief/, app/agents/creative_content/, app/agents/performance_insights/, docs/EVAL.md, app/agents/*/eval/datasets/golden-dataset.json |
 | 3b — Shape the codebase | ai-fde-codebase | done | Makefile, api/openapi.yaml, app/schemas/, app/settings.py, tests/conftest.py, tests/unit/, tests/integration/ |
 | 4 — Secure it | ai-fde-security | done | app/orchestrator/security.py, deployment/terraform/cicd/model_armor.tf (version1-guardrails), deployment/terraform/cicd/network.tf (Direct VPC Egress) |
 | 5 — Make it reliable | ai-fde-reliability | done | tests/load_test/ (Locust automated load test gate), Cloud SQL session persistence, Cloud Trace & Cloud Logging |
 | 6 — Optimize cost & perf | ai-fde-cost-performance | done | docs/design/TDD.md §13 (FinOps model: $0.0455/run), scale-to-zero Cloud Run & Agent Runtime |
 | 7 — Ship it | ai-fde-delivery | done | Makefile (quality, ci), .cloudbuild/*.yaml, deployment/terraform/cicd/, Artifact Registry, live Staging deployment verified |
-| 8 — Design for change | ai-fde-designing-for-change | partial | docs/adr/0002 (Location pinning), docs/adr/0004 (Approval gate), docs/adr/0005 (Auth proxy) |
+| 8 — Design for change | ai-fde-designing-for-change | done | docs/adr/0002 (Location pinning), docs/adr/0004 (Approval gate), docs/adr/0005 (Auth proxy), docs/runbooks/model-swap.md |
+
+## Notes & Architecture Directives
+1. **Consolidated Specification Architecture**: Per project architecture directives and operational decisions, standalone satellite specifications (`RELIABILITY.md`, `CHANGES.md`, `LINEAGE.md`, `FINOPS.md`) are consolidated directly into `docs/design/TDD.md` (§11 Security, §12 Reliability, §13 FinOps, §14 Performance, §15 Observability/Telemetry).
+2. **Encryption & Managed Services**: CMEK is omitted in favor of Google-managed default encryption. BigQuery is utilized for telemetry logging sinks (`genai_telemetry`) via GCS external tables without complex streaming pipelines.
 
 ## Completed Implementation Milestones
 1. **Contract-First & Data Modeling**:

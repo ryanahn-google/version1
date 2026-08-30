@@ -41,3 +41,19 @@ def test_create_campaign_request_validation() -> None:
     assert req.currency == "USD"
     assert req.stream is True
     assert len(req.channels) == 4
+
+
+def test_root_endpoint_does_not_redirect_to_dev_ui() -> None:
+    """Verify root / does not redirect to ADK /dev-ui/ and ADK web is disabled."""
+    from starlette.testclient import TestClient
+
+    from app.fast_api_app import app
+
+    client = TestClient(app, follow_redirects=False)
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "/dev-ui/" not in resp.headers.get("location", "")
+
+    # Confirm ADK dev-ui is not mounted
+    dev_ui_resp = client.get("/dev-ui/", follow_redirects=False)
+    assert dev_ui_resp.status_code == 404

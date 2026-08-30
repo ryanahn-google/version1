@@ -20,7 +20,12 @@ interface CampaignWorkspaceProps {
   session: CampaignSessionResponse | null;
   initialPrompt?: string;
   onStartSimulation: (req: CreateCampaignRequest) => void;
-  onApproveOrRevise: (action: 'approve' | 'revise', feedback?: string) => void;
+  onApproveOrRevise: (
+    action: 'approve' | 'revise',
+    feedback?: string,
+    deliverableUpdates?: Record<string, unknown>
+  ) => void;
+  onRollbackStage?: () => void;
   isLoading: boolean;
   logs: LogEntry[];
 }
@@ -38,8 +43,8 @@ const WORKSPACE_STEPS: StepMeta[] = [
   { step: 1, label: '1. 기획', subLabel: 'Planning', backendStage: 'MARKET_SENSING' },
   { step: 2, label: '2. 콘텐츠', subLabel: 'Content', backendStage: 'CREATIVE_CONTENT' },
   { step: 3, label: '3. 미디어 계획', subLabel: 'MMM', backendStage: 'PERFORMANCE_INSIGHTS' },
-  { step: 4, label: '4. 미디어 집행', subLabel: 'Execution', backendStage: 'PERFORMANCE_INSIGHTS' },
-  { step: 5, label: '5. 성과 분석', subLabel: 'Analytics', backendStage: 'PERFORMANCE_INSIGHTS' },
+  { step: 4, label: '4. 미디어 집행', subLabel: 'Execution', backendStage: 'MEDIA_EXECUTION' },
+  { step: 5, label: '5. 성과 분석', subLabel: 'Analytics', backendStage: 'COMPLETED' },
 ];
 
 export function CampaignWorkspace({
@@ -47,22 +52,89 @@ export function CampaignWorkspace({
   initialPrompt,
   onStartSimulation,
   onApproveOrRevise,
+  onRollbackStage,
   isLoading,
   logs,
 }: CampaignWorkspaceProps) {
   const [activeStep, setActiveStep] = useState<WorkspaceStep>(1);
 
+  const canAccessStep = (step: WorkspaceStep) => {
+    if (step === activeStep) return true;
+    if (!session) return step === 1;
+
+    // Strict rule: Can only navigate back to immediately preceding stage (activeStep - 1)
+    if (step === activeStep - 1) return true;
+
+    // Moving further back than activeStep - 1 is strictly prohibited!
+    if (step < activeStep - 1) return false;
+
+    // Advancing forward is allowed only if backend session reached that stage
+    const stage = session.currentStage;
+    const isCompleted = session.status === 'COMPLETED' || stage === 'COMPLETED';
+
+    if (step === 2) {
+      return (
+        stage === 'CREATIVE_CONTENT' ||
+        stage === 'PERFORMANCE_INSIGHTS' ||
+        stage === 'MEDIA_EXECUTION' ||
+        isCompleted
+      );
+    }
+    if (step === 3) {
+      return (
+        stage === 'PERFORMANCE_INSIGHTS' ||
+        stage === 'MEDIA_EXECUTION' ||
+        isCompleted
+      );
+    }
+    if (step === 4) {
+      return stage === 'MEDIA_EXECUTION' || isCompleted;
+    }
+    if (step === 5) {
+      return isCompleted;
+    }
+    return false;
+  };
+
+  const handleStepClick = (step: WorkspaceStep) => {
+    if (step === activeStep) return;
+    if (step === activeStep - 1) {
+      if (
+        window.confirm(
+          `이전 단계(${WORKSPACE_STEPS[step - 1].label})로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)`
+        )
+      ) {
+        if (onRollbackStage) {
+          onRollbackStage();
+        }
+        setActiveStep(step);
+      }
+      return;
+    }
+    if (step > activeStep && canAccessStep(step)) {
+      setActiveStep(step);
+    }
+  };
+
   // Automatically advance active step when backend stage progresses
   useEffect(() => {
-    if (!session) return;
-    if (session.status === 'COMPLETED') {
+    if (!session) {
+      setActiveStep(1);
+      return;
+    }
+    if (session.status === 'COMPLETED' || session.currentStage === 'COMPLETED') {
       setActiveStep(5);
-    } else if (session.status === 'PAUSED_FOR_REVIEW' || session.currentStage === 'CREATIVE_CONTENT') {
+    } else if (
+      session.currentStage === 'MARKET_SENSING' ||
+      session.currentStage === 'STRATEGY_BRIEF'
+    ) {
+      setActiveStep(1);
+    } else if (session.currentStage === 'CREATIVE_CONTENT') {
       setActiveStep(2);
     } else if (session.currentStage === 'PERFORMANCE_INSIGHTS') {
       setActiveStep(3);
-    } else if (session.currentStage === 'MARKET_SENSING' || session.currentStage === 'STRATEGY_BRIEF') {
-      setActiveStep(1);
+    } else if (session.currentStage === 'MEDIA_EXECUTION') {
+      setActiveStep(4);
     }
   }, [session?.currentStage, session?.status]);
 
@@ -86,18 +158,29 @@ export function CampaignWorkspace({
           {WORKSPACE_STEPS.map((s, idx) => {
             const isSelected = activeStep === s.step;
             const status = getStepStatus(s.step);
+            const isAccessible = canAccessStep(s.step);
 
             return (
               <div key={s.step} className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveStep(s.step)}
+                  onClick={() => handleStepClick(s.step)}
+                  disabled={!isAccessible}
+                  title={
+                    s.step < activeStep - 1
+                      ? '바로 이전 단계로만 돌아갈 수 있습니다.'
+                      : undefined
+                  }
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition text-xs whitespace-nowrap ${
                     isSelected
                       ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200 shadow-xs'
                       : status === 'COMPLETED'
-                      ? 'text-slate-700 hover:text-slate-900 font-medium'
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? isAccessible
+                        ? 'text-slate-700 hover:text-slate-900 font-medium'
+                        : 'text-slate-400 cursor-not-allowed opacity-60'
+                      : isAccessible
+                      ? 'text-slate-500 hover:text-slate-700'
+                      : 'text-slate-300 cursor-not-allowed opacity-40'
                   }`}
                 >
                   <span
@@ -106,7 +189,9 @@ export function CampaignWorkspace({
                         ? 'bg-[#1a56db] text-white shadow-xs'
                         : status === 'COMPLETED'
                         ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-slate-100 text-slate-400'
+                        : isAccessible
+                        ? 'bg-slate-100 text-slate-500'
+                        : 'bg-slate-100 text-slate-300'
                     }`}
                   >
                     {status === 'COMPLETED' && !isSelected ? (
@@ -141,6 +226,7 @@ export function CampaignWorkspace({
               session={session}
               initialPrompt={initialPrompt}
               onStartSimulation={onStartSimulation}
+              onApproveOrRevise={onApproveOrRevise}
               isLoading={isLoading}
             />
           )}
@@ -148,11 +234,26 @@ export function CampaignWorkspace({
             <ContentView
               session={session}
               onApproveOrRevise={onApproveOrRevise}
+              onRollbackStage={onRollbackStage}
               isLoading={isLoading}
             />
           )}
-          {activeStep === 3 && <MediaPlanMmmView session={session} />}
-          {activeStep === 4 && <MediaExecutionView session={session} />}
+          {activeStep === 3 && (
+            <MediaPlanMmmView
+              session={session}
+              onApproveOrRevise={onApproveOrRevise}
+              onRollbackStage={onRollbackStage}
+              isLoading={isLoading}
+            />
+          )}
+          {activeStep === 4 && (
+            <MediaExecutionView
+              session={session}
+              onApproveOrRevise={onApproveOrRevise}
+              onRollbackStage={onRollbackStage}
+              isLoading={isLoading}
+            />
+          )}
           {activeStep === 5 && <PerformanceAnalyticsView session={session} />}
         </main>
 
@@ -160,10 +261,14 @@ export function CampaignWorkspace({
         <AssistantAndLogsPanel
           activeStage={
             activeStep === 1
-              ? 'MARKET_SENSING'
+              ? 'STRATEGY_BRIEF'
               : activeStep === 2
               ? 'CREATIVE_CONTENT'
-              : 'PERFORMANCE_INSIGHTS'
+              : activeStep === 3
+              ? 'PERFORMANCE_INSIGHTS'
+              : activeStep === 4
+              ? 'MEDIA_EXECUTION'
+              : 'COMPLETED'
           }
           logs={logs}
           isStreaming={isLoading}

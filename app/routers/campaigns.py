@@ -14,6 +14,8 @@
 
 """Campaign lifecycle and multi-agent DAG orchestration routes."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
@@ -147,5 +149,69 @@ async def approve_stage(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Campaign session '{sessionId}' not found.",
+        )
+    return updated
+
+
+@router.post(
+    "/{sessionId}/rollback",
+    response_model=CampaignSessionResponse,
+    responses={
+        400: {"model": ErrorResponse},
+        401: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+async def rollback_stage(
+    sessionId: str,
+    user: UserModel = Depends(get_current_user),
+    engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
+) -> CampaignSessionResponse:
+    """Rollback session strictly to the immediately preceding stage (N - 1)."""
+    return await engine.rollback_stage(sessionId, user_id=user.user_id)
+
+
+@router.patch(
+    "/{sessionId}",
+    response_model=CampaignSessionResponse,
+    responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def update_campaign_session(
+    sessionId: str,
+    payload: dict[str, Any],
+    user: UserModel = Depends(get_current_user),
+    repo: SessionRepository = Depends(get_session_repo),
+) -> CampaignSessionResponse:
+    """Update campaign session deliverables or fields directly."""
+    session = await repo.get_session(sessionId, user_id=user.user_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Campaign session '{sessionId}' not found.",
+        )
+
+    deliverables_update = payload.get("deliverables")
+    current_delivs = session.deliverables.model_dump(mode="json")
+    if deliverables_update and isinstance(deliverables_update, dict):
+        for k, v in deliverables_update.items():
+            if v is not None:
+                if (
+                    k in current_delivs
+                    and isinstance(current_delivs[k], dict)
+                    and isinstance(v, dict)
+                ):
+                    current_delivs[k].update(v)
+                else:
+                    current_delivs[k] = v
+
+    updated = await repo.update_session(
+        sessionId,
+        deliverables=current_delivs,
+        user_id=user.user_id,
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Campaign session '{sessionId}' could not be updated.",
         )
     return updated

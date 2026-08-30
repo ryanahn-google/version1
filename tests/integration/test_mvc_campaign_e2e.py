@@ -93,13 +93,19 @@ async def test_full_campaign_dag_golden_scenario():
         session_data = create_resp.json()
         session_id = session_data["sessionId"]
         assert session_data["status"] == CampaignStatus.PAUSED_FOR_REVIEW.value
-        assert session_data["currentStage"] == CampaignStage.MARKET_SENSING.value
+        assert session_data["currentStage"] == CampaignStage.STRATEGY_BRIEF.value
 
         p1_deliv = session_data["deliverables"]["marketSensing"]
         assert p1_deliv is not None
         assert len(p1_deliv["consumerTrends"]) >= 3
         assert len(p1_deliv["competitiveAnalysis"]) >= 2
         assert p1_deliv["sentimentOverview"]["overallSentimentScore"] > 0
+
+        p2_deliv = session_data["deliverables"]["campaignBrief"]
+        assert p2_deliv is not None
+        assert "Galaxy S27" in p2_deliv["campaignTitle"]
+        assert len(p2_deliv["targetPersonas"]) >= 2
+        assert len(p2_deliv["messagingPillars"]) >= 2
 
         # Step 1.5: Verify retrieval endpoint
         get_resp = await client.get(
@@ -109,24 +115,7 @@ async def test_full_campaign_dag_golden_scenario():
         assert get_resp.status_code == 200
         assert get_resp.json()["sessionId"] == session_id
 
-        # Step 2: Approve P1 -> Triggers [P2] Strategy & Brief
-        approve_p1_resp = await client.post(
-            f"/api/v1/campaigns/{session_id}/approve",
-            json={"action": "approve", "stream": False},
-            headers={"Authorization": "Bearer dev-marketer-token"},
-        )
-        assert approve_p1_resp.status_code == 200
-        session_data = approve_p1_resp.json()
-        assert session_data["status"] == CampaignStatus.PAUSED_FOR_REVIEW.value
-        assert session_data["currentStage"] == CampaignStage.STRATEGY_BRIEF.value
-
-        p2_deliv = session_data["deliverables"]["campaignBrief"]
-        assert p2_deliv is not None
-        assert "Galaxy S27" in p2_deliv["campaignTitle"]
-        assert len(p2_deliv["targetPersonas"]) >= 2
-        assert len(p2_deliv["messagingPillars"]) >= 2
-
-        # Step 3: Approve P2 -> triggers [P3] Creative Content
+        # Step 2: Approve Stage 1 (Strategy Brief) -> Triggers [P3] Creative Content
         approve_p2_resp = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
             json={"action": "approve", "stream": False},
@@ -153,20 +142,30 @@ async def test_full_campaign_dag_golden_scenario():
         assert draft_img_resp.headers["content-type"] == "image/png"
         assert len(draft_img_resp.content) > 0
 
-        # Step 4: Approve P3 -> Commits draft to GCS and triggers [P4] Performance & Insights
+        # Step 4: Approve P3 with deliverableUpdates -> Commits draft to GCS and triggers [P4] Performance & Insights
+        # Pauses at PERFORMANCE_INSIGHTS (Stage 3)
         approve_p3_resp = await client.post(
             f"/api/v1/campaigns/{session_id}/approve",
-            json={"action": "approve", "stream": False},
+            json={
+                "action": "approve",
+                "stream": False,
+                "deliverableUpdates": {
+                    "creativeContent": {
+                        "headlineCopy": "Edited Next Level AI, Galaxy S27",
+                    }
+                },
+            },
             headers={"Authorization": "Bearer dev-marketer-token"},
         )
         assert approve_p3_resp.status_code == 200
         session_data = approve_p3_resp.json()
-        assert session_data["status"] == CampaignStatus.COMPLETED.value
-        assert session_data["currentStage"] == CampaignStage.COMPLETED.value
+        assert session_data["status"] == CampaignStatus.PAUSED_FOR_REVIEW.value
+        assert session_data["currentStage"] == CampaignStage.PERFORMANCE_INSIGHTS.value
 
-        # Verify P3 assetUrl was committed to GCS and points to the tokenized /visual endpoint upon approval
+        # Verify P3 assetUrl was committed to GCS and deliverable update was persisted
         committed_p3 = session_data["deliverables"]["creativeContent"]
         assert committed_p3 is not None
+        assert committed_p3["headlineCopy"] == "Edited Next Level AI, Galaxy S27"
         assert "/draft-image" not in committed_p3["assetUrl"]
         assert committed_p3["assetUrl"] == f"/api/v1/campaigns/{session_id}/visual"
         assert committed_p3.get("storageUri") is not None
@@ -180,6 +179,28 @@ async def test_full_campaign_dag_golden_scenario():
         assert round(total_pct, 1) == 100.0
         assert p4_deliv["expectedRoas"] > 1.0
         assert p4_deliv["projectedKpis"]["estimatedImpressions"] > 0
+
+        # Step 5: Approve Stage 3 (Media Plan MMM) -> Advances to MEDIA_EXECUTION (Stage 4)
+        approve_p4_resp = await client.post(
+            f"/api/v1/campaigns/{session_id}/approve",
+            json={"action": "approve", "stream": False},
+            headers={"Authorization": "Bearer dev-marketer-token"},
+        )
+        assert approve_p4_resp.status_code == 200
+        stage4_data = approve_p4_resp.json()
+        assert stage4_data["status"] == CampaignStatus.PAUSED_FOR_REVIEW.value
+        assert stage4_data["currentStage"] == CampaignStage.MEDIA_EXECUTION.value
+
+        # Step 6: Approve Stage 4 (Media Execution) -> Advances to COMPLETED (Stage 5)
+        approve_exec_resp = await client.post(
+            f"/api/v1/campaigns/{session_id}/approve",
+            json={"action": "approve", "stream": False},
+            headers={"Authorization": "Bearer dev-marketer-token"},
+        )
+        assert approve_exec_resp.status_code == 200
+        final_data = approve_exec_resp.json()
+        assert final_data["status"] == CampaignStatus.COMPLETED.value
+        assert final_data["currentStage"] == CampaignStage.COMPLETED.value
 
 
 @pytest.mark.asyncio
@@ -219,4 +240,4 @@ async def test_campaign_human_revision_gate():
         revised_data = revise_resp.json()
         assert revised_data["revisionCount"] == 1
         assert revised_data["status"] == CampaignStatus.PAUSED_FOR_REVIEW.value
-        assert revised_data["currentStage"] == CampaignStage.MARKET_SENSING.value
+        assert revised_data["currentStage"] == CampaignStage.STRATEGY_BRIEF.value

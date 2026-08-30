@@ -112,26 +112,6 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* 4-Agent Pipeline Status Badges */}
-        <div className="grid grid-cols-2 gap-2 text-[11px] font-medium py-1">
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>P1: Market Sensing</span>
-          </div>
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-            <span>P2: Strategy & Brief</span>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 text-purple-800 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-            <span>P3: Creative Content</span>
-          </div>
-          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-            <span>P4: Insights & ROAS</span>
-          </div>
-        </div>
-
         {/* Error Notification Banner */}
         {(error || authError) && (
           <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800">

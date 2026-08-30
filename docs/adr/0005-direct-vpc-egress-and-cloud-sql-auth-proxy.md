@@ -47,6 +47,13 @@ Allocate an internal IP range (`10.60.0.0/16`) and establish a VPC peering conne
   - **Teardown & Deletion Latency**: PSA peering retains reservations in Google's internal networking plane, causing Terraform destroy operations to frequently hang or fail with dependency locks.
   - **Zero Incremental Security Over Auth Proxy**: Cloud SQL Auth Proxy automatically enforces 256-bit AES TLS encryption with ephemeral client/server certificate rotation and verifies caller IAM identity, ensuring that only authenticated Cloud Run containers can connect regardless of IP routing.
 
+### Alternative B: Serverless VPC Access Connector
+Deploy a Serverless VPC Access connector (`google_vpc_access_connector`) to bridge Cloud Run to the VPC.
+- *Why it was attractive*: Established legacy standard for connecting Serverless services to Google Cloud VPC networks.
+- *Why it lost*:
+  - **Unnecessary Idle Cost**: Requires a minimum of 2 to 3 `f1-micro` or `e2-micro` instances running 24/7, costing \$18-\$35/month, violating scale-to-zero FinOps principles.
+  - **Throughput Bottlenecks**: Connector instances introduce additional latency hops and bandwidth limits (200 Mbps–1 Gbps) compared to native Direct VPC Egress subnetwork interfaces.
+
 ## Consequences
 
 ### Positive
@@ -58,5 +65,17 @@ Allocate an internal IP range (`10.60.0.0/16`) and establish a VPC peering conne
 ### Negative / Accepted Trade-offs
 - Cloud SQL instance has a public IP address allocated, but direct public access is denied because authorized networks are empty (`0.0.0.0/0` is not authorized) and connections require IAM-signed proxy certificates.
 
+### Risks (and mitigations)
+- Auth Proxy socket mount unavailability $\to$ Cloud Run health checks verify `/healthz` container readiness; instance auto-restarts if Unix socket is unmounted.
+
 ## Conditions to Revisit
 - If enterprise corporate security policy strictly forbids public IP allocation on managed database instances under any circumstances, migrate to Private IP with Private Service Connect (PSC) or PSA.
+
+## References
+- [docs/design/TDD.md](../design/TDD.md)
+- [deployment/terraform/cicd/network.tf](../../deployment/terraform/cicd/network.tf)
+- [deployment/terraform/cicd/service.tf](../../deployment/terraform/cicd/service.tf)
+- Google Cloud Run Direct VPC Egress Documentation
+
+## Changelog
+- 2026-08-28: Initial proposal and acceptance.

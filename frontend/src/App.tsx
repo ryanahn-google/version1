@@ -22,7 +22,9 @@ export function App() {
     logs,
     startCampaign,
     handleApproveOrRevise,
+    handleRollback,
     loadSession,
+    resetSession,
   } = useCampaignStream();
 
   const [currentView, setCurrentView] = useState<NavView>('HOME');
@@ -82,6 +84,8 @@ export function App() {
   };
 
   const handleNewCampaign = (prefillPrompt?: string) => {
+    resetSession();
+    setDismissError(false);
     setInitialPrompt(prefillPrompt);
     setCurrentView('WORKSPACE');
   };
@@ -91,8 +95,12 @@ export function App() {
     fetchCampaigns();
   };
 
-  const handleApproveWithRefresh = async (action: 'approve' | 'revise', feedback?: string) => {
-    await handleApproveOrRevise(action, feedback);
+  const handleApproveWithRefresh = async (
+    action: 'approve' | 'revise',
+    feedback?: string,
+    deliverableUpdates?: Record<string, unknown>
+  ) => {
+    await handleApproveOrRevise(action, feedback, deliverableUpdates);
     fetchCampaigns();
   };
 
@@ -171,6 +179,7 @@ export function App() {
               initialPrompt={initialPrompt}
               onStartSimulation={handleStartCampaignSimulation}
               onApproveOrRevise={handleApproveWithRefresh}
+              onRollbackStage={handleRollback}
               isLoading={isStreaming}
               logs={logs}
             />

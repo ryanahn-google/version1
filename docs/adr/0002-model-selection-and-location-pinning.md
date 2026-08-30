@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-27
 - **Deciders**: Ryan Ahn (FDE Lead), Nova Electronics Corp Sponsor
-- **Related**: [docs/design/TDD.md](docs/design/TDD.md)
+- **Related**: [docs/design/TDD.md](../design/TDD.md)
 
 ## Context
 MVC requires balancing high-level orchestration reasoning, sub-agent structured task throughput, image generation quality, and latency/cost SLOs.
@@ -28,5 +28,23 @@ GCP resources are regionally deployed in `asia-northeast3` (Seoul) for data resi
 - P95 latency guarantees met across all agent turns.
 - Elimination of regional model endpoint 404 errors.
 
-### Conditions to revisit
+### Negative / accepted trade-offs
+- Model inference traffic exits `asia-northeast3` to Vertex AI `global` endpoints over Google private backbone.
+- Two distinct foundation models managed across text and visual pipelines.
+
+### Risks (and mitigations)
+- Global endpoint quota contention $\to$ Managed via Dynamic Shared Quota (DSQ) with exponential backoff retry policy.
+- Model deprecation cycles $\to$ 30-day model swap runbook ([docs/runbooks/model-swap.md](../runbooks/model-swap.md)) with eval regression gating.
+
+## Conditions to revisit
 - If Vertex AI releases regional endpoints for Gemini 3.5 / Nano Banana 2 Lite in `asia-northeast3`.
+- If new foundation model release reduces unit cost or latency by $>30\%$ on golden eval suite.
+
+## References
+- [docs/design/TDD.md](../design/TDD.md)
+- [docs/EVAL.md](../EVAL.md)
+- [docs/runbooks/model-swap.md](../runbooks/model-swap.md)
+
+## Changelog
+- 2026-08-27: Initial model selection and location pinning.
+- 2026-08-29: Replaced deprecated Imagen with Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`).

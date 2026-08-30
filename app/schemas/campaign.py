@@ -35,6 +35,7 @@ class CampaignStage(StrEnum):
     STRATEGY_BRIEF = "STRATEGY_BRIEF"
     CREATIVE_CONTENT = "CREATIVE_CONTENT"
     PERFORMANCE_INSIGHTS = "PERFORMANCE_INSIGHTS"
+    MEDIA_EXECUTION = "MEDIA_EXECUTION"
     COMPLETED = "COMPLETED"
 
 
@@ -118,6 +119,10 @@ class StageApprovalRequest(BaseModel):
     feedback: str | None = Field(
         default=None,
         description="Optional text feedback or modification instructions",
+    )
+    deliverableUpdates: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional marketer-edited deliverable fields to commit upon approval or revision",
     )
     stream: bool = Field(
         default=True,

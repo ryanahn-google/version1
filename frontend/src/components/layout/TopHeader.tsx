@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  Search,
   ShieldCheck,
   Activity,
   LogOut,
@@ -24,11 +23,9 @@ export function TopHeader({
   campaignTitle,
   campaignStatus,
   onBackToHome,
-  onSearch,
 }: TopHeaderProps) {
   const { user, logout } = useAuth();
   const [healthy, setHealthy] = useState<boolean | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -37,11 +34,6 @@ export function TopHeader({
       .then((res) => setHealthy(res.status === 'healthy'))
       .catch(() => setHealthy(false));
   }, []);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onSearch) onSearch(searchQuery);
-  };
 
   const getStatusBadge = (status?: string) => {
     if (!status) return null;
@@ -112,20 +104,6 @@ export function TopHeader({
             </p>
           </div>
         )}
-      </div>
-
-      {/* Center Search Input */}
-      <div className="hidden md:flex flex-1 max-w-md mx-6">
-        <form onSubmit={handleSearchSubmit} className="w-full relative">
-          <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="캠페인, 에셋, 인사이트 검색"
-            className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-full pl-10 pr-4 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-          />
-        </form>
       </div>
 
       {/* Right Controls & Profile */}

@@ -9,21 +9,38 @@ import {
   Download,
   DollarSign,
   ChevronRight,
+  Clock,
+  RotateCcw,
 } from 'lucide-react';
 import type { CampaignSessionResponse } from '../../../types/campaign';
+import { RevisionModal } from '../../hitl/RevisionModal';
 
 interface MediaExecutionViewProps {
   session: CampaignSessionResponse | null;
+  onApproveOrRevise?: (
+    action: 'approve' | 'revise',
+    feedback?: string,
+    deliverableUpdates?: Record<string, unknown>
+  ) => void;
+  onRollbackStage?: () => void;
+  isLoading?: boolean;
 }
 
-export function MediaExecutionView({ session }: MediaExecutionViewProps) {
+export function MediaExecutionView({
+  session,
+  onApproveOrRevise,
+  onRollbackStage,
+  isLoading = false,
+}: MediaExecutionViewProps) {
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'WARNING'>('ALL');
+  const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 
   const budget = session?.budgetAmount || 2000000;
   const spentAmount = Math.round(budget * 0.66);
   const remainingAmount = budget - spentAmount;
+  const isReviewPending = session?.status === 'PAUSED_FOR_REVIEW';
 
-  const channelRows = [
+  const defaultChannelRows = [
     {
       channel: 'Digital Video',
       status: 'ACTIVE',
@@ -110,6 +127,19 @@ export function MediaExecutionView({ session }: MediaExecutionViewProps) {
     },
   ];
 
+  const [channelRows, setChannelRows] = useState(defaultChannelRows);
+
+  const toggleChannelStatus = (index: number) => {
+    const next = [...channelRows];
+    const current = next[index].status;
+    next[index] = {
+      ...next[index],
+      status: current === 'ACTIVE' ? 'PENDING' : 'ACTIVE',
+      statusLabel: current === 'ACTIVE' ? '일시 정지' : '집행 중',
+    };
+    setChannelRows(next);
+  };
+
   const filteredChannels = channelRows.filter((r) => {
     if (activeTab === 'ACTIVE') return r.status === 'ACTIVE';
     if (activeTab === 'WARNING') return r.status === 'WARNING';
@@ -118,6 +148,65 @@ export function MediaExecutionView({ session }: MediaExecutionViewProps) {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Human-in-the-Loop Review Banner (If Waiting for Approval at Stage 4) */}
+      {isReviewPending && (
+        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700">
+              <Clock className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  Human-in-the-Loop 검토 대기
+                </span>
+                <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-medium">
+                  Stage 4 승인 필요
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 mt-0.5">
+                설정된 채널별 광고 집행 상태 및 파라미터를 검토하고 최종 승인해주세요. 승인 시 캠페인이 완료되며 성과 분석(5단계)으로 진행됩니다.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {onRollbackStage && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('3단계(미디어 계획 MMM)로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)')) {
+                    onRollbackStage();
+                  }
+                }}
+                disabled={isLoading}
+                className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+              >
+                <span>← 3단계(미디어 계획)로 복귀</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setRevisionModalOpen(true)}
+              disabled={isLoading}
+              className="px-4 py-2 rounded-xl border border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>수정 요청 (AI 재생성)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onApproveOrRevise?.('approve')}
+              disabled={isLoading}
+              className="px-5 py-2 rounded-xl bg-[#1a56db] hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span>집행 최종 승인 및 완료</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top 6 Execution KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-3.5 shadow-sm">
@@ -248,8 +337,11 @@ export function MediaExecutionView({ session }: MediaExecutionViewProps) {
                     {row.channel}
                   </td>
                   <td className="py-3">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                    <button
+                      type="button"
+                      onClick={() => toggleChannelStatus(idx)}
+                      title="클릭하여 상태 전환"
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium cursor-pointer hover:opacity-80 transition ${
                         row.status === 'ACTIVE'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : row.status === 'WARNING'
@@ -258,7 +350,7 @@ export function MediaExecutionView({ session }: MediaExecutionViewProps) {
                       }`}
                     >
                       {row.statusLabel}
-                    </span>
+                    </button>
                   </td>
                   <td className="py-3 text-right font-mono text-slate-800">
                     {row.spent}
@@ -419,6 +511,15 @@ export function MediaExecutionView({ session }: MediaExecutionViewProps) {
           </div>
         </section>
       </div>
+
+      {/* Revision Modal */}
+      <RevisionModal
+        stage="MEDIA_EXECUTION"
+        isOpen={revisionModalOpen}
+        onClose={() => setRevisionModalOpen(false)}
+        onSubmit={(feedback) => onApproveOrRevise?.('revise', feedback)}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
