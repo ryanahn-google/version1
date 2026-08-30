@@ -34,6 +34,8 @@ WORKDIR /code
 COPY ./pyproject.toml ./README.md ./uv.lock* ./
 
 COPY ./app ./app
+COPY ./alembic ./alembic
+COPY ./alembic.ini ./alembic.ini
 # Copy compiled frontend SPA from builder
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 # Ensure subagents are completely excluded from Cloud Run container (deployed to Agent Runtime)

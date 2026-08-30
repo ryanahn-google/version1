@@ -111,6 +111,11 @@ resource "google_cloud_run_v2_service" "app" {
         value = "True"
       }
 
+      env {
+        name  = "ENV"
+        value = "prod"
+      }
+
       resources {
         limits = {
           cpu    = "2"
@@ -212,8 +217,8 @@ resource "google_cloud_run_v2_service" "app" {
 
     vpc_access {
       network_interfaces {
-        network    = "default"
-        subnetwork = "asia-northeast3-subnet"
+        network    = var.vpc_network
+        subnetwork = var.vpc_subnetwork
       }
       egress = "ALL_TRAFFIC"
     }
@@ -240,6 +245,97 @@ resource "google_cloud_run_v2_service" "app" {
   }
 
   # Make dependencies conditional to avoid errors.
+  depends_on = [
+    resource.google_project_service.services,
+    google_sql_user.db_user,
+    google_secret_manager_secret_version.db_password,
+  ]
+}
+
+# Cloud Run Job for Database Migrations (Alembic)
+resource "google_cloud_run_v2_job" "db_migrate" {
+  name                = "${var.project_name}-db-migrate"
+  location            = var.region
+  project             = var.project_id
+  deletion_protection = false
+
+  template {
+    parallelism = 1
+    task_count  = 1
+
+    template {
+      max_retries = 0
+      timeout     = "600s"
+
+      containers {
+        image   = "us-docker.pkg.dev/cloudrun/container/hello"
+        command = ["uv", "run", "alembic", "upgrade", "head"]
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "2Gi"
+          }
+        }
+
+        # Mount Cloud SQL unix socket volume
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+
+        # Environment variables
+        env {
+          name  = "INSTANCE_CONNECTION_NAME"
+          value = google_sql_database_instance.session_db.connection_name
+        }
+
+        env {
+          name = "DB_PASS"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
+
+        env {
+          name  = "DB_NAME"
+          value = var.project_name
+        }
+
+        env {
+          name  = "DB_USER"
+          value = var.project_name
+        }
+      }
+
+      service_account = google_service_account.app_sa.email
+
+      vpc_access {
+        network_interfaces {
+          network    = var.vpc_network
+          subnetwork = var.vpc_subnetwork
+        }
+        egress = "ALL_TRAFFIC"
+      }
+
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [google_sql_database_instance.session_db.connection_name]
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].template[0].containers[0].image,
+    ]
+  }
+
   depends_on = [
     resource.google_project_service.services,
     google_sql_user.db_user,

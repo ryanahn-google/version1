@@ -32,17 +32,17 @@ resource "random_password" "db_password" {
 resource "google_sql_database_instance" "session_db" {
   for_each = local.deploy_project_ids
 
-  project          = local.deploy_project_ids[each.key]
-  name             = "${var.project_name}-db-${each.key}"
-  database_version = "POSTGRES_15"
-  region           = var.region
+  project             = local.deploy_project_ids[each.key]
+  name                = "${var.project_name}-db-${each.key}"
+  database_version    = "POSTGRES_15"
+  region              = var.region
   deletion_protection = false # For easier teardown in starter packs
 
   settings {
     tier = "db-custom-1-3840"
 
     backup_configuration {
-      enabled = true
+      enabled    = true
       start_time = "03:00"
     }
 
@@ -61,7 +61,7 @@ resource "google_sql_database" "database" {
   for_each = local.deploy_project_ids
 
   project  = local.deploy_project_ids[each.key]
-  name     = "${var.project_name}" # Use project name for DB to avoid conflict with default 'postgres'
+  name     = var.project_name # Use project name for DB to avoid conflict with default 'postgres'
   instance = google_sql_database_instance.session_db[each.key].name
 }
 
@@ -70,7 +70,7 @@ resource "google_sql_user" "db_user" {
   for_each = local.deploy_project_ids
 
   project  = local.deploy_project_ids[each.key]
-  name     = "${var.project_name}" # Use project name for user to avoid conflict with default 'postgres'
+  name     = var.project_name # Use project name for user to avoid conflict with default 'postgres'
   instance = google_sql_database_instance.session_db[each.key].name
   password = random_password.db_password[each.key].result
 }
@@ -204,12 +204,12 @@ resource "google_vertex_ai_reasoning_engine" "subagents" {
 resource "google_cloud_run_v2_service" "app" {
   for_each = local.deploy_project_ids
 
-  name                = var.project_name
-  location            = var.region
-  project             = each.value
-  description         = "Marketing Value Creator (MVC) Root Orchestrator service communicating with subagents via A2A on Vertex AI Agent Runtime"
-  deletion_protection = false
-  ingress             = "INGRESS_TRAFFIC_ALL"
+  name                 = var.project_name
+  location             = var.region
+  project              = each.value
+  description          = "Marketing Value Creator (MVC) Root Orchestrator service communicating with subagents via A2A on Vertex AI Agent Runtime"
+  deletion_protection  = false
+  ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = true
   labels = {
     "created-by" = "adk"
@@ -278,12 +278,12 @@ resource "google_cloud_run_v2_service" "app" {
 
       env {
         name  = "DB_NAME"
-        value = "${var.project_name}"
+        value = var.project_name
       }
 
       env {
         name  = "DB_USER"
-        value = "${var.project_name}"
+        value = var.project_name
       }
 
       env {
@@ -362,7 +362,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
     }
 
-    service_account                = google_service_account.app_sa[each.key].email
+    service_account                  = google_service_account.app_sa[each.key].email
     max_instance_request_concurrency = 80
 
     scaling {
@@ -409,3 +409,97 @@ resource "google_cloud_run_v2_service" "app" {
     google_vertex_ai_reasoning_engine.subagents,
   ]
 }
+
+# Cloud Run Job for Database Migrations (Alembic) with Custom VPC
+resource "google_cloud_run_v2_job" "db_migrate" {
+  for_each = local.deploy_project_ids
+
+  name                = "${var.project_name}-db-migrate"
+  location            = var.region
+  project             = each.value
+  deletion_protection = false
+
+  template {
+    parallelism = 1
+    task_count  = 1
+
+    template {
+      max_retries = 0
+      timeout     = "600s"
+
+      containers {
+        image   = "us-docker.pkg.dev/cloudrun/container/hello"
+        command = ["uv", "run", "alembic", "upgrade", "head"]
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "2Gi"
+          }
+        }
+
+        # Mount Cloud SQL unix socket volume
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+
+        # Environment variables
+        env {
+          name  = "INSTANCE_CONNECTION_NAME"
+          value = google_sql_database_instance.session_db[each.key].connection_name
+        }
+
+        env {
+          name = "DB_PASS"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.db_password[each.key].secret_id
+              version = "latest"
+            }
+          }
+        }
+
+        env {
+          name  = "DB_NAME"
+          value = var.project_name
+        }
+
+        env {
+          name  = "DB_USER"
+          value = var.project_name
+        }
+      }
+
+      service_account = google_service_account.app_sa[each.key].email
+
+      vpc_access {
+        network_interfaces {
+          network    = google_compute_network.custom_vpc[each.key].name
+          subnetwork = google_compute_subnetwork.custom_subnet[each.key].name
+        }
+        egress = "ALL_TRAFFIC"
+      }
+
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [google_sql_database_instance.session_db[each.key].connection_name]
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].template[0].containers[0].image,
+    ]
+  }
+
+  depends_on = [
+    google_project_service.deploy_project_services,
+    google_sql_user.db_user,
+    google_secret_manager_secret_version.db_password,
+  ]
+}
+

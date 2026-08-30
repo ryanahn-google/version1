@@ -24,6 +24,17 @@ steps:
         export PATH="$$HOME/.local/bin:$$PATH"
         uv sync --locked
 
+  # Check for Alembic schema drift and ungenerated migrations
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: check-db-migrations
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        export PATH="$$HOME/.local/bin:$$PATH"
+        uv run alembic upgrade head
+        uv run alembic check
+
   # Build React 19 Frontend SPA
   - name: "node:24-alpine"
     id: build-frontend

@@ -12,22 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "app_service_account_email" {
-  description = "Application service account email"
-  value       = google_service_account.app_sa.email
-}
+"""Base Declarative model and shared database timestamp utilities."""
 
-output "logs_bucket_name" {
-  description = "Logs storage bucket name"
-  value       = google_storage_bucket.logs_data_bucket.name
-}
+from datetime import UTC, datetime
 
-output "artifacts_bucket_name" {
-  description = "Artifacts storage bucket name"
-  value       = google_storage_bucket.artifacts_bucket.name
-}
+from sqlalchemy.orm import DeclarativeBase
 
-output "migration_job_name" {
-  description = "Cloud Run database migration job name"
-  value       = google_cloud_run_v2_job.db_migrate.name
-}
+
+class Base(DeclarativeBase):
+    """Base class for SQLAlchemy declarative ORM models."""
+
+
+def utcnow() -> datetime:
+    """Return timezone-naive UTC datetime.
+
+    Returns:
+        Current UTC datetime without tzinfo.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)

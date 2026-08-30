@@ -34,6 +34,8 @@ Chain direct Gemini API calls with function calling inside FastAPI.
 ### Negative / accepted trade-offs
 - Network serialization and latency between Cloud Run Orchestrator and Agent Runtime sub-agents.
 - Need for robust retry policies and circuit breaking over A2A JSON-RPC.
+- Model Armor template focuses on Sensitive Data Protection (SDP/PII) basic enforcement, intentionally deferring prompt injection and jailbreak filters in infrastructure to prevent false positives on marketing brief copy and minimize TTFT inspection latency overhead; defense-in-depth is maintained at the application layer via ADK system instructions and Pydantic validation schemas.
+- Root orchestrator telemetry retains service name "v1" (`OTEL_SERVICE_NAME = "v1"`) matching pre-deployed Cloud Logging sinks (`service_name="v1"`), while subagents use "version1-{agent_name}".
 
 ### Risks (and mitigations)
 - Remote A2A endpoint availability -> Implement exponential backoff retries and structured error envelopes.

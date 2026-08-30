@@ -47,6 +47,23 @@ steps:
           sleep 5
         done
 
+  # Execute Database Migration Job in Production (Alembic)
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: db-migrate-prod
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        echo "Updating and executing Cloud Run migration job in production..."
+        gcloud run jobs update version1-db-migrate \
+          --region ${_REGION} \
+          --project ${_PROD_PROJECT_ID} \
+          --image $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:$SHORT_SHA
+        gcloud run jobs execute version1-db-migrate \
+          --region ${_REGION} \
+          --project ${_PROD_PROJECT_ID} \
+          --wait
+
   # Deploy Orchestrator to Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     id: trigger-deployment

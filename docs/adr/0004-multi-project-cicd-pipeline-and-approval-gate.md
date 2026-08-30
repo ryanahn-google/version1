@@ -47,7 +47,7 @@ Provision Cloud Deploy Delivery Pipelines and Targets with Skaffold manifest ren
 
 ### Alternative B: Single GCP Project with Namespace Tagging
 Deploy both Staging and Production workloads within a single GCP project, partitioned by service suffixes (`version1-staging`, `version1-prod`).
-- *Why it lost*: Violates enterprise blast radius isolation. A shared project risks accidental credential leakage, IAM privilege escalation, and noisy-neighbor quota exhaustion between test and prod.
+- *Why it lost*: Violates enterprise blast radius isolation. A shared project risks accidental credential leakage, IAM privilege escalation, and noisy-neighbor quota exhaustion between test and prod. Note: The starter-pack directory `deployment/terraform/single-project/` is retained solely as an unmaintained local reference template; canonical multi-environment CI/CD is implemented exclusively in `deployment/terraform/cicd/`. Full remediation is intentionally omitted from `single-project/` by design.
 
 ## Consequences
 

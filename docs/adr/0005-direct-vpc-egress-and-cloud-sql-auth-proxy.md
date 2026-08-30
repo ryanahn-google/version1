@@ -64,6 +64,7 @@ Deploy a Serverless VPC Access connector (`google_vpc_access_connector`) to brid
 
 ### Negative / Accepted Trade-offs
 - Cloud SQL instance has a public IP address allocated, but direct public access is denied because authorized networks are empty (`0.0.0.0/0` is not authorized) and connections require IAM-signed proxy certificates.
+- Cloud SQL instances use default 7-day automated backup retention and `deletion_protection = false` across environments to preserve developer agility, rapid testing, and clean CI/CD teardowns, with durable business artifacts (campaign visuals and JSON deliverables) independently archived in Google Cloud Storage.
 
 ### Risks (and mitigations)
 - Auth Proxy socket mount unavailability $\to$ Cloud Run health checks verify `/healthz` container readiness; instance auto-restarts if Unix socket is unmounted.
