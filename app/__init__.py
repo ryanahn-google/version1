@@ -12,6 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .agent import app
+"""Marketing Value Creator (MVC) root package."""
+
+from typing import Any
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily import `app` from `.agent` on demand."""
+    if name == "app":
+        try:
+            from .agent import app
+
+            return app
+        except ImportError:
+            return None
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = ["app"]

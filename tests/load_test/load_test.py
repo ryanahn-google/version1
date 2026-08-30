@@ -14,12 +14,11 @@
 
 import json
 import logging
+import os
 import time
 import uuid
 
 from locust import HttpUser, between, task
-
-from app.settings import get_settings
 
 ENDPOINT = "/run_sse"
 
@@ -38,9 +37,8 @@ class ChatStreamUser(HttpUser):
     @task
     def chat_stream(self) -> None:
         """Simulates a chat stream interaction."""
-        headers: dict[str, str] = {}
-        settings = get_settings()
-        if id_token := settings.id_token:
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if id_token := (os.environ.get("_ID_TOKEN") or os.environ.get("ID_TOKEN")):
             headers["Authorization"] = f"Bearer {id_token}"
         # Create session first
         user_id = f"user_{uuid.uuid4()}"
