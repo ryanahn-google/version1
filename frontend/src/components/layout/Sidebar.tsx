@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export type NavView = 'HOME' | 'WORKSPACE' | 'ASSETS' | 'SETTINGS';
 
@@ -17,11 +18,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, onSelectView, collapsed, onToggleCollapse }: SidebarProps) {
+  const { t } = useLanguage();
   const navItems: { id: NavView; label: string; icon: typeof Home }[] = [
-    { id: 'HOME', label: '홈', icon: Home },
-    { id: 'WORKSPACE', label: '캠페인', icon: Layers },
-    { id: 'ASSETS', label: '에셋 라이브러리', icon: FolderOpen },
-    { id: 'SETTINGS', label: '설정', icon: Settings },
+    { id: 'HOME', label: t.nav.home, icon: Home },
+    { id: 'WORKSPACE', label: t.nav.workspace, icon: Layers },
+    { id: 'ASSETS', label: t.nav.assets, icon: FolderOpen },
+    { id: 'SETTINGS', label: t.nav.settings, icon: Settings },
   ];
 
   return (

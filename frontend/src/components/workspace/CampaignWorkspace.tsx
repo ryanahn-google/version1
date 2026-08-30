@@ -9,6 +9,7 @@ import type {
   StageKey,
 } from '../../types/campaign';
 import type { LogEntry } from '../../hooks/useCampaignStream';
+import { useLanguage } from '../../context/LanguageContext';
 import { PlanningView } from './stages/PlanningView';
 import { ContentView } from './stages/ContentView';
 import { MediaPlanMmmView } from './stages/MediaPlanMmmView';
@@ -39,14 +40,6 @@ interface StepMeta {
   backendStage: StageKey;
 }
 
-const WORKSPACE_STEPS: StepMeta[] = [
-  { step: 1, label: '1. 기획', subLabel: 'Planning', backendStage: 'MARKET_SENSING' },
-  { step: 2, label: '2. 콘텐츠', subLabel: 'Content', backendStage: 'CREATIVE_CONTENT' },
-  { step: 3, label: '3. 미디어 계획', subLabel: 'MMM', backendStage: 'PERFORMANCE_INSIGHTS' },
-  { step: 4, label: '4. 미디어 집행', subLabel: 'Execution', backendStage: 'MEDIA_EXECUTION' },
-  { step: 5, label: '5. 성과 분석', subLabel: 'Analytics', backendStage: 'COMPLETED' },
-];
-
 export function CampaignWorkspace({
   session,
   initialPrompt,
@@ -56,7 +49,16 @@ export function CampaignWorkspace({
   isLoading,
   logs,
 }: CampaignWorkspaceProps) {
+  const { t } = useLanguage();
   const [activeStep, setActiveStep] = useState<WorkspaceStep>(1);
+
+  const WORKSPACE_STEPS: StepMeta[] = [
+    { step: 1, label: t.stepper.step1, subLabel: t.stepper.step1Sub, backendStage: 'MARKET_SENSING' },
+    { step: 2, label: t.stepper.step2, subLabel: t.stepper.step2Sub, backendStage: 'CREATIVE_CONTENT' },
+    { step: 3, label: t.stepper.step3, subLabel: t.stepper.step3Sub, backendStage: 'PERFORMANCE_INSIGHTS' },
+    { step: 4, label: t.stepper.step4, subLabel: t.stepper.step4Sub, backendStage: 'MEDIA_EXECUTION' },
+    { step: 5, label: t.stepper.step5, subLabel: t.stepper.step5Sub, backendStage: 'COMPLETED' },
+  ];
 
   const canAccessStep = (step: WorkspaceStep) => {
     if (step === activeStep) return true;
@@ -101,7 +103,7 @@ export function CampaignWorkspace({
     if (step === activeStep - 1) {
       if (
         window.confirm(
-          `이전 단계(${WORKSPACE_STEPS[step - 1].label})로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)`
+          t.stepper.rollbackConfirm.replace('{step}', WORKSPACE_STEPS[step - 1].label)
         )
       ) {
         if (onRollbackStage) {

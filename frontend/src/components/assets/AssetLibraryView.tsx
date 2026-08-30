@@ -18,7 +18,7 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
       url: c.deliverables!.creativeContent!.assetUrl!,
       title: c.deliverables?.creativeContent?.visualConceptTitle || 'Generated Visual',
       aspectRatio: c.deliverables?.creativeContent?.aspectRatio || '16:9',
-      isApproved: c.status === 'COMPLETED',
+      isApproved: Boolean(c.deliverables?.creativeContent?.storageUri) || c.status === 'COMPLETED',
     }));
 
   return (

@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
-  ArrowUpRight,
   PieChart,
-  Check,
   CheckCircle2,
-  Sliders,
   Clock,
   RotateCcw,
   Edit3,
@@ -12,6 +9,7 @@ import {
   Plus,
   Sparkles,
 } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import type { CampaignSessionResponse } from '../../../types/campaign';
 import { RevisionModal } from '../../hitl/RevisionModal';
 
@@ -26,136 +24,50 @@ interface MediaPlanMmmViewProps {
   isLoading?: boolean;
 }
 
-interface Scenario {
-  id: string;
-  name: string;
-  subtitle: string;
-  roas: number;
-  sales: string;
-  cpa: number;
-  isAiRecommended?: boolean;
-}
-
-const DEFAULT_SCENARIOS: Scenario[] = [
-  {
-    id: 'A',
-    name: '시나리오 A',
-    subtitle: '균형 성장 최적화',
-    roas: 4.92,
-    sales: '$ 9.84M',
-    cpa: 41.15,
-    isAiRecommended: true,
-  },
-  {
-    id: 'B',
-    name: '시나리오 B',
-    subtitle: '매출 극대화',
-    roas: 4.35,
-    sales: '$ 10.72M',
-    cpa: 46.21,
-  },
-  {
-    id: 'C',
-    name: '시나리오 C',
-    subtitle: '전환 극대화',
-    roas: 5.31,
-    sales: '$ 9.12M',
-    cpa: 38.72,
-  },
-  {
-    id: 'D',
-    name: '시나리오 D',
-    subtitle: '효율 최적화',
-    roas: 5.78,
-    sales: '$ 8.65M',
-    cpa: 36.11,
-  },
-];
-
 export function MediaPlanMmmView({
   session,
   onApproveOrRevise,
   onRollbackStage,
   isLoading = false,
 }: MediaPlanMmmViewProps) {
-  const [selectedScenarioId, setSelectedScenarioId] = useState('A');
-  const [appliedScenarioId, setAppliedScenarioId] = useState('A');
+  const { t } = useLanguage();
+  const [currency, setCurrency] = useState<'USD' | 'KRW'>(
+    (session?.deliverables?.performanceInsights?.currency as 'USD' | 'KRW') ||
+    (session?.currency as 'USD' | 'KRW') ||
+    'USD'
+  );
+  const currencySymbol = currency === 'KRW' ? '₩' : '$';
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 
   const insights = session?.deliverables?.performanceInsights;
-  const initialBudget = session?.budgetAmount || 2000000;
+  const initialBudget = session?.budgetAmount || (currency === 'KRW' ? 2500000000 : 2000000);
   const isReviewPending = session?.status === 'PAUSED_FOR_REVIEW';
 
   // Editable deliverable states
   const [budgetAmount, setBudgetAmount] = useState<number>(
     insights?.totalBudget || initialBudget
   );
-  const [roasVal, setRoasVal] = useState<number>(insights?.expectedRoas || 4.92);
+  const [roasVal, setRoasVal] = useState<number>(insights?.expectedRoas || 0);
   const [conversionsVal, setConversionsVal] = useState<number>(
-    insights?.projectedKpis?.estimatedConversions || 48600
+    insights?.projectedKpis?.estimatedConversions || 0
   );
   const [impressionsVal, setImpressionsVal] = useState<number>(
-    insights?.projectedKpis?.estimatedImpressions || 12000000
+    insights?.projectedKpis?.estimatedImpressions || 0
   );
   const [clicksVal, setClicksVal] = useState<number>(
-    insights?.projectedKpis?.estimatedClicks || 408000
+    insights?.projectedKpis?.estimatedClicks || 0
   );
   const [ctrVal, setCtrVal] = useState<number>(
-    insights?.projectedKpis?.projectedCtr || 3.4
+    insights?.projectedKpis?.projectedCtr || 0
   );
   const [recommendations, setRecommendations] = useState<string[]>(
-    insights?.recommendations && insights.recommendations.length > 0
-      ? insights.recommendations
-      : [
-          '디지털 비디오 채널의 타깃팅을 20-30대 고관여층으로 집중하여 전환 극대화',
-          '검색 광고의 경우 블랙프라이데이 2주 전부터 브랜드 키워드 입찰가 25% 상향',
-          '소셜 미디어 리타겟팅 빈도를 3회로 제한하여 피로도 최소화 및 ROAS 방어',
-        ]
+    insights?.recommendations || []
   );
-
-  const defaultAllocations = [
-    {
-      channel: 'Digital Video',
-      percentage: 35,
-      allocationAmount: Math.round(initialBudget * 0.35),
-      rationale: '고화질 영상 브랜딩 및 인지도',
-    },
-    {
-      channel: 'Paid Search',
-      percentage: 25,
-      allocationAmount: Math.round(initialBudget * 0.25),
-      rationale: '구매 의도 검색어 독점',
-    },
-    {
-      channel: 'Social Media',
-      percentage: 20,
-      allocationAmount: Math.round(initialBudget * 0.2),
-      rationale: '타겟 세그먼트 도달',
-    },
-    {
-      channel: 'Display Network',
-      percentage: 10,
-      allocationAmount: Math.round(initialBudget * 0.1),
-      rationale: '리타겟팅 배너',
-    },
-    {
-      channel: 'Affiliate',
-      percentage: 5,
-      allocationAmount: Math.round(initialBudget * 0.05),
-      rationale: '제휴 파트너 전환',
-    },
-    {
-      channel: 'Others',
-      percentage: 5,
-      allocationAmount: Math.round(initialBudget * 0.05),
-      rationale: '실험적 신규 채널',
-    },
-  ];
 
   const [allocations, setAllocations] = useState(
     insights?.channelAllocations && insights.channelAllocations.length > 0
       ? insights.channelAllocations
-      : defaultAllocations
+      : []
   );
 
   useEffect(() => {
@@ -208,7 +120,7 @@ export function MediaPlanMmmView({
     performanceInsights: {
       ...(insights || {}),
       totalBudget: Number(budgetAmount),
-      currency: session?.currency || 'USD',
+      currency: currency,
       channelAllocations: allocations,
       expectedRoas: Number(roasVal),
       projectedKpis: {
@@ -227,7 +139,26 @@ export function MediaPlanMmmView({
   };
 
   const totalPercentage = allocations.reduce((sum, item) => sum + (item.percentage || 0), 0);
-  const totalBudgetStr = `$ ${budgetAmount.toLocaleString()}`;
+  const totalBudgetStr = `${currencySymbol} ${budgetAmount.toLocaleString()}`;
+
+  const formatShortCurrency = (val: number): string => {
+    if (currency === 'KRW') {
+      if (val >= 100000000) {
+        return `₩ ${(val / 100000000).toFixed(1)}억`;
+      }
+      if (val >= 10000) {
+        return `₩ ${(val / 10000).toFixed(0)}만`;
+      }
+      return `₩ ${Math.round(val).toLocaleString()}`;
+    }
+    if (val >= 1000000) {
+      return `$ ${(val / 1000000).toFixed(1)}M`;
+    }
+    if (val >= 1000) {
+      return `$ ${(val / 1000).toFixed(0)}K`;
+    }
+    return `$ ${Math.round(val).toLocaleString()}`;
+  };
 
   const colors = [
     '#1A56DB', // Blue
@@ -250,14 +181,14 @@ export function MediaPlanMmmView({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                  Human-in-the-Loop 검토 대기
+                  {t.planning.hitlReviewPending}
                 </span>
                 <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-medium">
-                  Stage 3 승인 필요
+                  {t.mmm.hitlPending}
                 </span>
               </div>
               <p className="text-xs text-amber-800 mt-0.5">
-                MMM 인텔리전스로 도출된 채널별 예산 배분을 검토하고 필요 시 직접 수정한 후 승인해주세요. 승인 시 4단계(미디어 집행)로 진행됩니다.
+                {t.mmm.hitlDesc}
               </p>
             </div>
           </div>
@@ -267,14 +198,14 @@ export function MediaPlanMmmView({
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('2단계(콘텐츠)로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)')) {
+                  if (window.confirm(t.mmm.rollbackBtn)) {
                     onRollbackStage();
                   }
                 }}
                 disabled={isLoading}
                 className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
               >
-                <span>← 2단계(콘텐츠)로 복귀</span>
+                <span>{t.mmm.rollbackBtn}</span>
               </button>
             )}
             <button
@@ -284,7 +215,7 @@ export function MediaPlanMmmView({
               className="px-4 py-2 rounded-xl border border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>수정 요청 (AI 재생성)</span>
+              <span>{t.planning.requestRevision}</span>
             </button>
             <button
               type="button"
@@ -293,7 +224,7 @@ export function MediaPlanMmmView({
               className="px-5 py-2 rounded-xl bg-[#1a56db] hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition disabled:opacity-50"
             >
               <CheckCircle2 className="h-4 w-4" />
-              <span>미디어 계획 승인 및 4단계 진행</span>
+              <span>{t.mmm.approveBtn}</span>
             </button>
           </div>
         </div>
@@ -307,13 +238,23 @@ export function MediaPlanMmmView({
             <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
               총 예산
             </span>
-            <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
-              <Edit3 className="h-3 w-3" />
-              수정 가능
-            </span>
+            <div className="flex items-center gap-1.5">
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as 'USD' | 'KRW')}
+                className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="KRW">KRW (₩)</option>
+              </select>
+              <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
+                <Edit3 className="h-3 w-3" />
+                수정 가능
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-1 mt-1">
-            <span className="text-lg font-bold text-slate-900 font-mono">$</span>
+            <span className="text-lg font-bold text-slate-900 font-mono">{currencySymbol}</span>
             <input
               type="number"
               value={budgetAmount}
@@ -340,11 +281,10 @@ export function MediaPlanMmmView({
             예상 매출 (자동 계산)
           </span>
           <div className="text-xl font-bold text-blue-600 font-mono mt-1">
-            $ {((budgetAmount * roasVal) / 1000000).toFixed(2)}M
+            {formatShortCurrency(budgetAmount * roasVal)}
           </div>
-          <span className="text-[10px] text-blue-600 font-medium mt-0.5 flex items-center gap-0.5">
-            <ArrowUpRight className="h-3 w-3" />
-            <span>▲ 18.2% vs 유사</span>
+          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+            MMM 실시간 연산
           </span>
         </div>
 
@@ -369,9 +309,8 @@ export function MediaPlanMmmView({
             />
             <span className="text-xl font-bold text-emerald-600 font-mono">x</span>
           </div>
-          <span className="text-[10px] text-emerald-600 font-medium mt-0.5 flex items-center gap-0.5">
-            <ArrowUpRight className="h-3 w-3" />
-            <span>▲ 16.4% vs 유사</span>
+          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+            목표 대비 최적화
           </span>
         </div>
 
@@ -392,9 +331,8 @@ export function MediaPlanMmmView({
             onChange={(e) => setConversionsVal(Number(e.target.value))}
             className="w-full text-xl font-bold text-purple-600 font-mono bg-[#f8fafc] border border-slate-200 rounded-lg px-2 py-0.5 mt-1 focus:bg-white focus:border-purple-500 focus:outline-none transition"
           />
-          <span className="text-[10px] text-purple-600 font-medium mt-0.5 flex items-center gap-0.5">
-            <ArrowUpRight className="h-3 w-3" />
-            <span>▲ 19.1%</span>
+          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+            전환 시뮬레이션
           </span>
         </div>
 
@@ -537,18 +475,18 @@ export function MediaPlanMmmView({
                   className="px-2 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition"
                 >
                   <Plus className="h-3 w-3" />
-                  <span>채널 추가</span>
+                  <span>{t.mmm.addChannel}</span>
                 </button>
               </div>
             </div>
             <table className="w-full text-left text-xs">
               <thead className="text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
                 <tr>
-                  <th className="pb-2 font-semibold">채널명</th>
-                  <th className="pb-2 font-semibold text-right">비중 (%)</th>
-                  <th className="pb-2 font-semibold text-right">예산 배분</th>
-                  <th className="pb-2 font-semibold">전략적 근거 (Rationale)</th>
-                  <th className="pb-2 font-semibold text-center w-8">삭제</th>
+                  <th className="pb-2 font-semibold">{t.mmm.tableChannel}</th>
+                  <th className="pb-2 font-semibold text-right">{t.mmm.tablePercentage}</th>
+                  <th className="pb-2 font-semibold text-right">{t.mmm.tableAllocation}</th>
+                  <th className="pb-2 font-semibold">{t.mmm.tableRationale}</th>
+                  <th className="pb-2 font-semibold text-center w-8">{t.mmm.deleteChannel}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -587,7 +525,7 @@ export function MediaPlanMmmView({
                     </td>
                     <td className="py-2 text-right font-mono text-slate-700">
                       <div className="inline-flex items-center justify-end gap-0.5">
-                        <span>$</span>
+                        <span>{currencySymbol}</span>
                         <input
                           type="number"
                           value={item.allocationAmount}
@@ -685,103 +623,7 @@ export function MediaPlanMmmView({
             </div>
           ))}
         </div>
-      </section>
-
-      {/* 시나리오 비교 (Scenario Comparison) */}
-      <section className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-blue-600" />
-              <span>시나리오 비교</span>
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              목적에 따라 AI가 추천하는 다양한 채널 예산 믹스 시나리오를 비교해 보세요.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          {DEFAULT_SCENARIOS.map((sc) => {
-            const isSelected = selectedScenarioId === sc.id;
-            const isApplied = appliedScenarioId === sc.id;
-
-            return (
-              <div
-                key={sc.id}
-                onClick={() => setSelectedScenarioId(sc.id)}
-                className={`p-4 rounded-2xl border-2 transition cursor-pointer relative flex flex-col justify-between ${
-                  isSelected
-                    ? 'border-blue-600 bg-blue-50/40 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-xs text-slate-900">
-                      {sc.name}
-                    </span>
-                    {sc.isAiRecommended && (
-                      <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">
-                        AI 추천
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-600 font-medium block mb-3">
-                    {sc.subtitle}
-                  </span>
-
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 text-[11px]">예상 ROAS:</span>
-                      <span className="font-bold font-mono text-emerald-600">
-                        {sc.roas}x
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 text-[11px]">예상 매출:</span>
-                      <span className="font-bold font-mono text-slate-800">
-                        {sc.sales}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 text-[11px]">예상 CPA:</span>
-                      <span className="font-bold font-mono text-slate-700">
-                        ${sc.cpa.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  {isApplied ? (
-                    <span className="text-blue-700 font-semibold flex items-center gap-1">
-                      <Check className="h-3.5 w-3.5" />
-                      <span>적용됨</span>
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 font-medium">선택하기</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <p className="text-[11px] text-slate-400">
-            * MMM 모델은 최근 24개월간 축적된 데이터와 외부 요인(시즌성, 경쟁사 활동 등)을 기반으로 예측되었습니다.
-          </p>
-          <button
-            type="button"
-            onClick={() => setAppliedScenarioId(selectedScenarioId)}
-            className="px-5 py-2.5 rounded-xl bg-[#1a56db] hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            <span>선택한 시나리오 적용</span>
-          </button>
-        </div>
-      </section>
+       </section>
 
       {/* Revision Modal */}
       <RevisionModal

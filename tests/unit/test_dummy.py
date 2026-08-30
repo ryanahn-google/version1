@@ -39,7 +39,7 @@ def test_create_campaign_request_validation() -> None:
         budgetAmount=100000.0,
     )
     assert req.currency == "USD"
-    assert req.stream is True
+    assert req.stream is False
     assert len(req.channels) == 4
 
 

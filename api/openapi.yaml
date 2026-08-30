@@ -163,11 +163,8 @@ paths:
               $ref: '#/components/schemas/CreateCampaignRequest'
       responses:
         "200":
-          description: Campaign initialized or SSE stream
+          description: Campaign initialized
           content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/CampaignStreamEvent'
             application/json:
               schema:
                 $ref: '#/components/schemas/CampaignSessionResponse'
@@ -350,11 +347,8 @@ paths:
               $ref: '#/components/schemas/StageApprovalRequest'
       responses:
         "200":
-          description: Stage transition processed or SSE stream of next stage execution
+          description: Stage transition processed
           content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/CampaignStreamEvent'
             application/json:
               schema:
                 $ref: '#/components/schemas/CampaignSessionResponse'
@@ -502,23 +496,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-
-    CampaignStreamEvent:
-      type: object
-      required:
-        - event
-        - stage
-        - data
-      properties:
-        event:
-          type: string
-          enum: ["stage_started", "agent_thinking", "artifact_generated", "stage_paused_for_review", "stage_completed", "campaign_completed", "error"]
-        stage:
-          type: string
-        sessionId:
-          type: string
-        data:
-          type: object
 
     MarketSensingDeliverable:
       type: object

@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Cpu, Activity, LogOut } from 'lucide-react';
+import { Cpu, LogOut } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
 export function Navbar() {
-  const [healthy, setHealthy] = useState<boolean | null>(null);
   const [meta, setMeta] = useState<{ region?: string; models?: Record<string, string> } | null>(null);
   const { user, logout } = useAuth();
 
   useEffect(() => {
-    apiClient
-      .getHealth()
-      .then((res) => setHealthy(res.status === 'healthy'))
-      .catch(() => setHealthy(false));
-
     apiClient
       .getMeta()
       .then((res) => setMeta(res as { region?: string; models?: Record<string, string> }))
@@ -41,32 +35,10 @@ export function Navbar() {
 
         {/* Metadata & Status */}
         <div className="flex items-center space-x-4">
-          {/* Model Armor Guardrail Badge */}
-          <div className="hidden md:flex items-center space-x-1.5 text-xs text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-md border border-slate-700">
-            <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span>Model Armor Guardrails</span>
-          </div>
-
           {/* Location & AI Models */}
           <div className="hidden lg:flex items-center space-x-1.5 text-xs text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-md border border-slate-700">
             <Cpu className="h-4 w-4 text-cyan-400" />
             <span>{meta?.region || 'asia-northeast3'} (Gemini 3.1 + Flash Lite)</span>
-          </div>
-
-          {/* Backend Liveness Badge */}
-          <div className="flex items-center space-x-1.5 text-xs px-2.5 py-1 rounded-md border bg-slate-900 border-slate-700">
-            <Activity
-              className={`h-4 w-4 ${
-                healthy === true
-                  ? 'text-emerald-400 animate-pulse'
-                  : healthy === false
-                  ? 'text-rose-400'
-                  : 'text-amber-400'
-              }`}
-            />
-            <span className={healthy ? 'text-slate-200' : 'text-slate-400'}>
-              {healthy === true ? 'Orchestrator Online' : healthy === false ? 'Offline' : 'Connecting...'}
-            </span>
           </div>
 
           {/* User Profile & Logout */}

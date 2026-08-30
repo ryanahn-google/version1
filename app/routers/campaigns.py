@@ -17,7 +17,6 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
 
 from app.orchestrator.engine import (
     CampaignOrchestrationEngine,
@@ -67,18 +66,9 @@ async def create_campaign(
     user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
-) -> StreamingResponse | CampaignSessionResponse:
+) -> CampaignSessionResponse:
     """Start a new multi-agent campaign planning DAG."""
     security.inspect_prompt_safety(payload.campaignObjective)
-
-    if payload.stream:
-        return StreamingResponse(
-            engine.stream_create_campaign(
-                payload, principal=user.email, user_id=user.user_id
-            ),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
 
     return await engine.create_campaign(
         payload, principal=user.email, user_id=user.user_id
@@ -121,7 +111,7 @@ async def approve_stage(
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
     repo: SessionRepository = Depends(get_session_repo),
-) -> StreamingResponse | CampaignSessionResponse:
+) -> CampaignSessionResponse:
     """Submit human review approval or revision feedback."""
     if payload.feedback:
         security.inspect_prompt_safety(payload.feedback)
@@ -131,15 +121,6 @@ async def approve_stage(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Campaign session '{sessionId}' not found.",
-        )
-
-    if payload.stream:
-        return StreamingResponse(
-            engine.stream_stage_approval(
-                sessionId, payload, principal=user.email, user_id=user.user_id
-            ),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     updated = await engine.approve_stage(

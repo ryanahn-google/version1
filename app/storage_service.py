@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import logging
 import uuid
-from collections.abc import Iterator
 from typing import Any
 
 try:
@@ -47,17 +46,12 @@ def _resolve_project_and_bucket() -> tuple[str, str, bool]:
         is_agent_runtime or is_cloud_run or env in ("prod", "production", "staging")
     )
 
-    # Determine whether target is prod or staging
-    is_prod = env in ("prod", "production") or "4915168819879608320" in app_url
-    target_project = "capstone-prod-506811" if is_prod else "capstone-staging-506811"
+    # Read project directly from settings (BaseSettings from .env or OS env)
+    project = settings.google_cloud_project or ""
 
-    # Read explicit project from settings if present
-    project = settings.google_cloud_project
-    if not project or project in ("sample-505914", "test-project") or project.isdigit():
-        project = target_project
-
-    bucket_name = settings.artifacts_bucket_name
-    if not bucket_name:
+    # Read bucket from settings, falling back to project-scoped convention if project is set
+    bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket or ""
+    if not bucket_name and project:
         bucket_name = f"{project}-version1-artifacts"
 
     return project, bucket_name, is_cloud_env
@@ -243,22 +237,29 @@ def generate_v4_signed_url(
         return None
 
 
-def stream_gcs_blob(
+def get_blob_bytes(
     blob_path: str,
     bucket_name: str | None = None,
-    chunk_size: int = 64 * 1024,
-) -> Iterator[bytes]:
-    """Zero-memory socket-to-socket chunked stream fallback directly from GCS."""
+) -> bytes | None:
+    """Safely fetch blob bytes directly from Google Cloud Storage.
+
+    Returns None if the object does not exist or GCS download fails.
+    """
     project, default_bucket, _ = _resolve_project_and_bucket()
     target_bucket = bucket_name or default_bucket
+    if not target_bucket:
+        return None
     clean_blob_path = extract_blob_path_from_gcs_url(blob_path, target_bucket)
 
-    from google.cloud import storage
+    try:
+        from google.cloud import storage
 
-    client = storage.Client(project=project)
-    bucket = client.bucket(target_bucket)
-    blob = bucket.blob(clean_blob_path)
-
-    with blob.open("rb") as f:
-        while chunk := f.read(chunk_size):
-            yield chunk
+        client = storage.Client(project=project)
+        bucket = client.bucket(target_bucket)
+        blob = bucket.blob(clean_blob_path)
+        if not blob.exists():
+            return None
+        return blob.download_as_bytes()
+    except Exception as exc:
+        logger.debug("Failed fetching blob bytes for '%s': %s", clean_blob_path, exc)
+        return None

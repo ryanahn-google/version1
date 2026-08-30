@@ -104,8 +104,8 @@ class CreateCampaignRequest(BaseModel):
         description="Preferred marketing channels",
     )
     stream: bool = Field(
-        default=True,
-        description="Whether to stream progress as SSE events",
+        default=False,
+        description="Deprecated; API operates via standard REST",
     )
 
 
@@ -125,8 +125,8 @@ class StageApprovalRequest(BaseModel):
         description="Optional marketer-edited deliverable fields to commit upon approval or revision",
     )
     stream: bool = Field(
-        default=True,
-        description="Whether to stream subsequent stage execution",
+        default=False,
+        description="Deprecated; API operates via standard REST",
     )
 
 
@@ -161,15 +161,3 @@ class CampaignSessionResponse(BaseModel):
     revisionCount: int = Field(default=0, description="Number of revisions requested")
     createdAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updatedAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
-class CampaignStreamEvent(BaseModel):
-    """Event payload emitted over SSE stream."""
-
-    event: str = Field(
-        ...,
-        description="Event type (stage_started, agent_thinking, artifact_generated, stage_paused_for_review, stage_completed, campaign_completed, error)",
-    )
-    stage: str
-    sessionId: str
-    data: dict[str, Any] = Field(default_factory=dict)

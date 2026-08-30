@@ -11,6 +11,7 @@ import {
   Check,
   Edit3,
 } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import type { CampaignSessionResponse } from '../../../types/campaign';
 import { RevisionModal } from '../../hitl/RevisionModal';
 
@@ -31,6 +32,7 @@ export function ContentView({
   onRollbackStage,
   isLoading,
 }: ContentViewProps) {
+  const { t } = useLanguage();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 
@@ -45,17 +47,16 @@ export function ContentView({
 
   // Editable deliverable state
   const [headlineCopy, setHeadlineCopy] = useState(
-    creativeData?.headlineCopy || 'Next Level AI, Galaxy S27'
+    creativeData?.headlineCopy || ''
   );
   const [bodyCopy, setBodyCopy] = useState(
-    creativeData?.bodyCopy ||
-      '혁신적인 AI 카메라와 압도적인 성능. 오직 블랙프라이데이 한정 최대 혜택으로 지금 Galaxy S27을 만나보세요.'
+    creativeData?.bodyCopy || ''
   );
   const [callToAction, setCallToAction] = useState(
-    creativeData?.callToAction || '사전예약 바로가기'
+    creativeData?.callToAction || ''
   );
   const [visualConceptTitle, setVisualConceptTitle] = useState(
-    creativeData?.visualConceptTitle || 'Galaxy S27 | Black Friday Deal'
+    creativeData?.visualConceptTitle || ''
   );
   const [visualPromptUsed, setVisualPromptUsed] = useState(
     creativeData?.visualPromptUsed || ''
@@ -105,14 +106,14 @@ export function ContentView({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                  Human-in-the-Loop 검토 대기
+                  {t.planning.hitlReviewPending}
                 </span>
                 <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-medium">
-                  Stage 2 승인 필요
+                  {t.content.hitlPending}
                 </span>
               </div>
               <p className="text-xs text-amber-800 mt-0.5">
-                생성된 시각물 및 광고 카피를 검토하고 필요 시 직접 수정한 후 승인해주세요. 승인 시 3단계(미디어 계획 MMM)로 진행됩니다.
+                {t.content.hitlDesc}
               </p>
             </div>
           </div>
@@ -122,14 +123,14 @@ export function ContentView({
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('1단계(기획)로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)')) {
+                  if (window.confirm(t.content.rollbackBtn)) {
                     onRollbackStage();
                   }
                 }}
                 disabled={isLoading}
                 className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
               >
-                <span>← 1단계(기획)로 복귀</span>
+                <span>{t.content.rollbackBtn}</span>
               </button>
             )}
             <button
@@ -139,7 +140,7 @@ export function ContentView({
               className="px-4 py-2 rounded-xl border border-amber-300 hover:bg-amber-100 text-amber-900 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>수정 요청 (AI 재생성)</span>
+              <span>{t.planning.requestRevision}</span>
             </button>
             <button
               type="button"
@@ -148,7 +149,7 @@ export function ContentView({
               className="px-5 py-2 rounded-xl bg-[#1a56db] hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition disabled:opacity-50"
             >
               <CheckCircle2 className="h-4 w-4" />
-              <span>승인 및 3단계 진행</span>
+              <span>{t.content.approveBtn}</span>
             </button>
           </div>
         </div>
@@ -159,10 +160,10 @@ export function ContentView({
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-12 text-center flex flex-col items-center justify-center">
           <ImageIcon className="h-10 w-10 text-slate-300 mb-2" />
           <h4 className="text-sm font-bold text-slate-800 mb-1">
-            콘텐츠 생성 대기 중
+            {t.content.waitingTitle}
           </h4>
           <p className="text-xs text-slate-400 max-w-sm">
-            1단계(기획)에서 시뮬레이션을 실행하면 Nano Banana 2 Lite 모델이 고해상도 마케팅 에셋과 광고 카피를 자동 생성합니다.
+            {t.content.waitingDesc}
           </p>
         </div>
       ) : (
@@ -173,7 +174,7 @@ export function ContentView({
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                    화면 비율:
+                    {t.content.aspectRatio}
                   </span>
                   <select
                     value={aspectRatio}
@@ -188,7 +189,7 @@ export function ContentView({
                 </div>
                 <span className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
                   <Edit3 className="h-3 w-3" />
-                  직접 수정 가능
+                  {t.common.directEditable}
                 </span>
               </div>
               <input
@@ -196,7 +197,7 @@ export function ContentView({
                 value={visualConceptTitle}
                 onChange={(e) => setVisualConceptTitle(e.target.value)}
                 className="w-full text-xs font-bold text-slate-900 border border-transparent hover:border-slate-200 focus:border-blue-500 rounded-lg px-1.5 py-1 focus:bg-white focus:outline-none transition"
-                placeholder="비주얼 콘셉트 제목 입력"
+                placeholder={t.content.visualTitlePlaceholder}
               />
             </div>
 
@@ -248,7 +249,7 @@ export function ContentView({
                   }`}
                 />
                 <span className="text-[11px] font-medium text-slate-700">
-                  {isApproved ? '승인됨 (GCS 저장)' : '초안 (검토 및 수정 가능)'}
+                  {isApproved ? t.common.approvedGcs : t.common.draftReviewable}
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono">
@@ -263,10 +264,10 @@ export function ContentView({
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-3">
                 <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-xs">
                   <Type className="h-4 w-4" />
-                  <span>광고 카피라이팅 (직접 수정)</span>
+                  <span>{t.content.copywritingTitle}</span>
                 </div>
                 <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                  편집 가능
+                  {t.content.editableBadge}
                 </span>
               </div>
 
@@ -274,42 +275,42 @@ export function ContentView({
                 {/* 메인 헤드라인 */}
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold mb-1">
-                    메인 헤드라인
+                    {t.content.headline}
                   </label>
                   <input
                     type="text"
                     value={headlineCopy}
                     onChange={(e) => setHeadlineCopy(e.target.value)}
                     className="w-full bg-[#f8fafc] border border-slate-200 focus:bg-white focus:border-blue-500 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:outline-none transition"
-                    placeholder="메인 헤드라인 입력"
+                    placeholder={t.content.headlinePlaceholder}
                   />
                 </div>
 
                 {/* 바디 카피 */}
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold mb-1">
-                    바디 카피
+                    {t.content.body}
                   </label>
                   <textarea
                     value={bodyCopy}
                     onChange={(e) => setBodyCopy(e.target.value)}
                     rows={4}
                     className="w-full bg-[#f8fafc] border border-slate-200 focus:bg-white focus:border-blue-500 rounded-xl p-2.5 text-xs text-slate-700 leading-relaxed focus:outline-none resize-none transition"
-                    placeholder="광고 바디 카피 입력"
+                    placeholder={t.content.bodyPlaceholder}
                   />
                 </div>
 
                 {/* 행동 유도 버튼 (CTA) */}
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold mb-1">
-                    행동 유도 버튼 (CTA 문구)
+                    {t.content.cta}
                   </label>
                   <input
                     type="text"
                     value={callToAction}
                     onChange={(e) => setCallToAction(e.target.value)}
                     className="w-full bg-[#f8fafc] border border-slate-200 focus:bg-white focus:border-blue-500 rounded-xl p-2 text-xs font-semibold text-blue-700 focus:outline-none transition"
-                    placeholder="버튼 문구 입력"
+                    placeholder={t.content.ctaPlaceholder}
                   />
                 </div>
               </div>
@@ -318,7 +319,7 @@ export function ContentView({
             <div className="pt-3 border-t border-slate-100 mt-4 flex items-center justify-between text-xs">
               <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
                 <Check className="h-3.5 w-3.5" />
-                <span>승인 시 수정 내용이 저장됩니다</span>
+                <span>{t.common.autoSavedNotice}</span>
               </span>
             </div>
           </div>
@@ -329,21 +330,21 @@ export function ContentView({
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-3">
                 <div className="flex items-center gap-1.5 text-purple-600 font-semibold text-xs">
                   <Sparkles className="h-4 w-4" />
-                  <span>합성 프롬프트 인스펙터 (직접 수정)</span>
+                  <span>{t.content.promptInspectorTitle}</span>
                 </div>
                 <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                  편집 가능
+                  {t.content.editableBadge}
                 </span>
               </div>
 
               <div className="text-xs">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
-                    시각 프롬프트 (Visual Prompt for Nano Banana)
+                    {t.content.visualPromptLabel}
                   </span>
                   <span className="text-[10px] text-purple-600 font-medium flex items-center gap-1">
                     <Edit3 className="h-3 w-3" />
-                    프롬프트 수정 가능
+                    {t.common.directEditable}
                   </span>
                 </div>
                 <textarea
@@ -351,14 +352,14 @@ export function ContentView({
                   onChange={(e) => setVisualPromptUsed(e.target.value)}
                   rows={6}
                   className="w-full bg-[#f8fafc] border border-slate-200 focus:bg-white focus:border-purple-500 rounded-xl p-3 text-xs font-mono text-slate-800 leading-relaxed focus:outline-none resize-none transition"
-                  placeholder="이미지 생성에 사용할 시각 프롬프트를 직접 입력하세요"
+                  placeholder={t.content.visualPromptPlaceholder}
                 />
               </div>
             </div>
 
             <div className="pt-3 border-t border-slate-100 mt-3 flex justify-between text-[11px] text-slate-500">
-              <span>Direct VPC Egress GCS Storage</span>
-              <span className="text-blue-600 font-medium">Verified</span>
+              <span>{t.content.vpcEgressNotice}</span>
+              <span className="text-blue-600 font-medium">{t.common.verified}</span>
             </div>
           </div>
         </div>
@@ -383,7 +384,7 @@ export function ContentView({
               onClick={() => setLightboxOpen(false)}
               className="absolute top-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-slate-800 transition"
             >
-              닫기
+              {t.common.close}
             </button>
           </div>
         </div>

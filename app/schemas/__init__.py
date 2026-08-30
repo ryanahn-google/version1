@@ -20,7 +20,6 @@ from app.schemas.campaign import (
     CampaignSessionResponse,
     CampaignStage,
     CampaignStatus,
-    CampaignStreamEvent,
     CreateCampaignRequest,
     StageApprovalRequest,
 )
@@ -45,7 +44,6 @@ __all__ = [
     "CampaignSessionResponse",
     "CampaignStage",
     "CampaignStatus",
-    "CampaignStreamEvent",
     "ChannelAllocation",
     "CompetitorAnalysis",
     "CreateCampaignRequest",

@@ -364,6 +364,7 @@ class A2ASubAgentClient:
         feedback: str | None = None,
         context_id: str | None = None,
         user_id: str | None = None,
+        visual_prompt_override: str | None = None,
     ) -> CreativeContentDeliverable:
         """Run [P3] Creative Content Agent."""
         campaign_id = context_id or "default"
@@ -408,6 +409,7 @@ class A2ASubAgentClient:
             feedback=feedback,
             session_id=campaign_id,
             user_id=user_id,
+            visual_prompt_override=visual_prompt_override,
         )
 
     async def run_performance_insights(

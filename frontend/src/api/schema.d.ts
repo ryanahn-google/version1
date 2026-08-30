@@ -318,13 +318,6 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
-        CampaignStreamEvent: {
-            /** @enum {string} */
-            event: "stage_started" | "agent_thinking" | "artifact_generated" | "stage_paused_for_review" | "stage_completed" | "campaign_completed" | "error";
-            stage: string;
-            sessionId?: string;
-            data: Record<string, never>;
-        };
         MarketSensingDeliverable: {
             targetMarket: string;
             consumerTrends: string[];
@@ -660,13 +653,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Campaign initialized or SSE stream */
+            /** @description Campaign initialized */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["CampaignStreamEvent"];
                     "application/json": components["schemas"]["CampaignSessionResponse"];
                 };
             };
@@ -891,13 +883,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Stage transition processed or SSE stream of next stage execution */
+            /** @description Stage transition processed */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["CampaignStreamEvent"];
                     "application/json": components["schemas"]["CampaignSessionResponse"];
                 };
             };

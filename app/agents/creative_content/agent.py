@@ -278,6 +278,7 @@ async def run_creative_content_pipeline(
     feedback: str | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
+    visual_prompt_override: str | None = None,
 ) -> CreativeContentDeliverable:
     """Self-contained 2-step sequential generation pipeline for [P3] Creative Content.
 
@@ -323,7 +324,7 @@ async def run_creative_content_pipeline(
             )
 
     if not deliverable:
-        visual_prompt = (
+        visual_prompt = visual_prompt_override or (
             "Cinematic 8k photograph of a futuristic titanium smartphone standing upright "
             "on a reflective wet obsidian pedestal in a neon-lit cybernetic cityscape at dusk. "
             "Volumetric lighting, shallow depth of field, dramatic indigo and amber highlights, "
@@ -337,7 +338,11 @@ async def run_creative_content_pipeline(
         cta = "Claim Black Friday Exclusives — Double Your Storage Free"
 
         if feedback:
-            visual_prompt = f"{visual_prompt}. Art direction update incorporating feedback: '{feedback}'."
+            if not visual_prompt_override:
+                visual_prompt = (
+                    f"{visual_prompt}. Art direction update incorporating "
+                    f"feedback: '{feedback}'."
+                )
             headline = f"Redefined: {feedback[:40]}"
             body_copy = f"{body_copy} Enhanced per revision request: {feedback}."
             cta = f"Act Now: {feedback[:30]}"
@@ -351,11 +356,15 @@ async def run_creative_content_pipeline(
             callToAction=cta,
             aspectRatio="16:9",
         )
+    elif visual_prompt_override:
+        deliverable.visualPromptUsed = visual_prompt_override
 
     # Step 2: Synthesize visual asset with Nano Banana 2 Lite and persist to storage
-    if deliverable.visualPromptUsed:
+    prompt_to_synthesize = visual_prompt_override or deliverable.visualPromptUsed
+    if prompt_to_synthesize:
+        deliverable.visualPromptUsed = prompt_to_synthesize
         generated_url = await synthesize_nano_banana_image(
-            deliverable.visualPromptUsed, session_id=session_id, user_id=user_id
+            prompt_to_synthesize, session_id=session_id, user_id=user_id
         )
         if generated_url:
             if generated_url.startswith("http") or generated_url.startswith("gs://"):

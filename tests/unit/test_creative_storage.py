@@ -135,7 +135,7 @@ def test_save_visual_marketing_asset_fallback_without_local_write(
 ) -> None:
     """Verify fallback URL is returned without creating local disk files when GCS fails."""
     monkeypatch.delenv("ARTIFACTS_BUCKET_NAME", raising=False)
-    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project-123")
     monkeypatch.setenv("ENV", "development")
 
     with (
@@ -183,7 +183,7 @@ def test_generate_v4_signed_url_success(
     """Verify V4 Signed URL generation with service account credentials."""
     from app.storage_service import generate_v4_signed_url
 
-    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project-123")
     monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
 
     fake_client = MagicMock()
@@ -232,7 +232,7 @@ def test_get_campaign_visual_307_redirect(
     from app.schemas.deliverables import CreativeContentDeliverable
     from app.settings import get_settings
 
-    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project-123")
     monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
     get_settings.cache_clear()
 
@@ -304,7 +304,7 @@ def test_get_campaign_visual_token_endpoint(
     from app.schemas.deliverables import CreativeContentDeliverable
     from app.settings import get_settings
 
-    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-staging-506811")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project-123")
     monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "test-bucket")
     get_settings.cache_clear()
 
