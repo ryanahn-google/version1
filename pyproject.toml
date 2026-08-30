@@ -9,7 +9,6 @@ authors = [
 dependencies = [
     "google-adk[gcp,otel-gcp]>=2.5.0,<3.0.0",
     "opentelemetry-resourcedetector-gcp<=1.12.0a0",
-    "gcsfs>=2024.11.0",
     "a2a-sdk[http-server]>=1.0,<2",
     "aiohttp>=3.13.4",
     "google-cloud-logging>=3.12.0,<4.0.0",
@@ -30,9 +29,7 @@ dev = [
     "pytest-asyncio>=1.0.0,<2.0.0",
     "nest-asyncio>=1.6.0,<2.0.0",
     "ruff>=0.4.6,<1.0.0",
-    "ty>=0.0.1a0",
     "codespell>=2.2.0,<3.0.0",
-    "httpx2>=2.12.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +39,6 @@ eval = [
 ]
 lint = [
     "ruff>=0.4.6,<1.0.0",
-    "ty>=0.0.1a0",
     "codespell>=2.2.0,<3.0.0",
 ]
 

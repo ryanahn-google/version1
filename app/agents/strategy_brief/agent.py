@@ -37,6 +37,8 @@ When presented with Market Sensing data and human revision feedback:
 4. Establish strategic Messaging Pillars (pillar theme, key message statement, and supporting proof points/features).
 5. Specify Tone and Voice guidelines aligning with Nova Electronics Corp brand standards (e.g. Innovative, Empowering, Premium).
 
+CRITICAL LANGUAGE DIRECTIVE: Output all deliverable textual fields (campaignTitle, coreValueProposition, targetPersonas, messagingPillars, toneAndVoice) strictly in the language of the campaign request (Korean if request or user language is Korean, English if English).
+
 Output your deliverable strictly as a valid JSON object conforming to the required schema.
 """
 

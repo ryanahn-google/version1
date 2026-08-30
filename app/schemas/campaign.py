@@ -94,6 +94,11 @@ class CreateCampaignRequest(BaseModel):
         description="Currency ISO code",
         json_schema_extra={"example": "USD"},
     )
+    language: str = Field(
+        default="ko",
+        description="Preferred output language: 'ko' or 'en'",
+        json_schema_extra={"example": "ko"},
+    )
     channels: list[str] = Field(
         default_factory=lambda: [
             "Digital Video",
@@ -103,9 +108,45 @@ class CreateCampaignRequest(BaseModel):
         ],
         description="Preferred marketing channels",
     )
-    stream: bool = Field(
-        default=True,
-        description="Whether to stream progress as SSE events",
+
+    @property
+    def stream(self) -> bool:
+        """Deprecated backwards-compatibility accessor."""
+        return False
+
+
+class ParsePromptRequest(BaseModel):
+    """Payload for natural language prompt interpretation."""
+
+    prompt: str = Field(
+        ..., description="Natural language campaign brief or user request"
+    )
+    language: str = Field(
+        default="ko", description="Preferred output language: 'ko' or 'en'"
+    )
+
+
+class ParsePromptResponse(BaseModel):
+    """Structured campaign parameters extracted from natural language prompt."""
+
+    brandName: str = Field(
+        default="", description="Brand name or empty string if unspecified"
+    )
+    productName: str = Field(
+        default="", description="Product name or empty string if unspecified"
+    )
+    campaignObjective: str = Field(
+        default="", description="Campaign objective or empty string if unspecified"
+    )
+    targetAudience: str = Field(
+        default="", description="Target audience or empty string if unspecified"
+    )
+    budgetAmount: float | None = Field(
+        default=None, description="Numeric budget amount or null if unspecified"
+    )
+    currency: str = Field(default="USD", description="Currency code (USD or KRW)")
+    channels: list[str] = Field(
+        default_factory=list, description="Target channels if explicitly specified"
     )
 
 
@@ -114,7 +155,9 @@ class StageApprovalRequest(BaseModel):
 
     action: ApprovalAction = Field(
         ...,
-        description="'approve' to proceed to next stage, 'revise' to re-run with feedback",
+        description=(
+            "'approve' to proceed to next stage, 'revise' to re-run with feedback"
+        ),
     )
     feedback: str | None = Field(
         default=None,
@@ -122,11 +165,10 @@ class StageApprovalRequest(BaseModel):
     )
     deliverableUpdates: dict[str, Any] | None = Field(
         default=None,
-        description="Optional marketer-edited deliverable fields to commit upon approval or revision",
-    )
-    stream: bool = Field(
-        default=True,
-        description="Whether to stream subsequent stage execution",
+        description=(
+            "Optional marketer-edited deliverable fields to commit upon"
+            " approval or revision"
+        ),
     )
 
 
@@ -161,15 +203,3 @@ class CampaignSessionResponse(BaseModel):
     revisionCount: int = Field(default=0, description="Number of revisions requested")
     createdAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updatedAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
-class CampaignStreamEvent(BaseModel):
-    """Event payload emitted over SSE stream."""
-
-    event: str = Field(
-        ...,
-        description="Event type (stage_started, agent_thinking, artifact_generated, stage_paused_for_review, stage_completed, campaign_completed, error)",
-    )
-    stage: str
-    sessionId: str
-    data: dict[str, Any] = Field(default_factory=dict)

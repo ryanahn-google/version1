@@ -12,119 +12,114 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
+"""Load test suite simulating campaign creation and retrieval workflows."""
+
 import logging
 import os
-import time
 import uuid
+from typing import Any
 
 from locust import HttpUser, between, task
 
-ENDPOINT = "/run_sse"
+CAMPAIGNS_ENDPOINT = "/api/v1/campaigns"
 
-# Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 
-class ChatStreamUser(HttpUser):
-    """Simulates a user interacting with the chat stream API."""
+class CampaignLoadUser(HttpUser):
+    """Simulates marketers creating and monitoring campaign workflows."""
 
-    wait_time = between(1, 3)  # Wait 1-3 seconds between tasks
+    wait_time = between(1, 3)
 
-    @task
-    def chat_stream(self) -> None:
-        """Simulates a chat stream interaction."""
-        headers: dict[str, str] = {"Content-Type": "application/json"}
-        if id_token := (os.environ.get("_ID_TOKEN") or os.environ.get("ID_TOKEN")):
-            headers["Authorization"] = f"Bearer {id_token}"
-        # Create session first
-        user_id = f"user_{uuid.uuid4()}"
-        session_data = {"state": {"preferred_language": "English", "visit_count": 1}}
-
-        session_response = self.client.post(
-            f"/apps/app/users/{user_id}/sessions",
-            headers=headers,
-            json=session_data,
+    def _get_headers(self) -> dict[str, str]:
+        """Construct authorization headers from environment or dev defaults."""
+        headers = {"Content-Type": "application/json"}
+        token = (
+            os.environ.get("_ID_TOKEN")
+            or os.environ.get("ID_TOKEN")
+            or "dev-marketer@nova.com"
         )
+        headers["Authorization"] = f"Bearer {token}"
+        return headers
 
-        # Get session_id from response
-        session_id = session_response.json()["id"]
-
-        # Send chat message
-        data = {
-            "app_name": "app",
-            "user_id": user_id,
-            "session_id": session_id,
-            "new_message": {
-                "role": "user",
-                "parts": [{"text": "Hello! Weather in New york?"}],
-            },
-            "streaming": True,
+    @task(3)
+    def create_and_retrieve_campaign(self) -> None:
+        """Create a new campaign session and retrieve its latest status."""
+        headers = self._get_headers()
+        run_tag = uuid.uuid4().hex[:8]
+        payload: dict[str, Any] = {
+            "brandName": "Nova Electronics Corp",
+            "productName": f"Galaxy S27-{run_tag}",
+            "campaignObjective": (
+                "Automated load test: Global marketing value creation launch"
+            ),
+            "targetAudience": (
+                "Enterprise decision makers and technology professionals"
+            ),
+            "budgetAmount": 500000.0,
+            "currency": "USD",
+            "channels": ["Digital Video", "Paid Search", "Social Media"],
         }
-        start_time = time.time()
 
+        # 1. Create Campaign
         with self.client.post(
-            ENDPOINT,
-            name=f"{ENDPOINT} message",
+            CAMPAIGNS_ENDPOINT,
+            name="POST /api/v1/campaigns",
             headers=headers,
-            json=data,
+            json=payload,
             catch_response=True,
-            stream=True,
-            params={"alt": "sse"},
-        ) as response:
-            if response.status_code == 200:
-                events = []
-                has_error = False
-                for line in response.iter_lines():
-                    if line:
-                        line_str = line.decode("utf-8")
-                        events.append(line_str)
+        ) as create_resp:
+            if create_resp.status_code == 429:
+                create_resp.failure("Rate limited (HTTP 429)")
+                return
+            if create_resp.status_code not in (200, 201):
+                create_resp.failure(
+                    f"Create failed with HTTP {create_resp.status_code}: "
+                    f"{create_resp.text[:120]}"
+                )
+                return
 
-                        if "429 Too Many Requests" in line_str:
-                            self.environment.events.request.fire(
-                                request_type="POST",
-                                name=f"{ENDPOINT} rate_limited 429s",
-                                response_time=0,
-                                response_length=len(line),
-                                response=response,
-                                context={},
-                            )
+            try:
+                data = create_resp.json()
+                session_id = data.get("sessionId")
+            except ValueError as exc:
+                create_resp.failure(f"Failed to parse JSON response: {exc}")
+                return
 
-                        # Check for error responses in the JSON payload
-                        try:
-                            event_data = json.loads(line_str)
-                            if isinstance(event_data, dict) and "code" in event_data:
-                                # Flag any non-2xx codes as errors
-                                if event_data["code"] >= 400:
-                                    has_error = True
-                                    error_msg = event_data.get(
-                                        "message", "Unknown error"
-                                    )
-                                    response.failure(f"Error in response: {error_msg}")
-                                    logger.error(
-                                        "Received error response: code=%s, message=%s",
-                                        event_data["code"],
-                                        error_msg,
-                                    )
-                        except json.JSONDecodeError:
-                            # If it's not valid JSON, continue processing
-                            pass
+            if not session_id:
+                create_resp.failure("Missing sessionId in response payload")
+                return
 
-                end_time = time.time()
-                total_time = end_time - start_time
+        # 2. Retrieve Campaign Session State
+        get_url = f"{CAMPAIGNS_ENDPOINT}/{session_id}"
+        with self.client.get(
+            get_url,
+            name="GET /api/v1/campaigns/[sessionId]",
+            headers=headers,
+            catch_response=True,
+        ) as get_resp:
+            if get_resp.status_code != 200:
+                get_resp.failure(
+                    f"Get session failed with HTTP {get_resp.status_code}: "
+                    f"{get_resp.text[:120]}"
+                )
 
-                # Only fire success event if no errors were found
-                if not has_error:
-                    self.environment.events.request.fire(
-                        request_type="POST",
-                        name=f"{ENDPOINT} end",
-                        response_time=total_time * 1000,  # Convert to milliseconds
-                        response_length=len(events),
-                        response=response,
-                        context={},
-                    )
-            else:
-                response.failure(f"Unexpected status code: {response.status_code}")
+    @task(1)
+    def list_user_campaigns(self) -> None:
+        """List active campaigns for authenticated user."""
+        headers = self._get_headers()
+        with self.client.get(
+            CAMPAIGNS_ENDPOINT,
+            name="GET /api/v1/campaigns",
+            headers=headers,
+            catch_response=True,
+        ) as list_resp:
+            if list_resp.status_code != 200:
+                list_resp.failure(
+                    f"List campaigns failed with HTTP {list_resp.status_code}: "
+                    f"{list_resp.text[:120]}"
+                )

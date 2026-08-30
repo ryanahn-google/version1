@@ -132,6 +132,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/LogoutResponse'
 
+  /api/v1/campaigns/parse-prompt:
+    post:
+      summary: Parse natural language prompt into structured campaign brief parameters
+      operationId: parseCampaignPrompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParsePromptRequest'
+      responses:
+        "200":
+          description: Successfully parsed parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsePromptResponse'
+        "400":
+          description: Model Armor rejection or invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/campaigns:
     get:
       summary: List campaigns owned by authenticated user
@@ -163,11 +193,8 @@ paths:
               $ref: '#/components/schemas/CreateCampaignRequest'
       responses:
         "200":
-          description: Campaign initialized or SSE stream
+          description: Campaign initialized
           content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/CampaignStreamEvent'
             application/json:
               schema:
                 $ref: '#/components/schemas/CampaignSessionResponse'
@@ -350,11 +377,8 @@ paths:
               $ref: '#/components/schemas/StageApprovalRequest'
       responses:
         "200":
-          description: Stage transition processed or SSE stream of next stage execution
+          description: Stage transition processed
           content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/CampaignStreamEvent'
             application/json:
               schema:
                 $ref: '#/components/schemas/CampaignSessionResponse'
@@ -408,6 +432,11 @@ components:
           type: string
           default: "USD"
           example: "USD"
+        language:
+          type: string
+          enum: ["ko", "en"]
+          default: "ko"
+          example: "ko"
         channels:
           type: array
           items:
@@ -417,6 +446,48 @@ components:
           type: boolean
           default: true
           description: Whether to return response as Server-Sent Events (SSE)
+
+    ParsePromptRequest:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          example: "20대 타겟 브랜드 인지도 캠페인 기획해줘"
+        language:
+          type: string
+          enum: ["ko", "en"]
+          default: "ko"
+
+    ParsePromptResponse:
+      type: object
+      properties:
+        brandName:
+          type: string
+          example: ""
+        productName:
+          type: string
+          example: ""
+        campaignObjective:
+          type: string
+          example: "브랜드 인지도 캠페인 기획"
+        targetAudience:
+          type: string
+          example: "20대"
+        budgetAmount:
+          type: number
+          nullable: true
+          example: null
+        currency:
+          type: string
+          default: "USD"
+          example: "KRW"
+        channels:
+          type: array
+          items:
+            type: string
+          example: []
 
     StageApprovalRequest:
       type: object
@@ -502,23 +573,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-
-    CampaignStreamEvent:
-      type: object
-      required:
-        - event
-        - stage
-        - data
-      properties:
-        event:
-          type: string
-          enum: ["stage_started", "agent_thinking", "artifact_generated", "stage_paused_for_review", "stage_completed", "campaign_completed", "error"]
-        stage:
-          type: string
-        sessionId:
-          type: string
-        data:
-          type: object
 
     MarketSensingDeliverable:
       type: object

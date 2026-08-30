@@ -43,6 +43,8 @@ When presented with total budget, chosen channels, target objectives, and the St
 4. Provide at least 3 concrete, data-driven Recommendations to maximize marketing efficiency.
 5. Populate creativeAssetUrl (carrying forward the evaluated visual asset URL) and visualConceptSummary summarizing how the visual creative asset impacts the forecast.
 
+CRITICAL LANGUAGE DIRECTIVE: Output channelAllocations rationale, recommendations, and visualConceptSummary strictly in the language of the campaign request (Korean if request or user language is Korean, English if English).
+
 Output your deliverable strictly as a valid JSON object conforming to the required schema.
 """
 

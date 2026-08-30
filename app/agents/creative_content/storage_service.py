@@ -47,17 +47,12 @@ def _resolve_project_and_bucket() -> tuple[str, str, bool]:
         is_agent_runtime or is_cloud_run or env in ("prod", "production", "staging")
     )
 
-    # Determine whether target is prod or staging
-    is_prod = env in ("prod", "production") or "4915168819879608320" in app_url
-    target_project = "capstone-prod-506811" if is_prod else "capstone-staging-506811"
+    # Read project directly from settings (BaseSettings from .env or OS env)
+    project = settings.google_cloud_project or ""
 
-    # Read explicit project from settings if present
-    project = settings.google_cloud_project
-    if not project or project in ("sample-505914", "test-project") or project.isdigit():
-        project = target_project
-
-    bucket_name = settings.artifacts_bucket_name
-    if not bucket_name:
+    # Read bucket from settings, falling back to project-scoped convention if project is set
+    bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket or ""
+    if not bucket_name and project:
         bucket_name = f"{project}-version1-artifacts"
 
     return project, bucket_name, is_cloud_env

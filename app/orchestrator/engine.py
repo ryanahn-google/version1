@@ -16,7 +16,6 @@
 
 import logging
 import uuid
-from collections.abc import AsyncGenerator
 
 from fastapi import HTTPException, status
 
@@ -28,17 +27,12 @@ from app.schemas.campaign import (
     CampaignSessionResponse,
     CampaignStage,
     CampaignStatus,
-    CampaignStreamEvent,
     CreateCampaignRequest,
+    ParsePromptResponse,
     StageApprovalRequest,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _format_sse(event: CampaignStreamEvent) -> str:
-    """Format Pydantic event into SSE wire protocol."""
-    return f"event: {event.event}\ndata: {event.model_dump_json()}\n\n"
 
 
 class CampaignOrchestrationEngine:
@@ -71,146 +65,27 @@ class CampaignOrchestrationEngine:
             channels=request.channels,
             tenant_id="nova-corp",
         )
+        lang = getattr(request, "language", "ko")
         deliv1 = await self.a2a.run_market_sensing(
             brand_name=request.brandName,
             product_name=request.productName,
             objective=request.campaignObjective,
             audience=request.targetAudience,
             context_id=f"{session_id}-p1",
-        )
-        deliv2 = await self.a2a.run_strategy_brief(
-            brand_name=request.brandName,
-            product_name=request.productName,
-            objective=request.campaignObjective,
-            market_sensing=deliv1,
-            context_id=f"{session_id}-p2",
+            language=lang,
         )
         updated = await self.repo.update_session(
             session_id=session_id,
             status=CampaignStatus.PAUSED_FOR_REVIEW,
-            current_stage=CampaignStage.STRATEGY_BRIEF,
+            current_stage=CampaignStage.MARKET_SENSING,
             deliverables={
                 "marketSensing": deliv1.model_dump(mode="json"),
-                "campaignBrief": deliv2.model_dump(mode="json"),
             },
             user_id=user_id,
         )
         if not updated:
             raise RuntimeError(f"Session {session_id} not found after creation.")
         return updated
-
-    async def stream_create_campaign(
-        self,
-        request: CreateCampaignRequest,
-        principal: str,
-        user_id: str | None = None,
-    ) -> AsyncGenerator[str, None]:
-        """Initialize campaign session and stream execution of Stage 1 (Planning: P1 + P2)."""
-        session_id = f"camp-{uuid.uuid4().hex[:8]}"
-        await self.repo.create_session(
-            session_id=session_id,
-            user_id=user_id,
-            brand_name=request.brandName,
-            product_name=request.productName,
-            campaign_objective=request.campaignObjective,
-            budget_amount=request.budgetAmount,
-            currency=request.currency,
-            channels=request.channels,
-            tenant_id="nova-corp",
-        )
-
-        yield _format_sse(
-            CampaignStreamEvent(
-                event="stage_started",
-                stage=CampaignStage.MARKET_SENSING.value,
-                sessionId=session_id,
-                data={
-                    "message": f"Starting [P1] Market Sensing for {request.productName}..."
-                },
-            )
-        )
-
-        try:
-            deliv1 = await self.a2a.run_market_sensing(
-                brand_name=request.brandName,
-                product_name=request.productName,
-                objective=request.campaignObjective,
-                audience=request.targetAudience,
-                context_id=f"{session_id}-p1",
-            )
-
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="artifact_generated",
-                    stage=CampaignStage.MARKET_SENSING.value,
-                    sessionId=session_id,
-                    data={"marketSensing": deliv1.model_dump(mode="json")},
-                )
-            )
-
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_started",
-                    stage=CampaignStage.STRATEGY_BRIEF.value,
-                    sessionId=session_id,
-                    data={
-                        "message": f"Synthesizing [P2] Strategy & Brief for {request.productName}..."
-                    },
-                )
-            )
-
-            deliv2 = await self.a2a.run_strategy_brief(
-                brand_name=request.brandName,
-                product_name=request.productName,
-                objective=request.campaignObjective,
-                market_sensing=deliv1,
-                context_id=f"{session_id}-p2",
-            )
-
-            updated_session = await self.repo.update_session(
-                session_id=session_id,
-                status=CampaignStatus.PAUSED_FOR_REVIEW,
-                current_stage=CampaignStage.STRATEGY_BRIEF,
-                deliverables={
-                    "marketSensing": deliv1.model_dump(mode="json"),
-                    "campaignBrief": deliv2.model_dump(mode="json"),
-                },
-            )
-
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="artifact_generated",
-                    stage=CampaignStage.STRATEGY_BRIEF.value,
-                    sessionId=session_id,
-                    data={"campaignBrief": deliv2.model_dump(mode="json")},
-                )
-            )
-
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_paused_for_review",
-                    stage=CampaignStage.STRATEGY_BRIEF.value,
-                    sessionId=session_id,
-                    data={
-                        "message": "Market Sensing & Strategy Brief completed. Paused for Marketer review.",
-                        "session": updated_session.model_dump(mode="json")
-                        if updated_session
-                        else {},
-                    },
-                )
-            )
-
-        except Exception as exc:
-            logger.exception("Failed during Stage 1 planning simulation: %s", exc)
-            await self.repo.update_session(session_id, status=CampaignStatus.FAILED)
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="error",
-                    stage=CampaignStage.STRATEGY_BRIEF.value,
-                    sessionId=session_id,
-                    data={"error": str(exc)},
-                )
-            )
 
     async def rollback_stage(
         self,
@@ -228,6 +103,7 @@ class CampaignOrchestrationEngine:
         current_stage = session.currentStage
         # Map of valid single-step rollbacks: Current Stage -> Preceding Stage
         rollback_map = {
+            CampaignStage.STRATEGY_BRIEF: CampaignStage.MARKET_SENSING,
             CampaignStage.CREATIVE_CONTENT: CampaignStage.STRATEGY_BRIEF,
             CampaignStage.PERFORMANCE_INSIGHTS: CampaignStage.CREATIVE_CONTENT,
             CampaignStage.MEDIA_EXECUTION: CampaignStage.PERFORMANCE_INSIGHTS,
@@ -239,7 +115,7 @@ class CampaignOrchestrationEngine:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     f"Cannot roll back from stage '{current_stage.value}'. "
-                    "Stage 1 (Planning / Market Sensing & Strategy Brief) is the initial stage."
+                    "Stage 1 (Market Sensing) is the initial stage."
                 ),
             )
 
@@ -263,33 +139,14 @@ class CampaignOrchestrationEngine:
         request: StageApprovalRequest,
         principal: str,
         user_id: str | None = None,
-    ) -> CampaignSessionResponse | None:
-        """Process approval or revision non-streaming."""
-        async for _ in self.stream_stage_approval(
-            session_id, request, principal, user_id=user_id
-        ):
-            pass
-        return await self.repo.get_session(session_id, user_id=user_id)
-
-    async def stream_stage_approval(
-        self,
-        session_id: str,
-        request: StageApprovalRequest,
-        principal: str,
-        user_id: str | None = None,
-    ) -> AsyncGenerator[str, None]:
-        """Handle human review approval or revision feedback, and stream subsequent execution."""
+    ) -> CampaignSessionResponse:
+        """Handle human review approval or revision feedback directly."""
         session = await self.repo.get_session(session_id, user_id=user_id)
         if not session:
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="error",
-                    stage="UNKNOWN",
-                    sessionId=session_id,
-                    data={"error": f"Session {session_id} not found"},
-                )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Campaign session '{session_id}' not found.",
             )
-            return
 
         current_stage = session.currentStage
         action = request.action
@@ -316,21 +173,24 @@ class CampaignOrchestrationEngine:
                 session = updated_session
 
         # --- Case 1: Revision requested ---
-        if action == ApprovalAction.REVISE:
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_started",
-                    stage=current_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": f"Revising {current_stage.value} with feedback: {feedback}"
-                    },
-                )
+        session_lang = (
+            "ko"
+            if any(
+                "\uac00" <= ch <= "\ud7a3"
+                for ch in f"{session.campaignObjective} {session.productName} {feedback or ''}"
             )
+            else "en"
+        )
+        if action == ApprovalAction.REVISE:
             await self.repo.update_session(session_id, increment_revision=True)
 
             if current_stage == CampaignStage.MARKET_SENSING:
-                audience = getattr(session, "targetAudience", "General")
+                market_sensing = session.deliverables.marketSensing
+                audience = (
+                    market_sensing.targetMarket
+                    if market_sensing and market_sensing.targetMarket
+                    else "General"
+                )
                 deliv1 = await self.a2a.run_market_sensing(
                     session.brandName,
                     session.productName,
@@ -338,38 +198,22 @@ class CampaignOrchestrationEngine:
                     audience,
                     feedback=feedback,
                     context_id=f"{session_id}-p1-rev",
+                    language=session_lang,
                 )
-                await self.repo.update_session(
+                updated = await self.repo.update_session(
                     session_id,
                     status=CampaignStatus.PAUSED_FOR_REVIEW,
                     deliverables={"marketSensing": deliv1.model_dump(mode="json")},
                 )
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="artifact_generated",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={"marketSensing": deliv1.model_dump(mode="json")},
-                    )
-                )
+                return updated or session
 
             elif current_stage == CampaignStage.STRATEGY_BRIEF:
                 market_sensing = session.deliverables.marketSensing
                 if not market_sensing:
-                    yield _format_sse(
-                        CampaignStreamEvent(
-                            event="error",
-                            stage=current_stage.value,
-                            sessionId=session_id,
-                            data={
-                                "error": (
-                                    "Missing Market Sensing deliverable for "
-                                    "Strategy Brief revision"
-                                )
-                            },
-                        )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Missing Market Sensing deliverable for Strategy Brief revision",
                     )
-                    return
                 deliv2 = await self.a2a.run_strategy_brief(
                     session.brandName,
                     session.productName,
@@ -377,38 +221,22 @@ class CampaignOrchestrationEngine:
                     market_sensing,
                     feedback=feedback,
                     context_id=f"{session_id}-p2-rev",
+                    language=session_lang,
                 )
-                await self.repo.update_session(
+                updated = await self.repo.update_session(
                     session_id,
                     status=CampaignStatus.PAUSED_FOR_REVIEW,
                     deliverables={"campaignBrief": deliv2.model_dump(mode="json")},
                 )
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="artifact_generated",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={"campaignBrief": deliv2.model_dump(mode="json")},
-                    )
-                )
+                return updated or session
 
             elif current_stage == CampaignStage.CREATIVE_CONTENT:
                 campaign_brief = session.deliverables.campaignBrief
                 if not campaign_brief:
-                    yield _format_sse(
-                        CampaignStreamEvent(
-                            event="error",
-                            stage=current_stage.value,
-                            sessionId=session_id,
-                            data={
-                                "error": (
-                                    "Missing Campaign Brief deliverable for "
-                                    "Creative Content revision"
-                                )
-                            },
-                        )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Missing Campaign Brief deliverable for Creative Content revision",
                     )
-                    return
                 # Purge old in-memory draft image before re-running P3
                 get_draft_image_store().delete_draft(session_id)
 
@@ -418,6 +246,7 @@ class CampaignOrchestrationEngine:
                     feedback=feedback,
                     context_id=session_id,
                     user_id=effective_user_id,
+                    language=session_lang,
                 )
                 if deliv3.assetUrl and (
                     deliv3.assetUrl.startswith("http")
@@ -426,37 +255,20 @@ class CampaignOrchestrationEngine:
                     deliv3.storageUri = deliv3.assetUrl
                     deliv3.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
 
-                await self.repo.update_session(
+                updated = await self.repo.update_session(
                     session_id,
                     status=CampaignStatus.PAUSED_FOR_REVIEW,
                     deliverables={"creativeContent": deliv3.model_dump(mode="json")},
                 )
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="artifact_generated",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={"creativeContent": deliv3.model_dump(mode="json")},
-                    )
-                )
+                return updated or session
 
             elif current_stage == CampaignStage.PERFORMANCE_INSIGHTS:
                 campaign_brief = session.deliverables.campaignBrief
                 if not campaign_brief:
-                    yield _format_sse(
-                        CampaignStreamEvent(
-                            event="error",
-                            stage=current_stage.value,
-                            sessionId=session_id,
-                            data={
-                                "error": (
-                                    "Missing Campaign Brief deliverable for "
-                                    "Performance Insights revision"
-                                )
-                            },
-                        )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Missing Campaign Brief deliverable for Performance Insights revision",
                     )
-                    return
                 deliv4 = await self.a2a.run_performance_insights(
                     budget=session.budgetAmount,
                     currency=session.currency,
@@ -465,74 +277,40 @@ class CampaignOrchestrationEngine:
                     creative=session.deliverables.creativeContent,
                     feedback=feedback,
                     context_id=f"{session_id}-p4-rev",
+                    language=session_lang,
                 )
-                await self.repo.update_session(
+                updated = await self.repo.update_session(
                     session_id,
                     status=CampaignStatus.PAUSED_FOR_REVIEW,
                     deliverables={
                         "performanceInsights": deliv4.model_dump(mode="json")
                     },
                 )
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="artifact_generated",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={"performanceInsights": deliv4.model_dump(mode="json")},
-                    )
-                )
+                return updated or session
 
             elif current_stage == CampaignStage.MEDIA_EXECUTION:
-                # Re-adjust execution notes or parameters
-                await self.repo.update_session(
+                updated = await self.repo.update_session(
                     session_id,
                     status=CampaignStatus.PAUSED_FOR_REVIEW,
                 )
-
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_paused_for_review",
-                    stage=current_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": f"Revision completed for {current_stage.value}. Paused for review."
-                    },
-                )
-            )
-            return
+                return updated or session
 
         # --- Case 2: Approval -> Advance to next stage ---
         if current_stage == CampaignStage.MARKET_SENSING:
             next_stage = CampaignStage.STRATEGY_BRIEF
             market_sensing = session.deliverables.marketSensing
             if not market_sensing:
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="error",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={
-                            "error": ("Missing Market Sensing deliverable to proceed")
-                        },
-                    )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Missing Market Sensing deliverable to proceed",
                 )
-                return
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_started",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": ("P1 Approved. Starting [P2] Strategy & Brief...")
-                    },
-                )
-            )
             deliv_p2 = await self.a2a.run_strategy_brief(
                 session.brandName,
                 session.productName,
                 session.campaignObjective,
                 market_sensing,
                 context_id=f"{session_id}-p2",
+                language=session_lang,
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -540,59 +318,22 @@ class CampaignOrchestrationEngine:
                 current_stage=next_stage,
                 deliverables={"campaignBrief": deliv_p2.model_dump(mode="json")},
             )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="artifact_generated",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={"campaignBrief": deliv_p2.model_dump(mode="json")},
-                )
-            )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_paused_for_review",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": "Strategy Brief ready for review.",
-                        "session": updated.model_dump(mode="json") if updated else {},
-                    },
-                )
-            )
+            return updated or session
 
         elif current_stage == CampaignStage.STRATEGY_BRIEF:
             next_stage = CampaignStage.CREATIVE_CONTENT
             campaign_brief = session.deliverables.campaignBrief
             if not campaign_brief:
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="error",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={
-                            "error": ("Missing Campaign Brief deliverable to proceed")
-                        },
-                    )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Missing Campaign Brief deliverable to proceed",
                 )
-                return
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_started",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": (
-                            "P2 Approved. Starting [P3] Creative Content "
-                            "generation (Nano Banana 2 Lite)..."
-                        )
-                    },
-                )
-            )
             effective_user_id = session.userId or user_id
             deliv_p3 = await self.a2a.run_creative_content(
                 campaign_brief,
                 context_id=session_id,
                 user_id=effective_user_id,
+                language=session_lang,
             )
             if deliv_p3.assetUrl and (
                 deliv_p3.assetUrl.startswith("http")
@@ -607,41 +348,16 @@ class CampaignOrchestrationEngine:
                 current_stage=next_stage,
                 deliverables={"creativeContent": deliv_p3.model_dump(mode="json")},
             )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="artifact_generated",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={"creativeContent": deliv_p3.model_dump(mode="json")},
-                )
-            )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_paused_for_review",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": "Creative Content visual ready for review.",
-                        "session": updated.model_dump(mode="json") if updated else {},
-                    },
-                )
-            )
+            return updated or session
 
         elif current_stage == CampaignStage.CREATIVE_CONTENT:
             next_stage = CampaignStage.PERFORMANCE_INSIGHTS
             campaign_brief = session.deliverables.campaignBrief
             if not campaign_brief:
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="error",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={
-                            "error": ("Missing Campaign Brief deliverable to proceed")
-                        },
-                    )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Missing Campaign Brief deliverable to proceed",
                 )
-                return
             # HITL Approval: Commit in-memory draft image to Cloud Storage (GCS)
             effective_user_id = session.userId or user_id
             committed_gcs_url = get_draft_image_store().commit_draft_to_gcs(
@@ -662,32 +378,7 @@ class CampaignOrchestrationEngine:
                         )
                     },
                 )
-                yield _format_sse(
-                    CampaignStreamEvent(
-                        event="artifact_generated",
-                        stage=current_stage.value,
-                        sessionId=session_id,
-                        data={
-                            "creativeContent": session.deliverables.creativeContent.model_dump(
-                                mode="json"
-                            )
-                        },
-                    )
-                )
 
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_started",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": (
-                            "P3 Approved & visual committed to Cloud Storage. Starting [P4] Performance & Insights "
-                            "budget allocation..."
-                        )
-                    },
-                )
-            )
             deliv_p4 = await self.a2a.run_performance_insights(
                 session.budgetAmount,
                 session.currency,
@@ -695,6 +386,7 @@ class CampaignOrchestrationEngine:
                 campaign_brief,
                 creative=session.deliverables.creativeContent,
                 context_id=f"{session_id}-p4",
+                language=session_lang,
             )
             updated = await self.repo.update_session(
                 session_id,
@@ -702,81 +394,32 @@ class CampaignOrchestrationEngine:
                 current_stage=CampaignStage.PERFORMANCE_INSIGHTS,
                 deliverables={"performanceInsights": deliv_p4.model_dump(mode="json")},
             )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="artifact_generated",
-                    stage=CampaignStage.PERFORMANCE_INSIGHTS.value,
-                    sessionId=session_id,
-                    data={"performanceInsights": deliv_p4.model_dump(mode="json")},
-                )
-            )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_paused_for_review",
-                    stage=CampaignStage.PERFORMANCE_INSIGHTS.value,
-                    sessionId=session_id,
-                    data={
-                        "message": (
-                            "Performance Insights & MMM Media Plan ready for review. "
-                            "Paused for Marketer review."
-                        ),
-                        "session": updated.model_dump(mode="json") if updated else {},
-                    },
-                )
-            )
+            return updated or session
 
         elif current_stage == CampaignStage.PERFORMANCE_INSIGHTS:
             next_stage = CampaignStage.MEDIA_EXECUTION
             updated = await self.repo.update_session(
                 session_id,
-                status=CampaignStatus.PAUSED_FOR_REVIEW,
-                current_stage=next_stage,
-            )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_started",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": (
-                            "Media Plan (MMM) approved. Advancing to Stage 4: "
-                            "Media Execution..."
-                        )
-                    },
-                )
-            )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="stage_paused_for_review",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": (
-                            "Media Execution plan ready. Paused for Marketer review."
-                        ),
-                        "session": updated.model_dump(mode="json") if updated else {},
-                    },
-                )
-            )
-
-        elif current_stage == CampaignStage.MEDIA_EXECUTION:
-            next_stage = CampaignStage.COMPLETED
-            updated = await self.repo.update_session(
-                session_id,
                 status=CampaignStatus.COMPLETED,
                 current_stage=next_stage,
             )
-            yield _format_sse(
-                CampaignStreamEvent(
-                    event="campaign_completed",
-                    stage=next_stage.value,
-                    sessionId=session_id,
-                    data={
-                        "message": "Media Execution approved. Campaign successfully completed!",
-                        "session": updated.model_dump(mode="json") if updated else {},
-                    },
-                )
+            return updated or session
+
+        elif current_stage == CampaignStage.MEDIA_EXECUTION:
+            updated = await self.repo.update_session(
+                session_id,
+                status=CampaignStatus.COMPLETED,
+                current_stage=CampaignStage.COMPLETED,
             )
+            return updated or session
+
+        return session
+
+    async def parse_prompt(
+        self, prompt: str, language: str = "ko"
+    ) -> ParsePromptResponse:
+        """Parse natural language prompt into structured campaign brief parameters."""
+        return await self.a2a.parse_campaign_prompt(prompt, language=language)
 
 
 _orchestrator_engine = CampaignOrchestrationEngine()

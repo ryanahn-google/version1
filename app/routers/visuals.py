@@ -18,7 +18,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import RedirectResponse
 from google.cloud import storage
 
 from app import storage_service
@@ -149,21 +149,27 @@ async def get_campaign_visual(
             headers={"Cache-Control": "public, max-age=3600"},
         )
 
-    # Method 2 (Fallback / Offline Dev): Socket chunked stream directly from GCS
-    try:
-        return StreamingResponse(
-            storage_service.stream_gcs_blob(
-                blob_path=blob_path, bucket_name=bucket_name
-            ),
+    # Method 2 (Fallback / Offline Dev): Direct byte read from GCS or safe fallback redirect
+    image_bytes = storage_service.get_blob_bytes(
+        blob_path=blob_path, bucket_name=bucket_name
+    )
+    if image_bytes:
+        return Response(
+            content=image_bytes,
             media_type="image/png",
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
         )
-    except Exception as stream_exc:
-        logger.error("Failed streaming blob %s from GCS: %s", blob_path, stream_exc)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed loading visual asset from Cloud Storage: {stream_exc}",
-        ) from stream_exc
+
+    # Object not found or unavailable in GCS: cleanly redirect to sample fallback visual
+    logger.info(
+        "Visual blob '%s' not present in GCS. Redirecting to fallback asset.",
+        blob_path,
+    )
+    return RedirectResponse(
+        url=storage_service.FALLBACK_ASSET_URL,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get(

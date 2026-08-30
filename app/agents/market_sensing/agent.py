@@ -37,6 +37,8 @@ When presented with campaign requirements (Brand, Product, Objective, Target Aud
 4. Synthesize Sentiment Overview, highlighting positive themes, friction points, and an overall sentiment score (-1.0 to 1.0).
 5. Recommend at least 3 concrete Strategic Opportunities for the upcoming campaign.
 
+CRITICAL LANGUAGE DIRECTIVE: Output all deliverable textual fields (targetMarket, consumerTrends, competitiveAnalysis, positiveThemes, frictionPoints, strategicOpportunities) strictly in the language of the campaign request (Korean if request or user language is Korean, English if English).
+
 Output your deliverable strictly as a valid JSON object conforming to the required schema.
 """
 

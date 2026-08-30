@@ -1,4 +1,5 @@
 import { Terminal } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import type { LogEntry } from '../../hooks/useCampaignStream';
 import type { StageKey } from '../../types/campaign';
 
@@ -12,8 +13,10 @@ interface AssistantAndLogsPanelProps {
 export function AssistantAndLogsPanel({
   logs,
   isStreaming,
-  campaignTitle = 'Black Friday Galaxy S27 캠페인',
+  campaignTitle = 'Campaign Workspace',
 }: AssistantAndLogsPanelProps) {
+  const { t } = useLanguage();
+
   return (
     <aside className="w-80 lg:w-96 flex-shrink-0 bg-white border-l border-[#e2e8f0] flex flex-col justify-between overflow-hidden z-10">
       {/* Top Header: Agent Logs */}
@@ -24,7 +27,7 @@ export function AssistantAndLogsPanel({
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-900">에이전트 로그</span>
+              <span className="text-xs font-bold text-slate-900">{t.logs.title}</span>
               {logs.length > 0 && (
                 <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-full font-mono font-semibold">
                   {logs.length}
@@ -39,11 +42,11 @@ export function AssistantAndLogsPanel({
 
         {isStreaming ? (
           <span className="text-[10px] text-cyan-600 font-bold animate-pulse">
-            실시간 수신 중...
+            {t.logs.liveStream}
           </span>
         ) : (
           <span className="text-[10px] text-slate-400 font-mono">
-            대기 중
+            {t.logs.idle}
           </span>
         )}
       </div>
@@ -51,7 +54,7 @@ export function AssistantAndLogsPanel({
       {/* Main Content: Thought Stream Console */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs">
         <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-slate-400 text-[11px]">
-          <span>실행 이벤트 타임라인</span>
+          <span>{t.logs.timeline}</span>
           <span>{logs.length} events</span>
         </div>
 
@@ -59,10 +62,10 @@ export function AssistantAndLogsPanel({
           <div className="h-64 flex flex-col items-center justify-center text-center p-6 text-slate-400 font-sans">
             <Terminal className="h-8 w-8 text-slate-300 mb-2" />
             <p className="text-xs font-medium text-slate-600 mb-1">
-              기록된 로그가 없습니다.
+              {t.logs.noLogs}
             </p>
             <p className="text-[11px] text-slate-400 max-w-xs leading-relaxed">
-              시뮬레이션을 시작하면 서브 에이전트(P1~P4)의 실행 이벤트가 실시간으로 수신됩니다.
+              {t.logs.noLogsDesc}
             </p>
           </div>
         ) : (

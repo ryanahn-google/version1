@@ -61,15 +61,6 @@ class UserProfileResponse(BaseModel):
     )
 
 
-class AuthStatusResponse(BaseModel):
-    """Authentication status check response."""
-
-    authenticated: bool = Field(..., description="Whether client has a valid session")
-    user: UserProfileResponse | None = Field(
-        default=None, description="Current user profile if authenticated"
-    )
-
-
 class LogoutResponse(BaseModel):
     """Logout confirmation response."""
 

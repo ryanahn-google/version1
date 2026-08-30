@@ -17,7 +17,6 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
 
 from app.orchestrator.engine import (
     CampaignOrchestrationEngine,
@@ -36,11 +35,29 @@ from app.orchestrator.session_repo import (
 from app.schemas.campaign import (
     CampaignSessionResponse,
     CreateCampaignRequest,
+    ParsePromptRequest,
+    ParsePromptResponse,
     StageApprovalRequest,
 )
 from app.schemas.errors import ErrorResponse
 
 router = APIRouter(prefix="/api/v1/campaigns", tags=["Campaigns"])
+
+
+@router.post(
+    "/parse-prompt",
+    response_model=ParsePromptResponse,
+    responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}},
+)
+async def parse_campaign_prompt(
+    payload: ParsePromptRequest,
+    user: UserModel = Depends(get_current_user),
+    security: SecurityManager = Depends(get_security_manager),
+    engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
+) -> ParsePromptResponse:
+    """Parse natural language prompt into structured campaign brief parameters."""
+    await security.inspect_prompt_safety(payload.prompt)
+    return await engine.parse_prompt(payload.prompt, language=payload.language)
 
 
 @router.get(
@@ -67,18 +84,9 @@ async def create_campaign(
     user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
-) -> StreamingResponse | CampaignSessionResponse:
+) -> CampaignSessionResponse:
     """Start a new multi-agent campaign planning DAG."""
-    security.inspect_prompt_safety(payload.campaignObjective)
-
-    if payload.stream:
-        return StreamingResponse(
-            engine.stream_create_campaign(
-                payload, principal=user.email, user_id=user.user_id
-            ),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+    await security.inspect_prompt_safety(payload.campaignObjective)
 
     return await engine.create_campaign(
         payload, principal=user.email, user_id=user.user_id
@@ -120,27 +128,10 @@ async def approve_stage(
     user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
-    repo: SessionRepository = Depends(get_session_repo),
-) -> StreamingResponse | CampaignSessionResponse:
+) -> CampaignSessionResponse:
     """Submit human review approval or revision feedback."""
     if payload.feedback:
-        security.inspect_prompt_safety(payload.feedback)
-
-    session = await repo.get_session(sessionId, user_id=user.user_id)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Campaign session '{sessionId}' not found.",
-        )
-
-    if payload.stream:
-        return StreamingResponse(
-            engine.stream_stage_approval(
-                sessionId, payload, principal=user.email, user_id=user.user_id
-            ),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+        await security.inspect_prompt_safety(payload.feedback)
 
     updated = await engine.approve_stage(
         sessionId, payload, principal=user.email, user_id=user.user_id

@@ -1,6 +1,8 @@
 import type { components } from '../api/schema';
 
-export type CreateCampaignRequest = components['schemas']['CreateCampaignRequest'];
+export type CreateCampaignRequest = components['schemas']['CreateCampaignRequest'] & {
+  language?: 'ko' | 'en';
+};
 export type CampaignSessionResponse = components['schemas']['CampaignSessionResponse'];
 export type StageApprovalRequest = components['schemas']['StageApprovalRequest'] & {
   deliverableUpdates?: Record<string, unknown>;
@@ -24,51 +26,18 @@ export type StageKey =
   | 'MEDIA_EXECUTION'
   | 'COMPLETED';
 
-export interface StageInfo {
-  id: StageKey;
-  deliverableKey: 'marketSensing' | 'campaignBrief' | 'creativeContent' | 'performanceInsights';
-  name: string;
-  agentName: string;
-  model: string;
-  description: string;
-  outputName: string;
+export interface ParsePromptRequest {
+  prompt: string;
+  language?: 'ko' | 'en';
 }
 
-export const STAGES: StageInfo[] = [
-  {
-    id: 'MARKET_SENSING',
-    deliverableKey: 'marketSensing',
-    name: 'Stage 1: Market Sensing',
-    agentName: '[P1] Market Sensing Agent',
-    model: 'gemini-3.5-flash-lite',
-    description: 'Synthesizes market trends, competitive signals, and consumer sentiment.',
-    outputName: 'market_sensing.json',
-  },
-  {
-    id: 'STRATEGY_BRIEF',
-    deliverableKey: 'campaignBrief',
-    name: 'Stage 2: Strategy & Brief',
-    agentName: '[P2] Strategy & Brief Agent',
-    model: 'gemini-3.5-flash-lite',
-    description: 'Generates target audience personas, value proposition, and messaging pillars.',
-    outputName: 'campaign_brief.json',
-  },
-  {
-    id: 'CREATIVE_CONTENT',
-    deliverableKey: 'creativeContent',
-    name: 'Stage 3: Creative Content',
-    agentName: '[P3] Creative Content Agent',
-    model: 'gemini-3.1-flash-lite-image',
-    description: 'Synthesizes visual concept prompt and renders marketing imagery via Nano Banana 2 Lite.',
-    outputName: 'visual_deliverable.png',
-  },
-  {
-    id: 'PERFORMANCE_INSIGHTS',
-    deliverableKey: 'performanceInsights',
-    name: 'Stage 4: Performance & Insights',
-    agentName: '[P4] Performance Insights Agent',
-    model: 'gemini-3.5-flash-lite',
-    description: 'Calculates channel budget allocation and forecasts simulated campaign ROAS.',
-    outputName: 'performance_insights.json',
-  },
-];
+export interface ParsePromptResponse {
+  brandName?: string;
+  productName?: string;
+  campaignObjective?: string;
+  targetAudience?: string;
+  budgetAmount?: number | null;
+  currency?: string;
+  channels?: string[];
+}
+

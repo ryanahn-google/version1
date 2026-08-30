@@ -1,6 +1,8 @@
 import type {
   CreateCampaignRequest,
   CampaignSessionResponse,
+  ParsePromptRequest,
+  ParsePromptResponse,
   StageApprovalRequest,
   UserProfileResponse,
   LogoutResponse,
@@ -41,15 +43,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const apiClient = {
-  async getHealth(): Promise<{ status: string; service: string }> {
-    const res = await fetch(`${API_BASE}/healthz`, { credentials: 'include' });
-    return handleResponse(res);
-  },
-
   async getMeta(): Promise<Record<string, unknown>> {
     const res = await fetch(`${API_BASE}/meta`, { credentials: 'include' });
     return handleResponse(res);
   },
+
 
   async loginWithGoogle(credential: string): Promise<UserProfileResponse> {
     const res = await fetch(`${API_BASE}/api/v1/auth/google`, {
@@ -110,6 +108,18 @@ export const apiClient = {
       body: JSON.stringify(req),
     });
     return handleResponse<CampaignSessionResponse>(res);
+  },
+
+  async parsePrompt(req: ParsePromptRequest): Promise<ParsePromptResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/campaigns/parse-prompt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(req),
+    });
+    return handleResponse<ParsePromptResponse>(res);
   },
 
   async getSession(sessionId: string): Promise<CampaignSessionResponse> {

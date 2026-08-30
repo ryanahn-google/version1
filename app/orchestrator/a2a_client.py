@@ -22,6 +22,7 @@ from typing import Any
 
 import aiohttp
 
+from app.schemas.campaign import ParsePromptResponse
 from app.schemas.deliverables import (
     CampaignBriefDeliverable,
     ChannelAllocation,
@@ -37,6 +38,15 @@ from app.schemas.deliverables import (
 from app.settings import A2AClientSettings, get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_language(text: str, explicit_lang: str | None = None) -> str:
+    """Resolve whether target language is Korean ('ko') or English ('en')."""
+    if explicit_lang in ("ko", "en"):
+        return explicit_lang
+    if any("\uac00" <= ch <= "\ud7a3" for ch in text):
+        return "ko"
+    return "en"
 
 
 class A2ASubAgentClient:
@@ -172,6 +182,115 @@ class A2ASubAgentClient:
             )
         return None
 
+    async def parse_campaign_prompt(
+        self, prompt: str, language: str = "ko"
+    ) -> ParsePromptResponse:
+        """Parse natural language prompt into structured campaign brief parameters via Gemini."""
+        target_lang = resolve_language(prompt, language)
+        lang_str = "Korean" if target_lang == "ko" else "English"
+        sys_prompt = (
+            "You are an expert campaign intake parser for Marketing Value Creator (MVC).\n"
+            "Analyze the user's natural language input and extract structured campaign brief parameters:\n\n"
+            f'User Input: "{prompt}"\n\n'
+            "Extract the following fields conforming strictly to the ParsePromptResponse schema:\n"
+            '- brandName: Brand name. If not explicitly mentioned or ambiguous, return empty string "".\n'
+            '- productName: Product or service name. If not explicitly mentioned or ambiguous, return empty string "".\n'
+            '- campaignObjective: The campaign objective or core goal. If not explicitly mentioned, return empty string "".\n'
+            '- targetAudience: Target audience segment or demographics. If not explicitly mentioned or ambiguous, return empty string "".\n'
+            "- budgetAmount: Numeric total budget as a float or null. If not explicitly mentioned or ambiguous, return null.\n"
+            '- currency: "KRW" if Korean won/원/₩ or if prompt is in Korean, "USD" if dollar/$/USD or English.\n'
+            '- channels: Array of marketing channel names if mentioned (e.g. ["Digital Video", "Social Media"]). If not mentioned, return [].\n\n'
+            "CRITICAL RULES:\n"
+            "1. NEVER hallucinate, invent, or guess unspecified values. Do NOT invent brand names like 'Nova Electronics' or product names like 'Galaxy S27' unless the user explicitly mentioned them in the prompt.\n"
+            '2. If information is missing or ambiguous, leave the corresponding field strictly as an empty string "" (or null for budgetAmount).\n'
+            f"3. Format text in {lang_str}."
+        )
+
+        ai_res = await self._execute_local_agent(
+            sys_prompt, ParsePromptResponse, "Prompt Parser"
+        )
+        if ai_res and isinstance(ai_res, ParsePromptResponse):
+            return ai_res
+
+        # Heuristic rule-based fallback parser
+        currency = "KRW" if target_lang == "ko" else "USD"
+        budget_amt: float | None = None
+
+        if re.search(r"(\$|usd|달러|dollar)", prompt, re.IGNORECASE):
+            currency = "USD"
+        elif re.search(r"(원|krw|won|₩)", prompt, re.IGNORECASE):
+            currency = "KRW"
+
+        m_eok = re.search(r"(\d+(?:\.\d+)?)\s*억", prompt)
+        m_man = re.search(r"(\d+(?:\.\d+)?)\s*만", prompt)
+        m_num = re.search(
+            r"(\$|₩)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{5,})\s*(원|달러)?", prompt
+        )
+        if m_eok:
+            budget_amt = float(m_eok.group(1)) * 100_000_000.0
+        elif m_man:
+            budget_amt = float(m_man.group(1)) * 10_000.0
+        elif m_num:
+            budget_amt = float(m_num.group(2).replace(",", ""))
+
+        target_aud = ""
+        m_aud = re.search(
+            r"([0-9]{2}대|[가-힣a-zA-Z0-9\s]+?)\s*(?:타겟|대상|target|audience)", prompt
+        )
+        if m_aud:
+            target_aud = m_aud.group(1).strip()
+
+        brand = ""
+        for known_brand in [
+            "삼성전자",
+            "삼성",
+            "LG전자",
+            "LG",
+            "애플",
+            "Apple",
+            "소니",
+            "Sony",
+            "Nova Electronics",
+            "Nova",
+        ]:
+            if known_brand.lower() in prompt.lower():
+                brand = known_brand
+                break
+
+        product = ""
+        for known_prod in [
+            "갤럭시",
+            "Galaxy",
+            "아이폰",
+            "iPhone",
+            "MacBook",
+            "맥북",
+            "그램",
+            "Gram",
+            "OLED TV",
+        ]:
+            if known_prod.lower() in prompt.lower():
+                m_prod = re.search(
+                    rf"({known_prod}[가-힣a-zA-Z0-9\s]*?)(?:,|의|\s+런칭|\s+출시|\s+캠페인|$)",
+                    prompt,
+                    re.IGNORECASE,
+                )
+                if m_prod:
+                    product = m_prod.group(1).strip()
+                else:
+                    product = known_prod
+                break
+
+        return ParsePromptResponse(
+            brandName=brand,
+            productName=product,
+            campaignObjective=prompt.strip(),
+            targetAudience=target_aud,
+            budgetAmount=budget_amt,
+            currency=currency,
+            channels=[],
+        )
+
     async def run_market_sensing(
         self,
         brand_name: str,
@@ -180,14 +299,22 @@ class A2ASubAgentClient:
         audience: str,
         feedback: str | None = None,
         context_id: str | None = None,
+        language: str = "ko",
     ) -> MarketSensingDeliverable:
         """Run [P1] Market Sensing Agent."""
+        target_lang = resolve_language(f"{objective} {feedback or ''}", language)
+        lang_directive = (
+            "\nCRITICAL LANGUAGE REQUIREMENT: Output all deliverable textual fields (targetMarket, consumerTrends, positiveThemes, frictionPoints, strategicOpportunities, competitor strengths/vulnerabilities) strictly in Korean (한국어로 작성). Do NOT respond in English.\n"
+            if target_lang == "ko"
+            else "\nCRITICAL LANGUAGE REQUIREMENT: Output all deliverable textual fields strictly in English.\n"
+        )
         prompt = (
             f"Brand: {brand_name}\n"
             f"Product: {product_name}\n"
             f"Objective: {objective}\n"
             f"Target Audience: {audience}\n"
-            f"Human Revision Instructions: {feedback or 'None'}\n\n"
+            f"Human Revision Instructions: {feedback or 'None'}\n"
+            f"{lang_directive}\n"
             "Synthesize comprehensive market trends, competitive signals, and consumer sentiment. "
             "If Human Revision Instructions are provided, adapt the target market, trends, and strategic opportunities accordingly."
         )
@@ -212,52 +339,90 @@ class A2ASubAgentClient:
 
         # Heuristic fallback execution
         logger.info("Executing [P1] Market Sensing via local agent fallback")
-        trends = [
-            "Surging adoption of on-device multimodal AI capabilities",
-            "High willingness to upgrade via promotional trade-in incentives",
-            "Demand for pro-grade nightography and instant computational zoom",
-        ]
-        opportunities = [
-            "Position as the definitive holiday luxury gift with AI productivity superpower",
-            "Bundle flagship trade-in bonus to lower purchase hesitation",
-            "Highlight night photography shootout comparisons against competitors",
-        ]
-        positive_themes = [
-            "Excitement for revolutionary AI photo editing",
-            "Anticipation for Black Friday deals",
-        ]
-        target_market = f"Global Tier-1 Urban Tech Markets ({audience})"
+        if target_lang == "ko":
+            trends = [
+                "온디바이스 멀티모달 AI 기능의 빠른 대중화 및 실시간 번역 수요 급증",
+                "보상 판매(Trade-in) 프로모션을 통한 플래그십 기기 교체 선호도 증가",
+                "프로급 저조도 야간 촬영 및 고배율 줌 카메라 성능에 대한 높은 관심",
+            ]
+            opportunities = [
+                "AI 생산성 슈퍼파워를 강조한 연말 프리미엄 기프트 포지셔닝",
+                "최대 보상판매 혜택을 전면에 내세워 초기 구매 장벽 완화",
+                "경쟁 제품 대비 압도적인 야간 및 실시간 컴퓨테이셔널 카메라 성능 비교 부각",
+            ]
+            positive_themes = [
+                "혁신적인 AI 사진 편집 및 업무 생산성 기능에 대한 높은 기대감",
+                "블랙프라이데이 특별 프로모션 및 보상 판매 혜택 기대",
+            ]
+            friction_points = [
+                "플래그십 모델의 가격 인상에 대한 심리적 부담",
+                "장시간 AI 프로세싱 시 배터리 소모에 대한 우려",
+            ]
+            target_market = f"글로벌 및 국내 주요 테크 얼리어답터 및 프리미엄 스마트폰 수요층 ({audience or '일반'})"
+            comp_a = CompetitorAnalysis(
+                competitor="Alpha Phone 17 Pro",
+                strengths=["강력한 에코시스템 락인", "프리미엄 티타늄 외관"],
+                vulnerabilities=[
+                    "높은 수리비 및 부품 비용",
+                    "상대적으로 보수적인 AI 기능 적용",
+                ],
+            )
+            comp_b = CompetitorAnalysis(
+                competitor="Apex Ultra X",
+                strengths=["공격적인 프로모션 가격", "초고속 충전 기술"],
+                vulnerabilities=[
+                    "저조도 사진 처리의 일관성 부족",
+                    "OS 및 UI 최적화 불안정",
+                ],
+            )
+        else:
+            trends = [
+                "Surging adoption of on-device multimodal AI capabilities",
+                "High willingness to upgrade via promotional trade-in incentives",
+                "Demand for pro-grade nightography and instant computational zoom",
+            ]
+            opportunities = [
+                "Position as the definitive holiday luxury gift with AI productivity superpower",
+                "Bundle flagship trade-in bonus to lower purchase hesitation",
+                "Highlight night photography shootout comparisons against competitors",
+            ]
+            positive_themes = [
+                "Excitement for revolutionary AI photo editing",
+                "Anticipation for Black Friday deals",
+            ]
+            friction_points = [
+                "Rising flagship prices",
+                "Battery concerns during AI processing",
+            ]
+            target_market = f"Global Tier-1 Urban Tech Markets ({audience})"
+            comp_a = CompetitorAnalysis(
+                competitor="Alpha Phone 17 Pro",
+                strengths=["Ecosystem lock-in", "Titanium build"],
+                vulnerabilities=["High repair cost", "Conservative AI features"],
+            )
+            comp_b = CompetitorAnalysis(
+                competitor="Apex Ultra X",
+                strengths=["Aggressive promotional pricing", "Fast charging"],
+                vulnerabilities=[
+                    "Inconsistent low-light image processing",
+                    "Fragmented UX",
+                ],
+            )
 
         if feedback:
-            target_market += f" [Refined: {feedback}]"
-            trends.insert(0, f"Revision Focus: {feedback}")
-            opportunities.insert(0, f"Tailored Strategic Shift: {feedback}")
-            positive_themes.insert(0, f"Feedback Integration: {feedback}")
+            prefix = "피드백 반영" if target_lang == "ko" else "Revision Focus"
+            target_market += f" [{prefix}: {feedback}]"
+            trends.insert(0, f"{prefix}: {feedback}")
+            opportunities.insert(0, f"{prefix}: {feedback}")
+            positive_themes.insert(0, f"{prefix}: {feedback}")
 
         return MarketSensingDeliverable(
             targetMarket=target_market,
             consumerTrends=trends,
-            competitiveAnalysis=[
-                CompetitorAnalysis(
-                    competitor="Alpha Phone 17 Pro",
-                    strengths=["Ecosystem lock-in", "Titanium build"],
-                    vulnerabilities=["High repair cost", "Conservative AI features"],
-                ),
-                CompetitorAnalysis(
-                    competitor="Apex Ultra X",
-                    strengths=["Aggressive promotional pricing", "Fast charging"],
-                    vulnerabilities=[
-                        "Inconsistent low-light image processing",
-                        "Fragmented UX",
-                    ],
-                ),
-            ],
+            competitiveAnalysis=[comp_a, comp_b],
             sentimentOverview=SentimentOverview(
                 positiveThemes=positive_themes,
-                frictionPoints=[
-                    "Rising flagship prices",
-                    "Battery concerns during AI processing",
-                ],
+                frictionPoints=friction_points,
                 overallSentimentScore=0.82 if feedback else 0.78,
             ),
             strategicOpportunities=opportunities,
@@ -271,13 +436,21 @@ class A2ASubAgentClient:
         market_sensing: MarketSensingDeliverable,
         feedback: str | None = None,
         context_id: str | None = None,
+        language: str = "ko",
     ) -> CampaignBriefDeliverable:
         """Run [P2] Strategy & Brief Agent."""
+        target_lang = resolve_language(f"{objective} {feedback or ''}", language)
+        lang_directive = (
+            "\nCRITICAL LANGUAGE REQUIREMENT: Output all deliverable textual fields (campaignTitle, coreValueProposition, targetPersonas name/demographics/needs/barriers, messagingPillars, toneAndVoice) strictly in Korean (한국어로 작성). Do NOT respond in English.\n"
+            if target_lang == "ko"
+            else "\nCRITICAL LANGUAGE REQUIREMENT: Output all deliverable textual fields strictly in English.\n"
+        )
         prompt = (
             f"Brand: {brand_name}, Product: {product_name}\n"
             f"Objective: {objective}\n"
             f"Market Sensing Deliverable: {market_sensing.model_dump_json()}\n"
-            f"Human Revision Instructions: {feedback or 'None'}\n\n"
+            f"Human Revision Instructions: {feedback or 'None'}\n"
+            f"{lang_directive}\n"
             "Formulate a sharp creative campaign strategy brief. "
             "If Human Revision Instructions are provided, prioritize the revision feedback in the campaign title, value proposition, personas, and messaging pillars."
         )
@@ -301,61 +474,137 @@ class A2ASubAgentClient:
             return ai_deliv
 
         logger.info("Executing [P2] Strategy Brief via local agent fallback")
-        title = f"Illuminate Your Potential: {product_name} Black Friday Premiere"
-        core_val = (
-            f"Experience uncompromised creative freedom with {product_name}'s next-gen "
-            "AI engine and pro visual capture, backed by Nova's best holiday incentives."
-        )
-        if feedback:
-            title = f"{product_name} Premiere: Refined for {feedback[:35]}"
-            core_val = f"{core_val} (Refined per feedback: '{feedback}')"
+        if target_lang == "ko":
+            title = f"{product_name or '신제품'} 프리미어: 차세대 혁신을 경험하다"
+            core_val = (
+                f"{product_name or '신제품'}의 혁신적인 AI 엔진과 프로급 성능으로 "
+                "업무와 일상의 생산성을 극대화하고 가장 앞선 프리미엄 가치를 경험하세요."
+            )
+            if feedback:
+                title = f"{product_name or '신제품'} 프리미어: 피드백 반영 ({feedback[:25]})"
+                core_val = f"{core_val} (피드백 반영: '{feedback}')"
 
-        return CampaignBriefDeliverable(
-            campaignTitle=title,
-            coreValueProposition=core_val,
-            targetPersonas=[
+            personas = [
+                TargetPersona(
+                    name="테크 얼리어답터 & 크리에이터"
+                    + (f" ({feedback[:15]})" if feedback else ""),
+                    demographics="25-42세, 전문직 및 디지털 콘텐츠 크리에이터",
+                    primaryNeeds=[
+                        "최고 사양 AI 처리 속도",
+                        "프로급 저조도 카메라",
+                        "효율적인 멀티태스킹",
+                    ],
+                    barriers=[
+                        "플래그십 가격 부담",
+                        "기존 사용 기기로부터의 데이터 이전 번거로움",
+                    ],
+                ),
+                TargetPersona(
+                    name="실용적 프리미엄 업그레이더",
+                    demographics="30-49세, 직장인 및 비즈니스 전문가",
+                    primaryNeeds=[
+                        "장기 소프트웨어 업데이트 지원",
+                        "신뢰성 있는 배터리 수명",
+                        "합리적인 보상판매 혜택",
+                    ],
+                    barriers=[
+                        "복잡한 통신사 요금제 및 약정",
+                        "잦은 신제품 출시에 따른 피로감",
+                    ],
+                ),
+            ]
+            pillars = [
+                MessagingPillar(
+                    pillar="온디바이스 AI 생산성 혁신",
+                    keyMessage="더 강력해진 AI가 당신의 일상과 업무 효율을 극대화합니다.",
+                    proofPoints=[
+                        "실시간 음성 요약 및 번역",
+                        "스마트 사진 자동 보정",
+                        "온디바이스 NPU",
+                    ],
+                ),
+                MessagingPillar(
+                    pillar="최대 보상판매 & 합리적 프리미엄 혜택",
+                    keyMessage="쓰던 기기 그대로 반납하고 가장 부담 없이 차세대 플래그십을 시작하세요.",
+                    proofPoints=[
+                        "업계 최고 수준 중고 보상가",
+                        "무이자 할부",
+                        "사전예약 더블 스토리지",
+                    ],
+                ),
+            ]
+            tones = [
+                "혁신적인 (Innovative)",
+                "역동적인 (Empowering)",
+                "신뢰할 수 있는 (Trustworthy)",
+            ]
+        else:
+            title = f"Illuminate Your Potential: {product_name} Black Friday Premiere"
+            core_val = (
+                f"Experience uncompromised creative freedom with {product_name}'s next-gen "
+                "AI engine and pro visual capture, backed by Nova's best holiday incentives."
+            )
+            if feedback:
+                title = f"{product_name} Premiere: Refined for {feedback[:35]}"
+                core_val = f"{core_val} (Refined per feedback: '{feedback}')"
+
+            personas = [
                 TargetPersona(
                     name="Tech-Savvy Creator"
                     + (f" ({feedback[:20]})" if feedback else ""),
                     demographics="25-38, Urban Professionals, Mobile Content Creators",
                     primaryNeeds=[
-                        "Flawless low-light capture",
-                        "Seamless generative editing",
-                    ]
-                    + ([f"Focus: {feedback}"] if feedback else []),
-                    barriers=["Flagship price barrier", "Annual upgrade fatigue"],
+                        "Rapid on-device AI editing",
+                        "True pro-grade 4K camera",
+                        "Seamless multi-tasking",
+                    ],
+                    barriers=[
+                        "Flagship price barrier",
+                        "Data transfer inertia from competing ecosystems",
+                    ],
                 ),
                 TargetPersona(
-                    name="Performance Seeker",
-                    demographics="30-45, Corporate & Tech Leaders",
-                    primaryNeeds=["All-day reliable battery", "On-device security"],
-                    barriers=["Ecosystem migration resistance"],
+                    name="Value-Driven Tech Enthusiast",
+                    demographics="28-45, Tech Early Adopters, Gadget Upgrade Seekers",
+                    primaryNeeds=[
+                        "Industry-leading trade-in bonus",
+                        "Guaranteed software longevity",
+                        "Battery efficiency",
+                    ],
+                    barriers=[
+                        "Confusing carrier contracts",
+                        "Incremental upgrade skepticism",
+                    ],
                 ),
-            ],
-            messagingPillars=[
+            ]
+            pillars = [
                 MessagingPillar(
-                    pillar="Pro-Grade AI Vision"
-                    if not feedback
-                    else f"Revised Pillar: {feedback[:25]}",
-                    keyMessage="Capture every night detail with zero blur or grain."
-                    if not feedback
-                    else f"Tailored Message: {feedback}",
+                    pillar="AI-Powered Creative Freedom",
+                    keyMessage="Transform every idea into reality with on-device generative tools built for creators.",
                     proofPoints=[
-                        "200MP sensor",
-                        "Instant AI denoise",
-                        "4K HDR Night Video",
+                        "Sub-second multimodal generation",
+                        "Instant 100x zoom stabilization",
+                        "Zero cloud latency",
                     ],
                 ),
                 MessagingPillar(
-                    pillar="Unmatched Black Friday Value",
-                    keyMessage="The premier flagship upgrade, guaranteed within reach.",
+                    pillar="Maximum Value Trade-in Upgrade",
+                    keyMessage="Upgrade to flagship performance effortlessly with unmatched holiday trade-in credits.",
                     proofPoints=[
-                        "Up to $800 trade-in credit",
-                        "Double storage holiday gift",
+                        "Guaranteed highest trade-in value",
+                        "0% interest financing",
+                        "Double storage promotion",
                     ],
                 ),
-            ],
-            toneAndVoice=["Visionary", "Sophisticated", "Empowering", "Authoritative"],
+            ]
+            tones = ["Visionary", "Sophisticated", "Empowering", "Authoritative"]
+
+        return CampaignBriefDeliverable(
+            campaignTitle=title,
+            coreValueProposition=core_val,
+            targetPersonas=personas,
+            messagingPillars=pillars,
+            toneAndVoice=tones,
         )
 
     async def run_creative_content(
@@ -364,15 +613,27 @@ class A2ASubAgentClient:
         feedback: str | None = None,
         context_id: str | None = None,
         user_id: str | None = None,
+        visual_prompt_override: str | None = None,
+        language: str = "ko",
     ) -> CreativeContentDeliverable:
         """Run [P3] Creative Content Agent."""
         campaign_id = context_id or "default"
         user_line = f"User ID: {user_id}\n" if user_id else ""
+        target_lang = resolve_language(
+            f"{brief.campaignTitle} {brief.coreValueProposition} {feedback or ''}",
+            language,
+        )
+        lang_directive = (
+            "\nCRITICAL LANGUAGE REQUIREMENT: Output visualConceptTitle, headlineCopy, bodyCopy, and callToAction strictly in Korean (한국어로 작성). For visualPromptUsed, use descriptive English for high-quality image generation.\n"
+            if target_lang == "ko"
+            else "\nCRITICAL LANGUAGE REQUIREMENT: Output visualConceptTitle, headlineCopy, bodyCopy, callToAction, and visualPromptUsed strictly in English.\n"
+        )
         prompt = (
             f"{user_line}"
             f"Campaign ID / Session ID: {campaign_id}\n"
             f"Campaign Brief: {brief.model_dump_json()}\n"
-            f"Human Revision Instructions: {feedback or 'None'}\n\n"
+            f"Human Revision Instructions: {feedback or 'None'}\n"
+            f"{lang_directive}\n"
             "Translate the brief into marketing headline, body copy, CTA, and a photorealistic 16:9 visual prompt for Nano Banana. "
             "If Human Revision Instructions are provided, rigorously align the visual concept and copy with the requested changes."
         )
@@ -383,7 +644,6 @@ class A2ASubAgentClient:
                     self.p3_url, prompt, context_id=context_id
                 )
                 deliv = CreativeContentDeliverable.model_validate(data)
-                # Normalize assetUrl and storageUri if remote subagent returned direct GCS URL
                 if deliv.assetUrl and (
                     deliv.assetUrl.startswith("http")
                     or deliv.assetUrl.startswith("gs://")
@@ -397,7 +657,7 @@ class A2ASubAgentClient:
                     e,
                 )
 
-        # Delegate execution entirely to the creative_content subagent pipeline
+        # Delegate execution to the creative_content subagent pipeline
         from app.agents.creative_content.agent import run_creative_content_pipeline
 
         logger.info(
@@ -408,6 +668,8 @@ class A2ASubAgentClient:
             feedback=feedback,
             session_id=campaign_id,
             user_id=user_id,
+            visual_prompt_override=visual_prompt_override,
+            language=target_lang,
         )
 
     async def run_performance_insights(
@@ -419,8 +681,18 @@ class A2ASubAgentClient:
         creative: CreativeContentDeliverable | None = None,
         feedback: str | None = None,
         context_id: str | None = None,
+        language: str = "ko",
     ) -> PerformanceInsightsDeliverable:
         """Run [P4] Performance & Insights Agent."""
+        target_lang = resolve_language(
+            f"{brief.campaignTitle} {feedback or ''}", language
+        )
+        lang_directive = (
+            "\nCRITICAL LANGUAGE REQUIREMENT: Output channelAllocations rationale, recommendations, and visualConceptSummary strictly in Korean (한국어로 작성). Do NOT respond in English.\n"
+            if target_lang == "ko"
+            else "\nCRITICAL LANGUAGE REQUIREMENT: Output channelAllocations rationale, recommendations, and visualConceptSummary strictly in English.\n"
+        )
+
         creative_context = ""
         if creative:
             creative_context = (
@@ -435,7 +707,8 @@ class A2ASubAgentClient:
             f"Channels: {channels}\n"
             f"Brief: {brief.model_dump_json()}\n"
             f"{creative_context}"
-            f"Human Revision Instructions: {feedback or 'None'}\n\n"
+            f"Human Revision Instructions: {feedback or 'None'}\n"
+            f"{lang_directive}\n"
             "Model multi-channel budget allocations and forecast realistic KPIs/ROAS. "
             "Evaluate how the creative visual concept drives engagement and conversion on visual channels. "
             "Ensure the sum of percentage equals 100% and amounts equal total budget. "
@@ -460,7 +733,6 @@ class A2ASubAgentClient:
                 prompt, PerformanceInsightsDeliverable, "P4 Performance Insights"
             )
             if ai_deliv:
-                # Ensure 100% budget conservation even with LLM output
                 total_pct = sum(a.percentage for a in ai_deliv.channelAllocations)
                 if round(total_pct, 1) != 100.0 and ai_deliv.channelAllocations:
                     diff = round(100.0 - total_pct, 1)
@@ -494,17 +766,21 @@ class A2ASubAgentClient:
                     else:
                         pct = max(5.0, base_pct - 15.0 / max(1, n_channels - 1))
 
+                if target_lang == "ko":
+                    rationale = f"{ch} 채널을 통한 타겟 도달 및 전환 극대화"
+                    if feedback and ch == boost_channel:
+                        rationale += f" [피드백 반영 예산 증액: {feedback[:25]}]"
+                else:
+                    rationale = f"Primary driver for {ch.lower()} reach"
+                    if feedback and ch == boost_channel:
+                        rationale += f" [Boosted per revision: {feedback[:30]}]"
+
                 allocations.append(
                     ChannelAllocation(
                         channel=ch,
                         allocationAmount=round(budget * (pct / 100.0), 2),
                         percentage=round(pct, 1),
-                        rationale=f"Primary driver for {ch.lower()} reach"
-                        + (
-                            f" [Boosted per revision: {feedback[:30]}]"
-                            if feedback and ch == boost_channel
-                            else ""
-                        ),
+                        rationale=rationale,
                     )
                 )
 
@@ -517,15 +793,37 @@ class A2ASubAgentClient:
                     budget * (allocations[0].percentage / 100.0), 2
                 )
 
-            recs = [
-                "Front-load 40% of digital video spend 7 days prior to Black Friday to prime high-intent audiences.",
-                "Utilize dynamic search ads targeting trade-in keywords for immediate ROAS uplift.",
-                "A/B test the indigo neon visual creative against standard white studio renders in social retargeting.",
-            ]
-            if feedback:
-                recs.insert(
-                    0,
-                    f"Revision Applied: Strategy shifted per instructions ('{feedback}').",
+            if target_lang == "ko":
+                recs = [
+                    "캠페인 런칭 7일 전 디지털 비디오 예산의 40%를 집중 집행하여 사전 관심도 극대화",
+                    "보상판매 및 할인 혜택 관련 고의도 키워드 검색 광고를 집행하여 즉각적인 ROAS 개선",
+                    "소셜 채널에서 제품 기능 시연 비주얼을 활용한 A/B 테스트를 진행하여 전환율 제고",
+                ]
+                if feedback:
+                    recs.insert(
+                        0,
+                        f"피드백 반영: 지침에 따라 전략 수정 완료 ('{feedback}').",
+                    )
+                summary = (
+                    f"평가된 비주얼 컨셉: '{creative.visualConceptTitle}' - 소셜 및 비디오 채널 클릭율 및 전환 상승 견인"
+                    if creative
+                    else None
+                )
+            else:
+                recs = [
+                    "Front-load 40% of digital video spend 7 days prior to Black Friday to prime high-intent audiences.",
+                    "Utilize dynamic search ads targeting trade-in keywords for immediate ROAS uplift.",
+                    "A/B test the indigo neon visual creative against standard white studio renders in social retargeting.",
+                ]
+                if feedback:
+                    recs.insert(
+                        0,
+                        f"Revision Applied: Strategy shifted per instructions ('{feedback}').",
+                    )
+                summary = (
+                    f"Evaluated visual concept: {creative.visualConceptTitle}"
+                    if creative
+                    else None
                 )
 
             deliverable = PerformanceInsightsDeliverable(
@@ -545,15 +843,17 @@ class A2ASubAgentClient:
                 expectedRoas=4.65 if feedback else 4.45,
                 recommendations=recs,
                 creativeAssetUrl=creative.assetUrl if creative else None,
-                visualConceptSummary=f"Evaluated visual concept: {creative.visualConceptTitle}"
-                if creative
-                else None,
+                visualConceptSummary=summary,
             )
 
         # Ensure creativeAssetUrl is carried forward
         if creative and not deliverable.creativeAssetUrl:
             deliverable.creativeAssetUrl = creative.assetUrl
         if creative and not deliverable.visualConceptSummary:
-            deliverable.visualConceptSummary = f"Evaluated visual concept '{creative.visualConceptTitle}' for high-impact social and video engagement."
+            deliverable.visualConceptSummary = (
+                f"평가된 비주얼 컨셉 '{creative.visualConceptTitle}' 기반 집행 최적화"
+                if target_lang == "ko"
+                else f"Evaluated visual concept '{creative.visualConceptTitle}' for high-impact social and video engagement."
+            )
 
         return deliverable

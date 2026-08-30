@@ -226,14 +226,6 @@ class SessionRepository:
             await session.refresh(user)
             return user
 
-    async def get_user_by_id(self, user_id: str) -> UserModel | None:
-        """Retrieve user by UUID."""
-        await self.init_db()
-        async with self.session_factory() as session:
-            stmt = select(UserModel).where(UserModel.user_id == user_id)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
     async def create_auth_session(
         self,
         user_id: str,
@@ -381,8 +373,10 @@ class SessionRepository:
         deliverables: dict[str, Any] | None = None,
         increment_revision: bool = False,
         user_id: str | None = None,
+        budget_amount: float | None = None,
+        currency: str | None = None,
     ) -> CampaignSessionResponse | None:
-        """Update session status, current stage, and deliverables."""
+        """Update session status, current stage, deliverables, budget, and currency."""
         await self.init_db()
         async with self.session_factory() as session:
             stmt = select(CampaignSessionModel).where(
@@ -406,6 +400,10 @@ class SessionRepository:
                 updated_deliv = dict(model.deliverables or {})
                 updated_deliv.update(deliverables)
                 model.deliverables = updated_deliv
+            if budget_amount is not None:
+                model.budget_amount = budget_amount
+            if currency is not None:
+                model.currency = currency
             if increment_revision:
                 model.revision_count += 1
             model.updated_at = utcnow()

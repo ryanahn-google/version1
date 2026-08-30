@@ -9,11 +9,12 @@ import type {
   StageKey,
 } from '../../types/campaign';
 import type { LogEntry } from '../../hooks/useCampaignStream';
-import { PlanningView } from './stages/PlanningView';
+import { useLanguage } from '../../context/LanguageContext';
+import { MarketSensingView } from './stages/MarketSensingView';
+import { StrategyBriefView } from './stages/StrategyBriefView';
 import { ContentView } from './stages/ContentView';
 import { MediaPlanMmmView } from './stages/MediaPlanMmmView';
-import { MediaExecutionView } from './stages/MediaExecutionView';
-import { PerformanceAnalyticsView } from './stages/PerformanceAnalyticsView';
+import { ExecutionAndAnalyticsView } from './stages/ExecutionAndAnalyticsView';
 import { AssistantAndLogsPanel } from './AssistantAndLogsPanel';
 
 interface CampaignWorkspaceProps {
@@ -39,14 +40,6 @@ interface StepMeta {
   backendStage: StageKey;
 }
 
-const WORKSPACE_STEPS: StepMeta[] = [
-  { step: 1, label: '1. 기획', subLabel: 'Planning', backendStage: 'MARKET_SENSING' },
-  { step: 2, label: '2. 콘텐츠', subLabel: 'Content', backendStage: 'CREATIVE_CONTENT' },
-  { step: 3, label: '3. 미디어 계획', subLabel: 'MMM', backendStage: 'PERFORMANCE_INSIGHTS' },
-  { step: 4, label: '4. 미디어 집행', subLabel: 'Execution', backendStage: 'MEDIA_EXECUTION' },
-  { step: 5, label: '5. 성과 분석', subLabel: 'Analytics', backendStage: 'COMPLETED' },
-];
-
 export function CampaignWorkspace({
   session,
   initialPrompt,
@@ -56,39 +49,83 @@ export function CampaignWorkspace({
   isLoading,
   logs,
 }: CampaignWorkspaceProps) {
+  const { locale, t } = useLanguage();
   const [activeStep, setActiveStep] = useState<WorkspaceStep>(1);
+
+  const WORKSPACE_STEPS: StepMeta[] = [
+    {
+      step: 1,
+      label: t.stepper.step1,
+      subLabel: t.stepper.step1Sub,
+      backendStage: 'MARKET_SENSING',
+    },
+    {
+      step: 2,
+      label: t.stepper.step2,
+      subLabel: t.stepper.step2Sub,
+      backendStage: 'STRATEGY_BRIEF',
+    },
+    {
+      step: 3,
+      label: t.stepper.step3,
+      subLabel: t.stepper.step3Sub,
+      backendStage: 'CREATIVE_CONTENT',
+    },
+    {
+      step: 4,
+      label: t.stepper.step4,
+      subLabel: t.stepper.step4Sub,
+      backendStage: 'PERFORMANCE_INSIGHTS',
+    },
+    {
+      step: 5,
+      label: t.stepper.step5,
+      subLabel: t.stepper.step5Sub,
+      backendStage: 'COMPLETED',
+    },
+  ];
+
+  const isCompleted =
+    session?.status === 'COMPLETED' ||
+    session?.currentStage === 'COMPLETED' ||
+    session?.currentStage === 'MEDIA_EXECUTION';
 
   const canAccessStep = (step: WorkspaceStep) => {
     if (step === activeStep) return true;
     if (!session) return step === 1;
 
-    // Strict rule: Can only navigate back to immediately preceding stage (activeStep - 1)
+    // When campaign is completed, all stages are accessible for review
+    if (isCompleted) return true;
+
+    // Strict rule during active review: Can navigate back to immediately preceding stage (activeStep - 1)
     if (step === activeStep - 1) return true;
 
-    // Moving further back than activeStep - 1 is strictly prohibited!
+    // Moving further back than activeStep - 1 is prohibited during in-progress pipeline
     if (step < activeStep - 1) return false;
 
     // Advancing forward is allowed only if backend session reached that stage
     const stage = session.currentStage;
-    const isCompleted = session.status === 'COMPLETED' || stage === 'COMPLETED';
 
     if (step === 2) {
       return (
+        stage === 'STRATEGY_BRIEF' ||
         stage === 'CREATIVE_CONTENT' ||
         stage === 'PERFORMANCE_INSIGHTS' ||
-        stage === 'MEDIA_EXECUTION' ||
-        isCompleted
+        stage === 'MEDIA_EXECUTION'
       );
     }
     if (step === 3) {
       return (
+        stage === 'CREATIVE_CONTENT' ||
         stage === 'PERFORMANCE_INSIGHTS' ||
-        stage === 'MEDIA_EXECUTION' ||
-        isCompleted
+        stage === 'MEDIA_EXECUTION'
       );
     }
     if (step === 4) {
-      return stage === 'MEDIA_EXECUTION' || isCompleted;
+      return (
+        stage === 'PERFORMANCE_INSIGHTS' ||
+        stage === 'MEDIA_EXECUTION'
+      );
     }
     if (step === 5) {
       return isCompleted;
@@ -98,10 +135,20 @@ export function CampaignWorkspace({
 
   const handleStepClick = (step: WorkspaceStep) => {
     if (step === activeStep) return;
+
+    // If campaign is completed, navigate freely between all 5 stages without triggering rollback
+    if (isCompleted) {
+      setActiveStep(step);
+      return;
+    }
+
     if (step === activeStep - 1) {
       if (
         window.confirm(
-          `이전 단계(${WORKSPACE_STEPS[step - 1].label})로 돌아가서 수정하시겠습니까? (이전 단계 산출물 재작성/수정 모드로 전환됩니다)`
+          t.stepper.rollbackConfirm.replace(
+            '{step}',
+            WORKSPACE_STEPS[step - 1].label
+          )
         )
       ) {
         if (onRollbackStage) {
@@ -122,18 +169,19 @@ export function CampaignWorkspace({
       setActiveStep(1);
       return;
     }
-    if (session.status === 'COMPLETED' || session.currentStage === 'COMPLETED') {
-      setActiveStep(5);
-    } else if (
-      session.currentStage === 'MARKET_SENSING' ||
-      session.currentStage === 'STRATEGY_BRIEF'
+    if (
+      session.status === 'COMPLETED' ||
+      session.currentStage === 'COMPLETED' ||
+      session.currentStage === 'MEDIA_EXECUTION'
     ) {
+      setActiveStep(5);
+    } else if (session.currentStage === 'MARKET_SENSING') {
       setActiveStep(1);
-    } else if (session.currentStage === 'CREATIVE_CONTENT') {
+    } else if (session.currentStage === 'STRATEGY_BRIEF') {
       setActiveStep(2);
-    } else if (session.currentStage === 'PERFORMANCE_INSIGHTS') {
+    } else if (session.currentStage === 'CREATIVE_CONTENT') {
       setActiveStep(3);
-    } else if (session.currentStage === 'MEDIA_EXECUTION') {
+    } else if (session.currentStage === 'PERFORMANCE_INSIGHTS') {
       setActiveStep(4);
     }
   }, [session?.currentStage, session?.status]);
@@ -144,7 +192,13 @@ export function CampaignWorkspace({
     'Black Friday Galaxy S27 캠페인';
 
   const getStepStatus = (step: WorkspaceStep) => {
-    if (session?.status === 'COMPLETED') return 'COMPLETED';
+    if (
+      session?.status === 'COMPLETED' ||
+      session?.currentStage === 'COMPLETED' ||
+      session?.currentStage === 'MEDIA_EXECUTION'
+    ) {
+      return 'COMPLETED';
+    }
     if (activeStep === step) return 'CURRENT';
     if (step < activeStep) return 'COMPLETED';
     return 'PENDING';
@@ -154,7 +208,7 @@ export function CampaignWorkspace({
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f8fafc]">
       {/* Top 5-Stage Breadcrumb Stepper */}
       <div className="bg-white border-b border-[#e2e8f0] px-6 py-3 flex-shrink-0 z-10 shadow-xs">
-        <div className="max-w-5xl mx-auto flex items-center justify-between overflow-x-auto gap-2">
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-3 px-2 overflow-x-auto lg:overflow-x-visible">
           {WORKSPACE_STEPS.map((s, idx) => {
             const isSelected = activeStep === s.step;
             const status = getStepStatus(s.step);
@@ -167,8 +221,10 @@ export function CampaignWorkspace({
                   onClick={() => handleStepClick(s.step)}
                   disabled={!isAccessible}
                   title={
-                    s.step < activeStep - 1
-                      ? '바로 이전 단계로만 돌아갈 수 있습니다.'
+                    !isCompleted && s.step < activeStep - 1
+                      ? locale === 'ko'
+                        ? '바로 이전 단계로만 돌아갈 수 있습니다.'
+                        : 'You can only navigate to the immediately preceding stage.'
                       : undefined
                   }
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition text-xs whitespace-nowrap ${
@@ -222,7 +278,7 @@ export function CampaignWorkspace({
         {/* Active Stage Canvas */}
         <main className="flex-1 overflow-y-auto min-w-0">
           {activeStep === 1 && (
-            <PlanningView
+            <MarketSensingView
               session={session}
               initialPrompt={initialPrompt}
               onStartSimulation={onStartSimulation}
@@ -231,7 +287,7 @@ export function CampaignWorkspace({
             />
           )}
           {activeStep === 2 && (
-            <ContentView
+            <StrategyBriefView
               session={session}
               onApproveOrRevise={onApproveOrRevise}
               onRollbackStage={onRollbackStage}
@@ -239,7 +295,7 @@ export function CampaignWorkspace({
             />
           )}
           {activeStep === 3 && (
-            <MediaPlanMmmView
+            <ContentView
               session={session}
               onApproveOrRevise={onApproveOrRevise}
               onRollbackStage={onRollbackStage}
@@ -247,28 +303,30 @@ export function CampaignWorkspace({
             />
           )}
           {activeStep === 4 && (
-            <MediaExecutionView
+            <MediaPlanMmmView
               session={session}
               onApproveOrRevise={onApproveOrRevise}
               onRollbackStage={onRollbackStage}
               isLoading={isLoading}
             />
           )}
-          {activeStep === 5 && <PerformanceAnalyticsView session={session} />}
+          {activeStep === 5 && (
+            <ExecutionAndAnalyticsView session={session} />
+          )}
         </main>
 
         {/* Right Assistant & Logs Panel */}
         <AssistantAndLogsPanel
           activeStage={
             activeStep === 1
-              ? 'STRATEGY_BRIEF'
+              ? 'MARKET_SENSING'
               : activeStep === 2
-              ? 'CREATIVE_CONTENT'
+              ? 'STRATEGY_BRIEF'
               : activeStep === 3
-              ? 'PERFORMANCE_INSIGHTS'
+              ? 'CREATIVE_CONTENT'
               : activeStep === 4
-              ? 'MEDIA_EXECUTION'
-              : 'COMPLETED'
+              ? 'PERFORMANCE_INSIGHTS'
+              : 'MEDIA_EXECUTION'
           }
           logs={logs}
           isStreaming={isLoading}
