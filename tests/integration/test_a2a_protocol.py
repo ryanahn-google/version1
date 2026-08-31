@@ -48,6 +48,8 @@ async def test_p1_market_sensing_agent_card():
             card = resp.json()
             assert card["name"] == "market_sensing_agent"
             assert "capabilities" in card
+            skill_names = [s.get("name") for s in card.get("skills", [])]
+            assert "google_search" in skill_names
 
 
 @pytest.mark.asyncio
