@@ -51,7 +51,7 @@ for agent in "${SUBAGENTS[@]}"; do
     --project "${PROJECT_ID}"
     --region "${REGION}"
     --service-account "${SUBAGENT_SA}"
-    --enable-agent-identity
+    --agent-identity
     --update-env-vars="ARTIFACTS_BUCKET_NAME=${ARTIFACTS_BUCKET},PROJECT_ID=${PROJECT_ID},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ENV=${ENV}"
     --no-wait
   )
