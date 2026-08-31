@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+
 from app.schemas.campaign import CreateCampaignRequest
 
 
@@ -43,3 +45,21 @@ def test_root_endpoint_does_not_redirect_to_dev_ui() -> None:
     # Confirm ADK dev-ui is not mounted
     dev_ui_resp = client.get("/dev-ui/", follow_redirects=False)
     assert dev_ui_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_parse_campaign_prompt_fallback() -> None:
+    """Verify parse_campaign_prompt falls back cleanly to objective-only."""
+    from app.orchestrator.a2a_client import A2ASubAgentClient
+
+    client = A2ASubAgentClient()
+    prompt = "20대 대학생 타겟으로 신제품 런칭 캠페인 기획해줘"
+    parsed = await client.parse_campaign_prompt(prompt, language="ko")
+
+    assert parsed.campaignObjective == prompt
+    assert parsed.brandName == ""
+    assert parsed.productName == ""
+    assert parsed.targetAudience == ""
+    assert parsed.budgetAmount is None
+    assert parsed.currency == "KRW"
+    assert parsed.channels == []
