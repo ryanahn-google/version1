@@ -130,28 +130,3 @@ resource "google_service_account_iam_member" "app_sa_token_creator" {
   depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
 
-# 6. Grant Service Extensions (DEP) service agent permissions to inspect payloads via Model Armor
-resource "google_project_iam_member" "service_extensions_model_armor_callout" {
-  for_each   = local.deploy_project_ids
-  project    = each.value
-  role       = "roles/modelarmor.calloutUser"
-  member     = "serviceAccount:service-${data.google_project.projects[each.key].number}@gcp-sa-dep.iam.gserviceaccount.com"
-  depends_on = [resource.google_project_service.deploy_project_services]
-}
-
-resource "google_project_iam_member" "service_extensions_model_armor_user" {
-  for_each   = local.deploy_project_ids
-  project    = each.value
-  role       = "roles/modelarmor.user"
-  member     = "serviceAccount:service-${data.google_project.projects[each.key].number}@gcp-sa-dep.iam.gserviceaccount.com"
-  depends_on = [resource.google_project_service.deploy_project_services]
-}
-
-resource "google_project_iam_member" "service_extensions_service_usage_consumer" {
-  for_each   = local.deploy_project_ids
-  project    = each.value
-  role       = "roles/serviceusage.serviceUsageConsumer"
-  member     = "serviceAccount:service-${data.google_project.projects[each.key].number}@gcp-sa-dep.iam.gserviceaccount.com"
-  depends_on = [resource.google_project_service.deploy_project_services]
-}
-

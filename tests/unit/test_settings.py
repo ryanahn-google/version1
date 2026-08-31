@@ -425,7 +425,7 @@ def test_prohibit_direct_os_environ_in_application_code() -> None:
     violations: list[str] = []
 
     for py_file in app_dir.rglob("*.py"):
-        if "__pycache__" in str(py_file):
+        if "__pycache__" in str(py_file) or ".venv" in str(py_file):
             continue
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))

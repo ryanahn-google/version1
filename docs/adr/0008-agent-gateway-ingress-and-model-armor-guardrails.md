@@ -1,9 +1,12 @@
 # ADR-0008: Agent Gateway Ingress and Model Armor Inline Guardrails
 
-- **Status**: Accepted
+- **Status**: Superseded (Direct A2A with Orchestrator Model Armor Adopted)
 - **Date**: 2026-08-31
 - **Deciders**: Ryan Ahn (FDE Lead), Enterprise Security Lead
-- **Related**: [docs/design/TDD.md](../design/TDD.md), [deployment/terraform/cicd/gateway.tf](../../deployment/terraform/cicd/gateway.tf), [deployment/terraform/cicd/model_armor.tf](../../deployment/terraform/cicd/model_armor.tf), [app/orchestrator/a2a_client.py](../../app/orchestrator/a2a_client.py)
+- **Related**: [docs/design/TDD.md](../design/TDD.md), [deployment/terraform/cicd/model_armor.tf](../../deployment/terraform/cicd/model_armor.tf), [app/orchestrator/security.py](../../app/orchestrator/security.py)
+
+> [!NOTE]
+> **Implementation Update (2026-08-31)**: During infrastructure apply, Google Cloud's `AgentGateway` resource endpoint returned `Error 501: unimplemented` on the regional control plane in `asia-northeast3` (preview feature not yet implemented server-side in the public control plane). Consequently, `AgentGateway` and Service Extensions IaC definitions were cleanly removed from Terraform. Zero-trust guardrails are enforced directly via Model Armor at the Cloud Run Orchestrator edge (`app/orchestrator/security.py`) and subagents use SPIFFE-based Agent Identity with direct A2A communication.
 
 ## Context
 Marketing Value Creator (MVC) deploys four domain-specialized subagents ([P1] Market Sensing, [P2] Strategy & Brief, [P3] Creative Content, [P4] Performance & Insights) to Vertex AI Agent Runtime (Reasoning Engine) in `asia-northeast3` (Seoul). The central Cloud Run Orchestrator coordinates campaign execution by invoking these subagents via the Agent-to-Agent (A2A) protocol.
