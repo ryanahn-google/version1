@@ -299,17 +299,17 @@ export function ExecutionAndAnalyticsView({
           <table className="w-full text-left text-xs">
             <thead className="text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
               <tr>
-                <th className="pb-3 font-semibold">{t.mmm.tableChannel}</th>
-                <th className="pb-3 font-semibold text-right">
+                <th className="pb-3 font-semibold whitespace-nowrap min-w-[110px]">{t.mmm.tableChannel}</th>
+                <th className="pb-3 font-semibold text-right whitespace-nowrap min-w-[140px]">
                   {t.mmm.tableAllocation}
                 </th>
-                <th className="pb-3 font-semibold text-right">
+                <th className="pb-3 font-semibold text-right whitespace-nowrap min-w-[80px]">
                   {t.mmm.tablePercentage}
                 </th>
                 <th className="pb-3 font-semibold pl-4">
                   {t.mmm.tableRationale}
                 </th>
-                <th className="pb-3 font-semibold text-center">
+                <th className="pb-3 font-semibold text-center whitespace-nowrap min-w-[90px]">
                   {t.common.status}
                 </th>
               </tr>
@@ -333,19 +333,20 @@ export function ExecutionAndAnalyticsView({
                       );
                   return (
                     <tr key={idx} className="hover:bg-slate-50 transition">
-                      <td className="py-3.5 font-semibold text-slate-900">
+                      <td className="py-3.5 font-semibold text-slate-900 whitespace-nowrap min-w-[110px]">
                         {item.channel}
                       </td>
-                      <td className="py-3.5 text-right font-mono text-slate-800 font-medium">
-                        {currencySymbol} {amt.toLocaleString()}
+                      <td className="py-3.5 text-right font-mono text-slate-800 font-medium whitespace-nowrap min-w-[140px]">
+                        <span className="inline-block mr-1">{currencySymbol}</span>
+                        <span>{amt.toLocaleString()}</span>
                       </td>
-                      <td className="py-3.5 text-right font-mono font-bold text-blue-600">
+                      <td className="py-3.5 text-right font-mono font-bold text-blue-600 whitespace-nowrap min-w-[80px]">
                         {item.percentage}%
                       </td>
                       <td className="py-3.5 pl-4 text-slate-600 text-xs max-w-md">
                         {item.rationale || '-'}
                       </td>
-                      <td className="py-3.5 text-center">
+                      <td className="py-3.5 text-center whitespace-nowrap min-w-[90px]">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                           {t.execution.statusReady}
@@ -378,11 +379,11 @@ export function ExecutionAndAnalyticsView({
             <table className="w-full text-left text-xs">
               <thead className="text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
                 <tr>
-                  <th className="pb-3 font-semibold">{t.mmm.tableChannel}</th>
-                  <th className="pb-3 font-semibold text-right">
+                  <th className="pb-3 font-semibold whitespace-nowrap min-w-[110px]">{t.mmm.tableChannel}</th>
+                  <th className="pb-3 font-semibold text-right whitespace-nowrap min-w-[140px]">
                     {t.mmm.tableAllocation}
                   </th>
-                  <th className="pb-3 font-semibold text-right">
+                  <th className="pb-3 font-semibold text-right whitespace-nowrap min-w-[80px]">
                     {t.mmm.tablePercentage}
                   </th>
                   <th className="pb-3 font-semibold pl-4">
@@ -397,13 +398,14 @@ export function ExecutionAndAnalyticsView({
                     : Math.round(budget * ((item.percentage || 10) / 100));
                   return (
                     <tr key={idx} className="hover:bg-slate-50 transition">
-                      <td className="py-3.5 font-semibold text-slate-800">
+                      <td className="py-3.5 font-semibold text-slate-800 whitespace-nowrap min-w-[110px]">
                         {item.channel}
                       </td>
-                      <td className="py-3.5 text-right font-mono text-slate-900 font-semibold">
-                        {currencySymbol} {amt.toLocaleString()}
+                      <td className="py-3.5 text-right font-mono text-slate-900 font-semibold whitespace-nowrap min-w-[140px]">
+                        <span className="inline-block mr-1">{currencySymbol}</span>
+                        <span>{amt.toLocaleString()}</span>
                       </td>
-                      <td className="py-3.5 text-right font-mono font-bold text-blue-600">
+                      <td className="py-3.5 text-right font-mono font-bold text-blue-600 whitespace-nowrap min-w-[80px]">
                         {item.percentage}%
                       </td>
                       <td className="py-3.5 pl-4 text-slate-600 text-xs">
