@@ -197,15 +197,15 @@ async def get_campaign_visual(
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
         )
 
-    # Object not found or unavailable in GCS: cleanly redirect to sample fallback visual
-    logger.info(
-        "Visual blob '%s' not present in GCS. Redirecting to fallback asset.",
+    # Object not found or unavailable in GCS: return 404 Not Found
+    logger.warning(
+        "Visual blob '%s' not present or inaccessible in Cloud Storage bucket '%s'.",
         blob_path,
+        target_bucket,
     )
-    return RedirectResponse(
-        url=storage_service.FALLBACK_ASSET_URL,
-        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-        headers={"Cache-Control": "public, max-age=3600"},
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Visual asset file not found or inaccessible in storage for session '{sessionId}'.",
     )
 
 

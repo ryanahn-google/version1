@@ -372,7 +372,6 @@ class CampaignOrchestrationEngine:
             if session.deliverables.creativeContent:
                 if committed_gcs_url:
                     session.deliverables.creativeContent.storageUri = committed_gcs_url
-                if session.deliverables.creativeContent.storageUri:
                     session.deliverables.creativeContent.assetUrl = (
                         f"/api/v1/campaigns/{session_id}/visual"
                     )

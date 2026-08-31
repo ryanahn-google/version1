@@ -35,8 +35,13 @@ export function ContentView({
   const { locale, t } = useLanguage();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const creativeData = session?.deliverables?.creativeContent;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [creativeData?.assetUrl, session?.sessionId, session?.revisionCount]);
   const isReviewPending =
     session?.status === 'PAUSED_FOR_REVIEW' &&
     session?.currentStage === 'CREATIVE_CONTENT';
@@ -215,41 +220,46 @@ export function ContentView({
 
             {/* Image Preview Box */}
             <div className="relative bg-slate-900 h-64 flex items-center justify-center overflow-hidden">
-              {creativeData?.assetUrl ? (
-                <img
-                  src={`${creativeData.assetUrl}${creativeData.assetUrl.includes('?') ? '&' : '?'}v=${session?.revisionCount || 0}`}
-                  alt="Generated Deliverable"
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer"
-                  onClick={() => setLightboxOpen(true)}
-                />
+              {creativeData?.assetUrl && !imageError ? (
+                <>
+                  <img
+                    src={`${creativeData.assetUrl}${creativeData.assetUrl.includes('?') ? '&' : '?'}v=${session?.revisionCount || 0}`}
+                    alt="Generated Deliverable"
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer"
+                    onClick={() => setLightboxOpen(true)}
+                    onError={() => setImageError(true)}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxOpen(true)}
+                      className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
+                      title={t.content.maximize}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </button>
+                    <a
+                      href={creativeData.assetUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
+                      title={t.content.openNewTab}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                </>
               ) : (
-                <div className="flex flex-col items-center justify-center text-slate-500">
-                  <ImageIcon className="h-8 w-8 mb-1 text-slate-600" />
-                  <span className="text-[11px]">이미지 렌더링 완료</span>
+                <div className="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                  <ImageIcon className="h-10 w-10 mb-2 text-slate-600" />
+                  <span className="text-xs font-semibold text-slate-300">
+                    {t.content.noImage}
+                  </span>
+                  <span className="text-[11px] text-slate-500 mt-1 max-w-xs">
+                    {t.content.noImageDesc}
+                  </span>
                 </div>
               )}
-
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLightboxOpen(true)}
-                  className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
-                  title={t.content.maximize}
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </button>
-                {creativeData?.assetUrl && (
-                  <a
-                    href={creativeData.assetUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
-                    title={t.content.openNewTab}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-              </div>
             </div>
 
             {/* Card Footer Status */}
@@ -257,11 +267,19 @@ export function ContentView({
               <div className="flex items-center gap-1.5">
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                    !creativeData?.assetUrl || imageError
+                      ? 'bg-slate-400'
+                      : isApproved
+                        ? 'bg-emerald-500'
+                        : 'bg-amber-500 animate-pulse'
                   }`}
                 />
                 <span className="text-[11px] font-medium text-slate-700">
-                  {isApproved ? t.common.approvedGcs : t.common.draftReviewable}
+                  {!creativeData?.assetUrl || imageError
+                    ? t.content.noImage
+                    : isApproved
+                      ? t.common.approvedGcs
+                      : t.common.draftReviewable}
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono">
@@ -378,7 +396,7 @@ export function ContentView({
       )}
 
       {/* Lightbox Modal */}
-      {lightboxOpen && creativeData?.assetUrl && (
+      {lightboxOpen && creativeData?.assetUrl && !imageError && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm"
           onClick={() => setLightboxOpen(false)}

@@ -121,6 +121,14 @@ class DraftImageStore:
         gcs_url = save_visual_marketing_asset(
             image_bytes, session_id=clean_id, user_id=user_id
         )
+        if not gcs_url:
+            logger.warning(
+                "Failed to commit draft image to GCS for session '%s' (user: '%s').",
+                clean_id,
+                user_id,
+            )
+            return None
+
         logger.info(
             "Successfully committed draft image to GCS for session '%s'"
             " (user: '%s'): %s",

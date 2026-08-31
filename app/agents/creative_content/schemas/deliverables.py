@@ -123,8 +123,9 @@ class CreativeContentDeliverable(BaseModel):
     visualPromptUsed: str = Field(
         ..., description="High-detail prompt dispatched to image generation model"
     )
-    assetUrl: str = Field(
-        ..., description="GCS URI or accessible HTTP URL of generated marketing image"
+    assetUrl: str | None = Field(
+        default=None,
+        description="GCS URI or accessible HTTP URL of generated marketing image",
     )
     storageUri: str | None = Field(
         default=None,

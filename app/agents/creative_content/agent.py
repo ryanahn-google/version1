@@ -47,7 +47,6 @@ logger = logging.getLogger(__name__)
 
 TEXT_MODEL = "gemini-3.5-flash-lite"
 IMAGE_MODEL = "gemini-3.1-flash-lite-image"  # Nano Banana 2 Lite
-FALLBACK_ASSET_URL = "https://storage.googleapis.com/mvc-artifacts-public/campaigns/galaxy_s27_visual.jpg"
 
 # --- Step 1: Prompt & Copywriting Agent ---
 COPY_AND_PROMPT_INSTRUCTION = """
@@ -155,7 +154,7 @@ def generate_marketing_visual(
             store = get_draft_image_store()
             if store:
                 return store.save_draft(effective_session_id, _MOCK_PNG_BYTES)
-        return FALLBACK_ASSET_URL
+        return None
 
     try:
         from google.genai import Client
@@ -220,7 +219,7 @@ def generate_marketing_visual(
     except Exception as exc:
         logger.warning("P3 Tool generate_marketing_visual failed: %s", exc)
 
-    return FALLBACK_ASSET_URL
+    return None
 
 
 async def synthesize_nano_banana_image(
@@ -229,8 +228,7 @@ async def synthesize_nano_banana_image(
     user_id: str | None = None,
 ) -> str | None:
     """Synthesize marketing visual using Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage."""
-    url = generate_marketing_visual(prompt, session_id=session_id, user_id=user_id)
-    return url if url != FALLBACK_ASSET_URL else None
+    return generate_marketing_visual(prompt, session_id=session_id, user_id=user_id)
 
 
 IMAGE_SYNTHESIS_INSTRUCTION = """
@@ -378,7 +376,8 @@ async def run_creative_content_pipeline(
         deliverable = CreativeContentDeliverable(
             visualConceptTitle=concept_title,
             visualPromptUsed=visual_prompt,
-            assetUrl=FALLBACK_ASSET_URL,
+            assetUrl=None,
+            storageUri=None,
             headlineCopy=headline,
             bodyCopy=body_copy,
             callToAction=cta,
@@ -400,5 +399,8 @@ async def run_creative_content_pipeline(
                 deliverable.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
             else:
                 deliverable.assetUrl = generated_url
+        else:
+            deliverable.assetUrl = None
+            deliverable.storageUri = None
 
     return deliverable

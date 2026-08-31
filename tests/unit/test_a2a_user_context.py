@@ -237,3 +237,42 @@ def test_generate_marketing_visual_ignores_synthetic_a2a_user(
                 save_kwargs = mock_save.call_args[1]
                 assert save_kwargs["user_id"] == expected_fallback_user
                 assert not save_kwargs["user_id"].startswith("A2A_USER_")
+
+
+@pytest.mark.asyncio
+async def test_a2a_remote_call_blocks_model_armor() -> None:
+    """Verify _call_remote_a2a translates Model Armor block to HTTP 400."""
+    from fastapi import HTTPException
+
+    client = A2ASubAgentClient()
+    mock_resp = MagicMock()
+    mock_resp.status = 400
+    mock_resp.text = AsyncMock(
+        return_value='{"error": "Prompt rejected by Model Armor inspection."}'
+    )
+
+    class FakePostContext:
+        async def __aenter__(self):
+            return mock_resp
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class FakeSession:
+        def post(self, *args, **kwargs):
+            return FakePostContext()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with patch("aiohttp.ClientSession", return_value=FakeSession()):
+        with pytest.raises(HTTPException) as exc_info:
+            await client._call_remote_a2a(
+                endpoint_url="https://mock-endpoint",
+                prompt_text="malicious prompt",
+            )
+        assert exc_info.value.status_code == 400
+        assert "Model Armor" in exc_info.value.detail
