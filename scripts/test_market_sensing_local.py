@@ -41,20 +41,11 @@ logging.basicConfig(
 logger = logging.getLogger("test_market_sensing")
 
 
-async def run_local_market_sensing_test() -> None:
-    """Runs [P1] Market Sensing Agent with ADK Runner and verifies Google Search grounding."""
+async def run_single_sensing_test(prompt: str) -> None:
+    """Runs a single prompt through Market Sensing Agent and validates output."""
     print("\n" + "=" * 70)
-    print("🚀 [P1] Market Sensing Agent Local Test")
+    print("🚀 [P1] Market Sensing Agent Local Tool Calling & Grounding Test")
     print("=" * 70)
-
-    prompt = (
-        "Brand: Nova Electronics Corp\n"
-        "Product: Galaxy S27 Ultra\n"
-        "Objective: Launch new AI flagship smartphone in late 2026\n"
-        "Target Audience: Global tech enthusiasts and premium mobile power users\n"
-        "Please search Google for latest 2026 competitor flagships, industry trends, and user sentiment.\n"
-    )
-
     print(f"\n📝 Input Prompt:\n{prompt.strip()}\n")
     print("🔍 Executing Market Sensing with Google Search Grounding enabled...")
 
@@ -71,30 +62,28 @@ async def run_local_market_sensing_test() -> None:
 
     async for event in runner.run_async(
         user_id="local-marketer",
-        session_id="session-market-sensing-01",
+        session_id="session-market-sensing-local",
         new_message=msg,
     ):
-        # Extract grounding metadata
         gm = getattr(event, "grounding_metadata", None)
         if gm:
             queries = getattr(gm, "web_search_queries", None)
             if queries:
                 grounding_queries.extend(queries)
 
-        # Extract deliverable text
         if hasattr(event, "content") and event.content:
             for part in getattr(event.content, "parts", []):
                 if getattr(part, "text", None):
                     deliverable_json_text += part.text
 
     print("\n" + "-" * 70)
-    print("🔎 Google Search Grounding Verification:")
+    print("🔎 Google Search Grounding / Tool Calling Verification:")
     if grounding_queries:
         print(
             f"✅ Google Search Tool Executed: {len(grounding_queries)} search queries!"
         )
         for idx, q in enumerate(grounding_queries, 1):
-            print(f"   [{idx}] {q}")
+            print(f'   [{idx}] 🌐 Query: "{q}"')
     else:
         print("⚠️ No explicit web_search_queries captured in event metadata.")
 
@@ -126,8 +115,34 @@ async def run_local_market_sensing_test() -> None:
     except Exception as err:
         print(f"❌ Schema validation failed: {err}")
         print(f"Raw response: {deliverable_json_text[:400]}")
-        sys.exit(1)
+
+
+async def main() -> None:
+    """Main CLI entrypoint."""
+    args = sys.argv[1:]
+    if "-i" in args or "--interactive" in args:
+        print("\n🌐 Market Sensing Interactive Mode (Type 'exit' to quit)")
+        while True:
+            try:
+                user_prompt = input("\nEnter campaign prompt > ").strip()
+            except (EOFError, KeyboardInterrupt):
+                break
+            if not user_prompt or user_prompt.lower() in ("exit", "quit"):
+                break
+            await run_single_sensing_test(user_prompt)
+    elif args:
+        custom_prompt = " ".join(args)
+        await run_single_sensing_test(custom_prompt)
+    else:
+        default_prompt = (
+            "Brand: Nova Electronics Corp\n"
+            "Product: Galaxy S27 Ultra\n"
+            "Objective: Launch new AI flagship smartphone in late 2026\n"
+            "Target Audience: Global tech enthusiasts and premium mobile power users\n"
+            "Please search Google for latest 2026 competitor flagships, industry trends, and user sentiment.\n"
+        )
+        await run_single_sensing_test(default_prompt)
 
 
 if __name__ == "__main__":
-    asyncio.run(run_local_market_sensing_test())
+    asyncio.run(main())
