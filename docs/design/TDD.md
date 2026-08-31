@@ -349,8 +349,8 @@ The deployment pipeline spans three dedicated GCP projects:
 ### 17.1 Rollout Stage Matrix
 | Stage | Target / Environment | Scope & Traffic | Exit Gates |
 | :--- | :--- | :--- | :--- |
-| **Stage 1: Dev / PR** | Cloud Build `capstone-cicd` | Automated unit & integration tests | 100% pytest pass (`tests/unit`, `tests/integration`), ruff clean, zero schema drift |
-| **Stage 2: Staging Deploy & Soak** | Cloud Run `capstone-staging-506811` | Automated deployment via `agents-cli deploy` | 30s headless Locust load test (0 errors), test report upload to GCS |
+| **Stage 1: Dev / PR** | Cloud Build `capstone-cicd` | Automated IaC checks & tests | Terraform (`fmt -check`, `init`, `validate`, `plan`), 100% pytest pass (`tests/unit`, `tests/integration`), ruff clean, zero Alembic schema drift |
+| **Stage 2: Staging Deploy & Soak** | Cloud Run `capstone-staging-506811` | Automated deployment via `agents-cli deploy` | Automatic `terraform apply -auto-approve` immediately on merge to `main`, 30s headless Locust load test (0 errors), test report upload to GCS |
 | **Stage 3: Production Promotion** | Cloud Run `capstone-prod-506811` | 100% Production Marketer Traffic | Cloud Build Native Approval Gate (`approval_config { approval_required = true }`) manual sign-off |
 
 ### 17.2 CI/CD Sequence Flow
@@ -360,6 +360,7 @@ sequenceDiagram
     actor Dev as Developer
     participant GH as GitHub (main)
     participant CB_CD as Cloud Build: cd-version1
+    participant TF as Terraform (capstone-cicd)
     participant AR as Artifact Registry
     participant Staging as Staging Cloud Run
     participant Locust as Locust Load Test
@@ -370,16 +371,17 @@ sequenceDiagram
 
     Dev->>GH: git push origin main
     GH->>CB_CD: Webhook Event
-    CB_CD->>AR: 1. Build & push Docker image (Python 3.13)
-    CB_CD->>Staging: 2. Deploy revision via agents-cli deploy
-    CB_CD->>Staging: 3. Fetch Staging URL & OIDC token
-    CB_CD->>Locust: 4. Execute 30s load test (/sessions & /run_sse)
+    CB_CD->>TF: 1. terraform init & apply -auto-approve (Immediate)
+    CB_CD->>AR: 2. Build & push Docker image (Python 3.13)
+    CB_CD->>Staging: 3. Deploy revision via agents-cli deploy
+    CB_CD->>Staging: 4. Fetch Staging URL & OIDC token
+    CB_CD->>Locust: 5. Execute 30s load test (/sessions & /run_sse)
     Locust-->>CB_CD: Load test passed (0 errors)
-    CB_CD->>GCS: 5. Export HTML & CSV test reports
-    CB_CD->>CB_Prod: 6. Trigger production deployment
+    CB_CD->>GCS: 6. Export HTML & CSV test reports
+    CB_CD->>CB_Prod: 7. Trigger production deployment
     Note over CB_Prod: ⏸️ Enters PENDING state (Approval Gate)
-    Operator->>CB_Prod: 7. Inspect test reports & Click Approve
-    CB_Prod->>Prod: 8. Deploy verified container to Production
+    Operator->>CB_Prod: 8. Inspect test reports & Click Approve
+    CB_Prod->>Prod: 9. Deploy verified container to Production
 ```
 
 ### 17.3 Approval Gate Details

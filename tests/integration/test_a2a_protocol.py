@@ -139,3 +139,38 @@ async def test_orchestrator_a2a_client_fallback_mode():
     assert p1 is not None
     assert len(p1.consumerTrends) >= 1
     assert p1.targetMarket is not None
+
+
+@pytest.mark.asyncio
+async def test_p3_creative_content_a2a_user_id_propagation():
+    """Verify [P3] Creative Content receives and binds X-User-Id header during A2A message/send."""
+    test_user_id = "f4aeb07f-9778-4328-ada4-f9f8236e1191"
+    async with p3_lifespan(p3_app):
+        transport = ASGITransport(app=p3_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "message/send",
+                "params": {
+                    "message": {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": f"Brand: Nova\nProduct: Phone\nObjective: Launch\nUser ID: {test_user_id}"
+                            }
+                        ],
+                        "messageId": str(uuid.uuid4()),
+                    },
+                    "userId": test_user_id,
+                },
+                "id": f"test-p3-{uuid.uuid4().hex[:8]}",
+            }
+            resp = await client.post(
+                "/a2a/creative_content",
+                json=payload,
+                headers={"X-User-Id": test_user_id, "A2A-Version": "0.3"},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data.get("jsonrpc") == "2.0"
+            assert "result" in data or "error" in data

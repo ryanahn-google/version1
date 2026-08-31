@@ -21,7 +21,7 @@ Step 2: Native visual asset synthesis and persistence (Nano Banana 2 Lite).
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from google.adk.agents import Agent
 from google.adk.apps import App
@@ -30,25 +30,18 @@ from google.adk.tools.tool_context import ToolContext
 from google.adk.workflow import START, Workflow
 from google.genai import types
 
-if TYPE_CHECKING:
+try:
     from app.schemas.deliverables import (
         CampaignBriefDeliverable,
         CreativeContentDeliverable,
     )
     from app.settings import get_settings
-else:
-    try:
-        from app.schemas.deliverables import (
-            CampaignBriefDeliverable,
-            CreativeContentDeliverable,
-        )
-        from app.settings import get_settings
-    except ImportError:
-        from schemas.deliverables import (  # type: ignore[no-redef]
-            CampaignBriefDeliverable,
-            CreativeContentDeliverable,
-        )
-        from settings import get_settings  # type: ignore[no-redef]
+except ImportError:
+    from schemas.deliverables import (  # type: ignore[no-redef]
+        CampaignBriefDeliverable,
+        CreativeContentDeliverable,
+    )
+    from settings import get_settings  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 
@@ -137,36 +130,37 @@ def generate_marketing_visual(
                 effective_session_id = effective_session_id or getattr(
                     tool_context.session, "id", None
                 )
-                effective_user_id = effective_user_id or getattr(
-                    tool_context.session, "user_id", None
-                )
+                ctx_user_id = getattr(tool_context.session, "user_id", None)
+                if ctx_user_id and not str(ctx_user_id).startswith("A2A_USER_"):
+                    effective_user_id = effective_user_id or str(ctx_user_id)
             if not effective_session_id:
                 effective_session_id = getattr(tool_context, "session_id", None)
             if not effective_user_id:
-                effective_user_id = getattr(tool_context, "user_id", None)
+                ctx_user_id = getattr(tool_context, "user_id", None)
+                if ctx_user_id and not str(ctx_user_id).startswith("A2A_USER_"):
+                    effective_user_id = str(ctx_user_id)
         except Exception as ctx_err:
             logger.debug(
                 "Could not resolve session_id/user_id from tool_context: %s", ctx_err
             )
+
+    if effective_user_id and str(effective_user_id).startswith("A2A_USER_"):
+        effective_user_id = None
 
     settings = get_settings()
     effective_user_id = effective_user_id or settings.user_id
 
     if settings.integration_test:
         if get_draft_image_store:
-            return get_draft_image_store().save_draft(
-                effective_session_id, _MOCK_PNG_BYTES
-            )
+            store = get_draft_image_store()
+            if store:
+                return store.save_draft(effective_session_id, _MOCK_PNG_BYTES)
         return FALLBACK_ASSET_URL
 
     try:
         from google.genai import Client
 
-        project = settings.google_cloud_project or (
-            "capstone-prod-506811"
-            if settings.env == "prod"
-            else "capstone-staging-506811"
-        )
+        project = settings.google_cloud_project
         location = settings.google_cloud_location or "global"
         image_model = settings.image_model or IMAGE_MODEL
 
@@ -194,13 +188,14 @@ def generate_marketing_visual(
 
         if img_bytes:
             if get_draft_image_store:
-                draft_url = get_draft_image_store().save_draft(
-                    effective_session_id, img_bytes
-                )
-                logger.info(
-                    "P3 Tool successfully stored draft visual in memory: %s", draft_url
-                )
-                return draft_url
+                store = get_draft_image_store()
+                if store:
+                    draft_url = store.save_draft(effective_session_id, img_bytes)
+                    logger.info(
+                        "P3 Tool successfully stored draft visual in memory: %s",
+                        draft_url,
+                    )
+                    return draft_url
 
             try:
                 from .storage_service import save_visual_marketing_asset

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 steps:
-
   # Build and Push Orchestrator (Subagents strictly excluded from image)
   - name: "gcr.io/cloud-builders/docker"
     id: build-image

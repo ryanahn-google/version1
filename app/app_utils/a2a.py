@@ -24,13 +24,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from a2a.auth.user import UnauthenticatedUser, User
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import (
     add_a2a_routes_to_fastapi,
     create_agent_card_routes,
     create_jsonrpc_routes,
 )
-from a2a.server.routes.common import DefaultServerCallContextBuilder
+from a2a.server.routes.common import DefaultServerCallContextBuilder, StarletteUser
 from a2a.server.tasks import TaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface
 from a2a.utils.constants import AGENT_CARD_WELL_KNOWN_PATH
@@ -40,13 +41,55 @@ from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
 from app.settings import get_settings
 
 
+class _A2AHeaderUser(User):
+    """A2A User populated from incoming X-User-Id header or JSON-RPC payload."""
+
+    def __init__(self, user_name: str) -> None:
+        self._user_name = user_name
+
+    @property
+    def is_authenticated(self) -> bool:
+        return bool(self._user_name)
+
+    @property
+    def user_name(self) -> str:
+        return self._user_name
+
+
 class _A2AServerCallContextBuilder(DefaultServerCallContextBuilder):
-    """Context builder that ensures A2A-Version defaults correctly when missing.
+    """Context builder that ensures A2A-Version defaults correctly when missing
+    and extracts authenticated caller identity from X-User-Id or JSON-RPC payload.
 
     Proxy infrastructure (e.g. Google Cloud API Gateways) can strip custom HTTP headers
     like 'A2A-Version'. This builder attempts to infer A2A-version from the method name
-    when the header is missing.
+    when the header is missing, and binds the caller's user_id into the ADK runtime session.
     """
+
+    def build_user(self, request) -> User:
+        """Extract user identity from Starlette scope, X-User-Id header, or JSON body."""
+        scope = getattr(request, "scope", {})
+        if "user" in scope and getattr(request, "user", None):
+            return StarletteUser(request.user)
+
+        headers = getattr(request, "headers", {})
+        header_user_id = (
+            headers.get("X-User-Id")
+            or headers.get("x-user-id")
+            or headers.get("X-User-ID")
+        )
+        if header_user_id and header_user_id.strip():
+            return _A2AHeaderUser(header_user_id.strip())
+
+        # Fallback: check parsed JSON body params
+        json_body = getattr(request, "_json", {}) or {}
+        if isinstance(json_body, dict):
+            params = json_body.get("params", {})
+            if isinstance(params, dict):
+                body_user_id = params.get("userId") or params.get("user_id")
+                if body_user_id and str(body_user_id).strip():
+                    return _A2AHeaderUser(str(body_user_id).strip())
+
+        return UnauthenticatedUser()
 
     def build(self, request):
         context = super().build(request)

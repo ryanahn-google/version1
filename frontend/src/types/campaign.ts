@@ -26,18 +26,8 @@ export type StageKey =
   | 'MEDIA_EXECUTION'
   | 'COMPLETED';
 
-export interface ParsePromptRequest {
-  prompt: string;
+export type ParsePromptRequest = components['schemas']['ParsePromptRequest'] & {
   language?: 'ko' | 'en';
-}
-
-export interface ParsePromptResponse {
-  brandName?: string;
-  productName?: string;
-  campaignObjective?: string;
-  targetAudience?: string;
-  budgetAmount?: number | null;
-  currency?: string;
-  channels?: string[];
-}
+};
+export type ParsePromptResponse = components['schemas']['ParsePromptResponse'];
 

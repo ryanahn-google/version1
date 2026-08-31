@@ -14,6 +14,7 @@
 
 """SQLAlchemy-based hybrid session repository for Campaign state management."""
 
+import json
 import secrets
 import uuid
 from datetime import UTC, timedelta
@@ -68,7 +69,11 @@ class SessionRepository:
                     "pool_pre_ping": True,
                 }
             )
-        self.engine = create_async_engine(self.db_url, **engine_kwargs)
+        self.engine = create_async_engine(
+            self.db_url,
+            json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+            **engine_kwargs,
+        )
         self.session_factory = async_sessionmaker(
             self.engine, expire_on_commit=False, class_=AsyncSession
         )

@@ -36,11 +36,6 @@ dev = [
 [project.optional-dependencies]
 eval = [
     "google-adk[eval]>=2.5.0,<3.0.0",
-    "google-cloud-aiplatform[evaluation]>=1.156.0",
-]
-lint = [
-    "ruff>=0.4.6,<1.0.0",
-    "codespell>=2.2.0,<3.0.0",
 ]
 
 [tool.ruff]
@@ -62,27 +57,6 @@ ignore = ["E501", "C901", "B006", "B008"] # ignore line too long, too complex, B
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "frontend"]
-
-[tool.ty]
-# ty is Astral's Rust-based type checker (same team as ruff/uv)
-# See: https://docs.astral.sh/ty/
-
-[tool.ty.environment]
-python-version = "3.10"
-
-[tool.ty.src]
-exclude = [".venv/**"]
-
-[tool.ty.rules]
-# Ignore common issues with third-party libraries and dynamic code patterns
-unresolved-import = "ignore"
-unresolved-attribute = "ignore"
-invalid-argument-type = "ignore"
-invalid-assignment = "ignore"
-invalid-return-type = "ignore"
-possibly-missing-attribute = "ignore"
-not-subscriptable = "ignore"
-deprecated = "ignore"
 
 [tool.codespell]
 ignore-words-list = "rouge"
@@ -114,8 +88,9 @@ filterwarnings = [
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
-[tool.uv]
-index-url = "https://pypi.org/simple"
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
 
 
 

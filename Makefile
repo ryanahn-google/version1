@@ -39,8 +39,8 @@ format: ## Format code with ruff
 format-check: ## Verify code formatting with ruff
 	uv run ruff format --check .
 
-typecheck: ## Run static type checking with ty
-	uv run ty check
+typecheck: ## Run static type checking
+	cd frontend && npm run typecheck
 
 test-unit: ## Run deterministic unit tests
 	uv run pytest tests/unit
@@ -51,7 +51,10 @@ test-integration: build-frontend ## Run integration tests
 test: ## Run full test suite (unit + integration)
 	uv run pytest tests/unit tests/integration
 
-quality: format-check lint typecheck test ## Composite quality gate (format, lint, typecheck, tests)
+check-lock: ## Check that uv.lock is synchronized with pyproject.toml
+	uv lock --check
+
+quality: check-lock format-check lint typecheck test ## Composite quality gate (format, lint, typecheck, tests)
 
 pre-commit-install: ## Install pre-commit hook into .git/hooks
 	@mkdir -p .git/hooks

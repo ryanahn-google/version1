@@ -22,21 +22,28 @@ We implement a **3-Project CI/CD Hub-and-Spoke Topology** using Google Cloud Bui
    - `capstone-prod-506811`: Fully isolated Production environment.
 
 2. **Automated Three-Trigger Pipeline**:
-   - `pr-version1` (`.cloudbuild/pr_checks.yaml`): Triggered on Pull Requests to `main`. Executes `pytest tests/unit` and `pytest tests/integration` to gate merge approval.
+   - `pr-version1` (`.cloudbuild/pr_checks.yaml`): Triggered on Pull Requests to `main`.
+     1. Executes Terraform checks (`terraform fmt -check`, `terraform init`, `terraform validate`, `terraform plan -var-file=vars/env.tfvars`).
+     2. Validates Alembic database migrations (`alembic upgrade head`, `alembic check`).
+     3. Builds React 19 SPA frontend (`npm run build`).
+     4. Executes `pytest tests/unit` and `pytest tests/integration` to gate merge approval.
    - `cd-version1` (`.cloudbuild/staging.yaml`): Triggered on push or merge to `main`.
-     1. Builds the Python 3.13 container image and pushes to `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1:$SHORT_SHA`.
-     2. Deploys to Staging Cloud Run (`version1`) via `agents-cli deploy`.
-     3. Extracts the Staging Cloud Run service URL and generates an internal OIDC authentication token.
-     4. Executes a 30-second headless Locust load test (`tests/load_test/load_test.py`) against `/apps/app/users/.../sessions` and `/run_sse`.
-     5. Exports load test HTML and CSV reports to `gs://capstone-staging-506811-version1-logs/load-test-results/`.
-     6. Invokes the Production deployment trigger (`deploy-version1`) via `gcloud beta builds triggers run deploy-version1`.
+     1. Executes `terraform init` and `terraform apply -auto-approve -var-file=vars/env.tfvars` immediately to provision and update infrastructure across environments.
+     2. Builds the Python 3.13 container image and pushes to `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1:$SHORT_SHA`.
+     3. Deploys P1–P4 sub-agents to Vertex AI Agent Runtime.
+     4. Executes database migrations in staging via Cloud Run Job (`version1-db-migrate`).
+     5. Deploys Orchestrator to Staging Cloud Run (`version1`) via `agents-cli deploy`.
+     6. Extracts the Staging Cloud Run service URL and generates an internal OIDC authentication token.
+     7. Executes a 30-second headless Locust load test (`tests/load_test/load_test.py`) against `/apps/app/users/.../sessions` and `/run_sse`.
+     8. Exports load test HTML and CSV reports to `gs://capstone-staging-506811-version1-logs/load-test-results/`.
+     9. Invokes the Production deployment trigger (`deploy-version1`) via `gcloud beta builds triggers run deploy-version1`.
    - `deploy-version1` (`.cloudbuild/deploy-to-prod.yaml`): Configured with a Cloud Build Native Approval Gate:
      ```hcl
      approval_config {
        approval_required = true
      }
      ```
-     Enters a `PENDING` state until an authorized engineer clicks **Approve** in the Cloud Build Console, deploying the verified container image to `capstone-prod-506811`.
+     Enters a `PENDING` state until an authorized engineer clicks **Approve** in the Cloud Build Console. Upon approval, provisions/verifies production infrastructure via `terraform apply -auto-approve`, executes prod migrations, and deploys verified containers and subagents to `capstone-prod-506811`.
 
 ## Alternatives Considered
 
