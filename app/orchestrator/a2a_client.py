@@ -195,17 +195,34 @@ class A2ASubAgentClient:
                 stage_name,
                 model_name,
             )
+            config: dict[str, Any] = {
+                "response_mime_type": "application/json",
+                "response_schema": schema_cls,
+            }
+            if "Market Sensing" in stage_name:
+                from google.genai import types as genai_types
+
+                config["tools"] = [
+                    genai_types.Tool(google_search=genai_types.GoogleSearch())
+                ]
+
             resp = await asyncio.wait_for(
                 client.aio.models.generate_content(
                     model=model_name,
                     contents=prompt,
-                    config={
-                        "response_mime_type": "application/json",
-                        "response_schema": schema_cls,
-                    },
+                    config=config,
                 ),
-                timeout=8.0,
+                timeout=25.0,
             )
+            if resp.candidates and resp.candidates[0].grounding_metadata:
+                gm = resp.candidates[0].grounding_metadata
+                queries = getattr(gm, "web_search_queries", None)
+                if queries:
+                    logger.info(
+                        "[%s] Grounded with Google Search queries: %s",
+                        stage_name,
+                        queries,
+                    )
             if resp.text:
                 return schema_cls.model_validate_json(resp.text)
         except Exception as exc:
