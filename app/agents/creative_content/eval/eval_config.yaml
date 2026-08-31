@@ -1,0 +1,6 @@
+metrics_to_run:
+  - custom_response_quality
+
+custom_metrics:
+  - name: custom_response_quality
+    custom_function_file: ../../../../tests/eval/response_quality.py

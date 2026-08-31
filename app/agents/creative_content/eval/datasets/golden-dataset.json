@@ -1,12 +1,89 @@
 {
   "eval_cases": [
     {
-      "eval_case_id": "galaxy_s27_black_friday_creative_content",
+      "eval_case_id": "flagship_01_galaxy_s27_ultra_creative_content",
       "prompt": {
         "role": "user",
         "parts": [
           {
-            "text": "Strategy Brief: Campaign Title 'Illuminate the Night with Galaxy S27 Ultra'. Core Value Prop: Pro-grade 200MP sensor with AI nightography. Target: Urban creators. Tone: Sleek, Cinematic, Visionary."
+            "text": "Strategy Brief: Campaign Title 'Illuminate the Night with Galaxy S27 Ultra'. Core Value Prop: Pro-grade 200MP sensor with AI nightography and titanium craftsmanship. Target: Urban creators. Tone: Sleek, Cinematic, Visionary."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_02_neo_qled_8k_tv_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title 'Pure Cinema Reality: Neo QLED 8K'. Core Value Prop: Neural Quantum 8K processing turning every living room into IMAX quality. Target: Cinephiles. Tone: Grand, Elegant, Immersive."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_03_bespoke_ai_laundry_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title 'Simplify Life with Bespoke AI Laundry'. Core Value Prop: One-step wash-and-dry with intelligent eco-sensing. Target: Dual-income families. Tone: Warm, Clean, Reassuring."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_04_novabuds_pro_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title 'Sound Unleashed: NovaBuds Pro 3'. Core Value Prop: Studio-grade lossless spatial sound with adaptive ANC. Target: Gen Z campus students. Tone: Energetic, Youthful, Punchy."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_05_odyssey_monitor_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title 'Master the Game: Odyssey Ark G9'. Core Value Prop: 49-inch curved dual QHD 240Hz OLED mastery. Target: Esports champions. Tone: Intense, Futuristic, Dominant."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_06_flash_sale_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title '48 Hours to Upgrade: Cyber Weekend'. Core Value Prop: Massive trade-in bonus on Galaxy Book5 Ultra. Target: Deal seekers. Tone: Urgent, Bold, Action-Oriented."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_07_micro_budget_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Strategy Brief: Campaign Title 'Acoustic Warmth in Every Corner'. Core Value Prop: Compact architectural soundbar for cafe living. Target: Cafe aesthetic enthusiasts. Tone: Intimate, Minimalist, Sophisticated."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_08_korean_bilingual_creative_content",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "전략 브리프: 캠페인명 '밤을 지배하는 온디바이스 AI, 갤럭시 S27 울트라'. 핵심 가치: 어둠 속에서도 또렷한 2억 화소 나이토그래피. 타깃: 2030 크리에이터. 톤앤매너: 세련됨, 감각적, 혁신적."
           }
         ]
       }

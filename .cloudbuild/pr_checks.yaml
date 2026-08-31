@@ -66,6 +66,16 @@ steps:
         export PATH="$$HOME/.local/bin:$$PATH"
         uv run pytest tests/integration
 
+  # Run evaluation suite syntax and dataset validation
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: evaluation-tests
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        export PATH="$$HOME/.local/bin:$$PATH"
+        uv run pytest tests/eval/test_golden_campaigns.py -k "test_golden_dataset_syntax"
+
 logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:
   env:

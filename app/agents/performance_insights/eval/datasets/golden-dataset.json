@@ -1,12 +1,89 @@
 {
   "eval_cases": [
     {
-      "eval_case_id": "galaxy_s27_black_friday_performance_insights",
+      "eval_case_id": "flagship_01_galaxy_s27_ultra_performance_insights",
       "prompt": {
         "role": "user",
         "parts": [
           {
-            "text": "Campaign Budget: $1,000,000 USD\nSelected Channels: Digital Video, Paid Search, Social Media, Retail Display\nCampaign Objective: Black Friday Global Campaign for Galaxy S27 Ultra."
+            "text": "Campaign Budget: $1,000,000 USD\nSelected Channels: Digital Video, Social Media, Paid Search, Retail Display\nCampaign Objective: Global holiday launch for Galaxy S27 Ultra."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_02_neo_qled_8k_tv_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $800,000 USD\nSelected Channels: Digital Video, Connected TV, Social Media, Paid Search\nCampaign Objective: Launch Neo QLED 8K Vision TV targeting cinephiles."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_03_bespoke_ai_laundry_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $500,000 USD\nSelected Channels: Social Media, Paid Search, Retail Display\nCampaign Objective: All-in-one washer-dryer launch for dual-income families."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_04_novabuds_pro_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $300,000 USD\nSelected Channels: Social Media, Digital Video, Paid Search\nCampaign Objective: Back-to-campus wireless earbuds push."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_05_odyssey_monitor_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $400,000 USD\nSelected Channels: Digital Video, Social Media, Paid Search, Retail Display\nCampaign Objective: 49-inch curved OLED esports monitor launch."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_06_flash_sale_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $50,000 USD\nSelected Channels: Paid Search, Social Media\nCampaign Objective: Urgent 48-hour Cyber Weekend flash promotion."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_07_micro_budget_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Campaign Budget: $5,000 USD\nSelected Channels: Social Media, Paid Search\nCampaign Objective: Hyper-local cafe pop-up studio test."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_08_korean_bilingual_performance_insights",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "총 예산: $600,000 USD\n선택 채널: 디지털 비디오, 소셜 미디어, 유료 검색\n캠페인 목표: 갤럭시 S27 울트라 국내 프리미엄 교체 프로모션."
           }
         ]
       }
