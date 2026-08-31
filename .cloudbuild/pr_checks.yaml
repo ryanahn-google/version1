@@ -13,31 +13,6 @@
 # limitations under the License.
 
 steps:
-  # Terraform Format Check
-  - name: "hashicorp/terraform:1.9.5"
-    id: terraform-fmt
-    dir: "deployment/terraform/cicd"
-    args:
-      - "fmt"
-      - "-check"
-      - "-recursive"
-
-  # Terraform Init
-  - name: "hashicorp/terraform:1.9.5"
-    id: terraform-init
-    dir: "deployment/terraform/cicd"
-    args:
-      - "init"
-      - "-input=false"
-
-  # Terraform Validate
-  - name: "hashicorp/terraform:1.9.5"
-    id: terraform-validate
-    dir: "deployment/terraform/cicd"
-    args:
-      - "validate"
-
-
   # Install uv package manager and sync dependencies
   - name: "gcr.io/cloud-builders/gcloud"
     id: install-dependencies

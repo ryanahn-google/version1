@@ -88,8 +88,9 @@ filterwarnings = [
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
-[tool.uv]
-index-url = "https://pypi.org/simple"
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
 
 
 

@@ -72,6 +72,7 @@ class CampaignOrchestrationEngine:
             objective=request.campaignObjective,
             audience=request.targetAudience,
             context_id=f"{session_id}-p1",
+            user_id=user_id,
             language=lang,
         )
         updated = await self.repo.update_session(
@@ -151,6 +152,7 @@ class CampaignOrchestrationEngine:
         current_stage = session.currentStage
         action = request.action
         feedback = request.feedback
+        effective_user_id = session.userId or user_id
 
         # Commit marketer-provided deliverable updates if present
         if request.deliverableUpdates:
@@ -198,6 +200,7 @@ class CampaignOrchestrationEngine:
                     audience,
                     feedback=feedback,
                     context_id=f"{session_id}-p1-rev",
+                    user_id=effective_user_id,
                     language=session_lang,
                 )
                 updated = await self.repo.update_session(
@@ -221,6 +224,7 @@ class CampaignOrchestrationEngine:
                     market_sensing,
                     feedback=feedback,
                     context_id=f"{session_id}-p2-rev",
+                    user_id=effective_user_id,
                     language=session_lang,
                 )
                 updated = await self.repo.update_session(
@@ -277,6 +281,7 @@ class CampaignOrchestrationEngine:
                     creative=session.deliverables.creativeContent,
                     feedback=feedback,
                     context_id=f"{session_id}-p4-rev",
+                    user_id=effective_user_id,
                     language=session_lang,
                 )
                 updated = await self.repo.update_session(
@@ -310,6 +315,7 @@ class CampaignOrchestrationEngine:
                 session.campaignObjective,
                 market_sensing,
                 context_id=f"{session_id}-p2",
+                user_id=effective_user_id,
                 language=session_lang,
             )
             updated = await self.repo.update_session(
@@ -386,6 +392,7 @@ class CampaignOrchestrationEngine:
                 campaign_brief,
                 creative=session.deliverables.creativeContent,
                 context_id=f"{session_id}-p4",
+                user_id=effective_user_id,
                 language=session_lang,
             )
             updated = await self.repo.update_session(

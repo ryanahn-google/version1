@@ -146,6 +146,14 @@ def test_save_visual_marketing_asset_rejects_missing_or_default_user() -> None:
             user_id="default",
         )
 
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        save_visual_marketing_asset(
+            image_bytes=b"fake_png_data",
+            filename="mockup.png",
+            session_id="test_session",
+            user_id="A2A_USER_camp-12345",
+        )
+
 
 def test_save_visual_marketing_asset_rejects_missing_or_default_session() -> None:
     """Verify ValueError is raised if session_id is missing or 'default'."""

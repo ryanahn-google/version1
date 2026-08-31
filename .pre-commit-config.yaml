@@ -7,6 +7,12 @@ default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
+      - id: lock-check
+        name: uv lock consistency check
+        entry: uv lock --check
+        language: system
+        pass_filenames: false
+
       - id: format-check
         name: ruff format check
         entry: uv run ruff format --check .

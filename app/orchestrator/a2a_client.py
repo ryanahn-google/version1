@@ -67,7 +67,11 @@ class A2ASubAgentClient:
         self.p4_url = p4_url or cfg.a2a_p4_url
 
     async def _call_remote_a2a(
-        self, endpoint_url: str, prompt_text: str, context_id: str | None = None
+        self,
+        endpoint_url: str,
+        prompt_text: str,
+        context_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         """Dispatch JSON-RPC call to remote Agent Runtime A2A endpoint."""
         message_dict: dict[str, Any] = {
@@ -80,6 +84,8 @@ class A2ASubAgentClient:
             sanitized_cid = re.sub(r"[^A-Za-z0-9_-]", "-", context_id)
             message_dict["contextId"] = sanitized_cid
             params["contextId"] = sanitized_cid
+        if user_id:
+            params["userId"] = user_id
 
         payload = {
             "jsonrpc": "2.0",
@@ -88,6 +94,8 @@ class A2ASubAgentClient:
             "id": f"mvc-task-{uuid.uuid4().hex[:8]}",
         }
         headers = {"Content-Type": "application/json", "A2A-Version": "0.3"}
+        if user_id:
+            headers["X-User-Id"] = user_id
 
         # Attach Google OAuth Bearer token if running against Google Cloud endpoints
         try:
@@ -299,6 +307,7 @@ class A2ASubAgentClient:
         audience: str,
         feedback: str | None = None,
         context_id: str | None = None,
+        user_id: str | None = None,
         language: str = "ko",
     ) -> MarketSensingDeliverable:
         """Run [P1] Market Sensing Agent."""
@@ -322,7 +331,7 @@ class A2ASubAgentClient:
             logger.info("Calling remote [P1] A2A endpoint: %s", self.p1_url)
             try:
                 data = await self._call_remote_a2a(
-                    self.p1_url, prompt, context_id=context_id
+                    self.p1_url, prompt, context_id=context_id, user_id=user_id
                 )
                 return MarketSensingDeliverable.model_validate(data)
             except Exception as e:
@@ -436,6 +445,7 @@ class A2ASubAgentClient:
         market_sensing: MarketSensingDeliverable,
         feedback: str | None = None,
         context_id: str | None = None,
+        user_id: str | None = None,
         language: str = "ko",
     ) -> CampaignBriefDeliverable:
         """Run [P2] Strategy & Brief Agent."""
@@ -458,7 +468,7 @@ class A2ASubAgentClient:
             logger.info("Calling remote [P2] A2A endpoint: %s", self.p2_url)
             try:
                 data = await self._call_remote_a2a(
-                    self.p2_url, prompt, context_id=context_id
+                    self.p2_url, prompt, context_id=context_id, user_id=user_id
                 )
                 return CampaignBriefDeliverable.model_validate(data)
             except Exception as e:
@@ -641,7 +651,7 @@ class A2ASubAgentClient:
             logger.info("Calling remote [P3] A2A endpoint: %s", self.p3_url)
             try:
                 data = await self._call_remote_a2a(
-                    self.p3_url, prompt, context_id=context_id
+                    self.p3_url, prompt, context_id=context_id, user_id=user_id
                 )
                 deliv = CreativeContentDeliverable.model_validate(data)
                 if deliv.assetUrl and (
@@ -681,6 +691,7 @@ class A2ASubAgentClient:
         creative: CreativeContentDeliverable | None = None,
         feedback: str | None = None,
         context_id: str | None = None,
+        user_id: str | None = None,
         language: str = "ko",
     ) -> PerformanceInsightsDeliverable:
         """Run [P4] Performance & Insights Agent."""
@@ -719,7 +730,7 @@ class A2ASubAgentClient:
             logger.info("Calling remote [P4] A2A endpoint: %s", self.p4_url)
             try:
                 data = await self._call_remote_a2a(
-                    self.p4_url, prompt, context_id=context_id
+                    self.p4_url, prompt, context_id=context_id, user_id=user_id
                 )
                 deliverable = PerformanceInsightsDeliverable.model_validate(data)
             except Exception as e:

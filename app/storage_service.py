@@ -106,7 +106,7 @@ def save_visual_marketing_asset(
     Returns the accessible HTTPS GCS URL or fallback URL.
     Never writes to local filesystem.
     """
-    if not user_id or user_id == "default":
+    if not user_id or user_id == "default" or str(user_id).startswith("A2A_USER_"):
         raise ValueError(
             f"Invalid user_id: {user_id!r}. Visual marketing assets must be stored "
             "under a valid user ID path: users/{user_id}/campaigns/{campaign_id}/"
