@@ -1,12 +1,89 @@
 {
   "eval_cases": [
     {
-      "eval_case_id": "galaxy_s27_black_friday_market_sensing",
+      "eval_case_id": "flagship_01_galaxy_s27_ultra_market_sensing",
       "prompt": {
         "role": "user",
         "parts": [
           {
-            "text": "Brand: Nova Electronics Corp\nProduct: Galaxy S27 Ultra\nObjective: Black Friday Global Campaign targeting premium tech enthusiasts with AI camera features.\nTarget Audience: Tech-savvy professionals and mobile photographers aged 25-45."
+            "text": "Brand: Nova Electronics Corp\nProduct: Galaxy S27 Ultra\nObjective: Global holiday launch spotlighting on-device generative AI nightography and titanium build.\nTarget Audience: Tech enthusiasts, mobile content creators, and urban professionals aged 25-45."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_02_neo_qled_8k_tv_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: Neo QLED 8K Vision TV\nObjective: Introduce cutting-edge neural quantum 8K processor and ultra-slim infinity screen for premium home theater.\nTarget Audience: Cinephiles, sports enthusiasts, and luxury homeowners seeking immersive audio-visuals."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_03_bespoke_ai_laundry_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: Bespoke AI Laundry Combo\nObjective: All-in-one washer and heat-pump dryer with energy-saving AI Wash and customizable color panels.\nTarget Audience: Busy dual-income families and eco-conscious modern apartment dwellers aged 30-50."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_04_novabuds_pro_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: NovaBuds Pro 3 Wireless\nObjective: Back-to-campus push for high-res lossless audio, active noise cancellation, and seamless ecosystem switching.\nTarget Audience: Gen Z college students, daily commuters, and fitness enthusiasts aged 18-29."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_05_odyssey_monitor_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: Odyssey Ark G9 OLED Gaming Monitor\nObjective: Drive adoption of 49-inch dual QHD 240Hz curved OLED monitor for competitive esports and remote developer workflows.\nTarget Audience: Hardcore PC gamers, simulation racers, and software engineers aged 22-40."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_06_flash_sale_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: Galaxy Book5 Ultra\nObjective: Urgent 48-hour Cyber Weekend flash promotion with aggressive trade-in incentives and limited inventory countdown.\nTarget Audience: Bargain hunters and tech upgraders seeking laptop performance upgrades."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_07_micro_budget_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: Nova Smart Soundbar S60\nObjective: Hyper-local community pop-up studio test targeting urban neighborhood cafes with micro spend.\nTarget Audience: Local neighborhood music lovers and cafe patrons in downtown Seoul."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_08_korean_bilingual_market_sensing",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Brand: Nova Electronics Corp\nProduct: 갤럭시 S27 울트라\nObjective: 국내 프리미엄 스마트폰 교체 수요를 겨냥한 온디바이스 AI 야간 사진 프로모션.\nTarget Audience: 모바일 사진과 브이로그를 즐기는 2030 크리에이터 및 직장인."
           }
         ]
       }

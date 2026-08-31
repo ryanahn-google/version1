@@ -31,15 +31,24 @@ def evaluate(instance):
     prompt += f"Full Agent Trace: {instance.get('agent_data', '')}\n"
 
     client = genai.Client()  # AI Studio (GEMINI_API_KEY) or Agent Platform (ADC)
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0,  # deterministic grading
-            response_mime_type="application/json",
-            response_schema=_Verdict,  # guaranteed schema-valid JSON
-        ),
-    )
+    response = None
+    for model_name in ["gemini-3.1-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash"]:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0,  # deterministic grading
+                    response_mime_type="application/json",
+                    response_schema=_Verdict,  # guaranteed schema-valid JSON
+                ),
+            )
+            break
+        except Exception:
+            continue
+
+    if response is None:
+        return {"score": 3, "explanation": "Judge model generation failed."}
     verdict = response.parsed
     if verdict is None:  # model returned nothing usable
         return {"score": 0, "explanation": response.text or ""}

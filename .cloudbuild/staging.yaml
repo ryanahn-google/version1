@@ -119,6 +119,24 @@ steps:
         echo "HTTP link: https://console.cloud.google.com/storage/browser/${_LOGS_BUCKET_NAME_STAGING}/load-test-results/results-$${_TIMESTAMP}"
         echo "_________________________________________________________________________"
 
+  # Execute CI/CD Deployment Quality Gate (Halts pipeline if score < 4.0 or schema/budget fails)
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: eval-quality-gate
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        curl -LsSf https://astral.sh/uv/0.11.7/install.sh | sh
+        export PATH="$$HOME/.local/bin:$$PATH"
+        export _ID_TOKEN=$(cat id_token.txt)
+        export _STAGING_URL=$(cat staging_url.txt)
+        uv run python scripts/eval_gate.py \
+          --staging-url "$$_STAGING_URL" \
+          --id-token "$$_ID_TOKEN" \
+          --logs-bucket "${_LOGS_BUCKET_NAME_STAGING}" \
+          --min-score 4.0 \
+          --max-regression 0.2
+
   # Trigger Prod Deployment
   - name: gcr.io/cloud-builders/gcloud
     id: trigger-prod-deployment
@@ -151,6 +169,7 @@ substitutions:
   _STAGING_PROJECT_ID: YOUR_STAGING_PROJECT_ID
   _REGION: asia-northeast3
   _STAGING_GOOGLE_OAUTH_CLIENT_ID: ""
+  _LOGS_BUCKET_NAME_STAGING: "${_STAGING_PROJECT_ID}-version1-logs"
 
 logsBucket: gs://${PROJECT_ID}-version1-logs/build-logs
 options:

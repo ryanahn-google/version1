@@ -1,12 +1,89 @@
 {
   "eval_cases": [
     {
-      "eval_case_id": "galaxy_s27_black_friday_strategy_brief",
+      "eval_case_id": "flagship_01_galaxy_s27_ultra_strategy_brief",
       "prompt": {
         "role": "user",
         "parts": [
           {
-            "text": "Market Sensing Input: Target Market is Global urban tech hubs. Consumer Trends include on-device generative AI photography and trade-in upgrades. Competitors: Alpha Phone 17 Pro. Strategic Opportunity: Highlight instant low-light zoom and trade-in credits.\nCampaign Goal: Black Friday launch for Galaxy S27 Ultra."
+            "text": "Market Sensing Input: Target Market is Global urban tech hubs. Consumer Trends include on-device generative AI photography and trade-in upgrades. Competitors: Alpha Phone 17 Pro. Strategic Opportunity: Highlight instant low-light zoom and trade-in credits.\nCampaign Goal: Global holiday launch for Galaxy S27 Ultra."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_02_neo_qled_8k_tv_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is North America and Europe premium home entertainment. Consumer Trends include demand for theater-grade 8K upscaling and anti-glare screens. Competitors: VisionMaster OLED X. Strategic Opportunity: Focus on AI neural upscaling for sports and movies.\nCampaign Goal: Launch Neo QLED 8K Vision TV."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_03_bespoke_ai_laundry_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is Urban dual-income households. Consumer Trends include eco-friendly energy ratings and compact space utility. Competitors: EcoWash All-in-One. Strategic Opportunity: Emphasize heat-pump energy efficiency and AI wash cycle optimization.\nCampaign Goal: Launch Bespoke AI Laundry Combo."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_04_novabuds_pro_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is University campuses and metro commuters. Consumer Trends include spatial audio and long battery endurance. Competitors: SonicPods Max. Strategic Opportunity: Partner with student creators and highlight multi-device fast switching.\nCampaign Goal: Back-to-campus push for NovaBuds Pro 3 Wireless."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "flagship_05_odyssey_monitor_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is Competitive esports gamers and workstation developers. Consumer Trends include ultra-wide OLED immersion and 240Hz refresh rates. Competitors: Horizon Curved Pro. Strategic Opportunity: Position as ultimate battle station for high-frame gaming and productivity.\nCampaign Goal: Launch Odyssey Ark G9 OLED Gaming Monitor."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_06_flash_sale_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is Price-sensitive laptop upgraders. Consumer Trends include instant checkout urgency and bundled warranty perks. Competitors: SwiftBook Neo. Strategic Opportunity: Clear 48-hour countdown call-to-actions and student discount multipliers.\nCampaign Goal: Urgent 48-hour Cyber Weekend flash promotion for Galaxy Book5 Ultra."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_07_micro_budget_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: Target Market is Local indie cafes and acoustic audiophiles in Seoul. Consumer Trends include compact aesthetic interior soundbars and boutique retail listening stations. Competitors: StudioBar Mini. Strategic Opportunity: Hyper-focused social micro-influencer reviews.\nCampaign Goal: Hyper-local pop-up studio test for Nova Smart Soundbar S60."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "edge_08_korean_bilingual_strategy_brief",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Market Sensing Input: 타깃 시장은 국내 수도권 2030 크리에이터. 소비자 트렌드는 인스타 릴스/유튜브 쇼츠용 야간 카메라 기능 선호. 주요 경쟁사: 알파폰 17. 전략 기회: 야간 AI 촬영 품질 비교 시연 및 사전 예약 한정 사은품 제공.\n캠페인 목표: 갤럭시 S27 울트라 국내 프리미엄 교체 프로모션."
           }
         ]
       }

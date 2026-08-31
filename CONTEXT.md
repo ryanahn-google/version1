@@ -39,3 +39,18 @@ _Avoid_: Microservice, background worker, job
 **Deliverable**:
 A structured JSON schema or high-resolution visual asset produced by a subagent upon stage execution.
 _Avoid_: Output, payload, response blob
+
+### Evaluation & Quality Flywheel
+
+**Quality Gate**:
+An automated CI/CD evaluation policy that blocks release promotion unless schema conformance is 100%, budget conservation is 100.0%, and LLM judge rubric score is >= 4.0 / 5.0.
+_Avoid_: Smoke test, release check, deploy script
+
+**Evaluation Dataset**:
+A canonical JSON suite of multi-domain campaign scenarios and expectation rubrics used to benchmark subagent and end-to-end performance.
+_Avoid_: Test set, mock data, sample inputs
+
+**Synthetic Marketer**:
+An automated simulation agent that executes the human-in-the-loop review gates across the campaign DAG during end-to-end evaluation.
+_Avoid_: Mock user, test driver, simulated client
+

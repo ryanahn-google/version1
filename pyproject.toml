@@ -72,6 +72,9 @@ build-backend = "hatchling.build"
 pythonpath = "."
 testpaths = ["tests/unit", "tests/integration"]
 asyncio_default_fixture_loop_scope = "session"
+markers = [
+    "eval: End-to-end multi-agent evaluation suite",
+]
 filterwarnings = [
     "ignore:.*GOOGLE_GENAI_USE_VERTEXAI is deprecated.*:DeprecationWarning",
     "ignore:.*BaseAgentConfig is deprecated.*:DeprecationWarning",

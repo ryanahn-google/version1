@@ -1,0 +1,23 @@
+metrics_to_run:
+  - custom_response_quality
+  - budget_conservation
+
+custom_metrics:
+  - name: custom_response_quality
+    custom_function_file: ../../../../tests/eval/response_quality.py
+  - name: budget_conservation
+    custom_function: |
+      import json
+      def evaluate(instance):
+          try:
+              resp_text = instance.get('response', '')
+              if isinstance(resp_text, dict):
+                  parts = resp_text.get('parts', [])
+                  resp_text = parts[0].get('text', '') if parts else ''
+              data = json.loads(resp_text)
+              allocs = data.get('channelAllocations', [])
+              total = sum(float(a.get('percentage', 0)) for a in allocs)
+              score = 5 if round(total, 1) == 100.0 else 1
+              return {'score': score, 'explanation': f'Total budget percentage: {total}%'}
+          except Exception as e:
+              return {'score': 1, 'explanation': f'Budget parse error: {str(e)}'}
