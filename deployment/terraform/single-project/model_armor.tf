@@ -30,19 +30,19 @@ resource "google_model_armor_template" "mvc_guardrails" {
     rai_settings {
       rai_filters {
         filter_type      = "HATE_SPEECH"
-        confidence_level = "LOW_AND_ABOVE"
+        confidence_level = "MEDIUM_AND_ABOVE"
       }
       rai_filters {
         filter_type      = "HARASSMENT"
-        confidence_level = "LOW_AND_ABOVE"
+        confidence_level = "MEDIUM_AND_ABOVE"
       }
       rai_filters {
         filter_type      = "DANGEROUS"
-        confidence_level = "LOW_AND_ABOVE"
+        confidence_level = "MEDIUM_AND_ABOVE"
       }
       rai_filters {
         filter_type      = "SEXUALLY_EXPLICIT"
-        confidence_level = "LOW_AND_ABOVE"
+        confidence_level = "MEDIUM_AND_ABOVE"
       }
     }
 
