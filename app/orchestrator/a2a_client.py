@@ -263,82 +263,15 @@ class A2ASubAgentClient:
         if ai_res and isinstance(ai_res, ParsePromptResponse):
             return ai_res
 
-        # Heuristic rule-based fallback parser
-        currency = "KRW" if target_lang == "ko" else "USD"
-        budget_amt: float | None = None
-
-        if re.search(r"(\$|usd|달러|dollar)", prompt, re.IGNORECASE):
-            currency = "USD"
-        elif re.search(r"(원|krw|won|₩)", prompt, re.IGNORECASE):
-            currency = "KRW"
-
-        m_eok = re.search(r"(\d+(?:\.\d+)?)\s*억", prompt)
-        m_man = re.search(r"(\d+(?:\.\d+)?)\s*만", prompt)
-        m_num = re.search(
-            r"(\$|₩)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{5,})\s*(원|달러)?", prompt
-        )
-        if m_eok:
-            budget_amt = float(m_eok.group(1)) * 100_000_000.0
-        elif m_man:
-            budget_amt = float(m_man.group(1)) * 10_000.0
-        elif m_num:
-            budget_amt = float(m_num.group(2).replace(",", ""))
-
-        target_aud = ""
-        m_aud = re.search(
-            r"([0-9]{2}대|[가-힣a-zA-Z0-9\s]+?)\s*(?:타겟|대상|target|audience)", prompt
-        )
-        if m_aud:
-            target_aud = m_aud.group(1).strip()
-
-        brand = ""
-        for known_brand in [
-            "삼성전자",
-            "삼성",
-            "LG전자",
-            "LG",
-            "애플",
-            "Apple",
-            "소니",
-            "Sony",
-            "Nova Electronics",
-            "Nova",
-        ]:
-            if known_brand.lower() in prompt.lower():
-                brand = known_brand
-                break
-
-        product = ""
-        for known_prod in [
-            "갤럭시",
-            "Galaxy",
-            "아이폰",
-            "iPhone",
-            "MacBook",
-            "맥북",
-            "그램",
-            "Gram",
-            "OLED TV",
-        ]:
-            if known_prod.lower() in prompt.lower():
-                m_prod = re.search(
-                    rf"({known_prod}[가-힣a-zA-Z0-9\s]*?)(?:,|의|\s+런칭|\s+출시|\s+캠페인|$)",
-                    prompt,
-                    re.IGNORECASE,
-                )
-                if m_prod:
-                    product = m_prod.group(1).strip()
-                else:
-                    product = known_prod
-                break
-
+        # Fallback when LLM parsing fails or is unavailable:
+        # Simply retain the original prompt as campaignObjective, with other fields empty for user input.
         return ParsePromptResponse(
-            brandName=brand,
-            productName=product,
+            brandName="",
+            productName="",
             campaignObjective=prompt.strip(),
-            targetAudience=target_aud,
-            budgetAmount=budget_amt,
-            currency=currency,
+            targetAudience="",
+            budgetAmount=None,
+            currency="KRW" if target_lang == "ko" else "USD",
             channels=[],
         )
 
