@@ -41,9 +41,7 @@ locals {
     "sqladmin.googleapis.com",
     "secretmanager.googleapis.com",
     "modelarmor.googleapis.com",
-    "compute.googleapis.com",
-    "networkservices.googleapis.com",
-    "networksecurity.googleapis.com"
+    "compute.googleapis.com"
   ]
 
   deploy_project_ids = {

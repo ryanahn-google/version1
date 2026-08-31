@@ -32,13 +32,3 @@ output "artifact_registry_repository" {
   value       = google_artifact_registry_repository.repo-artifacts-genai.repository_id
 }
 
-output "agent_gateway_ids" {
-  description = "Agent Gateway resource IDs by environment"
-  value       = { for k, v in google_network_services_agent_gateway.subagent_gateway : k => v.id }
-}
-
-output "agent_gateway_names" {
-  description = "Agent Gateway resource names by environment"
-  value       = { for k, v in google_network_services_agent_gateway.subagent_gateway : k => v.name }
-}
-
