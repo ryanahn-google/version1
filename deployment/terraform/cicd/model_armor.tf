@@ -58,6 +58,9 @@ resource "google_model_armor_template" "mvc_guardrails" {
     custom_prompt_safety_error_message       = "Prompt rejected by Model Armor inspection."
     custom_llm_response_safety_error_message = "Response rejected by Model Armor inspection."
     enforcement_type                          = "INSPECT_AND_BLOCK"
+    log_template_operations                  = true
+    log_sanitize_operations                  = true
+
     multi_language_detection {
       enable_multi_language_detection = true
     }
