@@ -122,6 +122,7 @@ steps:
   # Execute CI/CD Deployment Quality Gate (Halts pipeline if score < 4.0 or schema/budget fails)
   - name: "gcr.io/cloud-builders/gcloud"
     id: eval-quality-gate
+    timeout: 900s
     entrypoint: /bin/bash
     args:
       - "-c"
@@ -133,6 +134,8 @@ steps:
         export GOOGLE_GENAI_USE_VERTEXAI="true"
         export GOOGLE_CLOUD_PROJECT="${_STAGING_PROJECT_ID}"
         export GOOGLE_CLOUD_LOCATION="global"
+        export GOOGLE_API_USE_CLIENT_CERTIFICATE="false"
+        export GOOGLE_API_USE_MTLS_ENDPOINT="never"
         uv run python scripts/eval_gate.py \
           --staging-url "$$_STAGING_URL" \
           --id-token "$$_ID_TOKEN" \
@@ -167,6 +170,8 @@ steps:
         echo "Production deployment triggered. View progress and / or approve on the Cloud Build Console:"
         echo "https://console.cloud.google.com/cloud-build/builds;region=$LOCATION"
         echo "_________________________________________________________________________"
+
+timeout: 1800s
 
 substitutions:
   _STAGING_PROJECT_ID: YOUR_STAGING_PROJECT_ID

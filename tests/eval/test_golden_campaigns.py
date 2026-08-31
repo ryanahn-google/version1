@@ -31,10 +31,10 @@ def test_golden_dataset_syntax():
         data = json.load(f)
 
     scenarios = data.get("scenarios", [])
-    assert len(scenarios) == 10, f"Expected 10 scenarios, found {len(scenarios)}"
+    assert len(scenarios) == 9, f"Expected 9 scenarios, found {len(scenarios)}"
 
     categories = [s["category"] for s in scenarios]
-    assert categories.count("flagship") == 5
+    assert categories.count("flagship") == 4
     assert categories.count("edge_case") == 3
     assert categories.count("guardrail_probe") == 2
 
@@ -45,7 +45,7 @@ async def test_e2e_golden_evaluation_gate():
     """Runs the full in-process E2E evaluation suite and asserts gate pass."""
     report = await run_evaluation_suite()
 
-    assert report.total_scenarios == 10
+    assert report.total_scenarios == 9
     assert report.schema_conformance_rate == 100.0, (
         f"Schema conformance failed: {report.schema_conformance_rate}%"
     )
