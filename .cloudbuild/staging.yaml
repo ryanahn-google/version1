@@ -130,6 +130,9 @@ steps:
         export PATH="$$HOME/.local/bin:$$PATH"
         export _ID_TOKEN=$(cat id_token.txt)
         export _STAGING_URL=$(cat staging_url.txt)
+        export GOOGLE_GENAI_USE_VERTEXAI="true"
+        export GOOGLE_CLOUD_PROJECT="${_STAGING_PROJECT_ID}"
+        export GOOGLE_CLOUD_LOCATION="global"
         uv run python scripts/eval_gate.py \
           --staging-url "$$_STAGING_URL" \
           --id-token "$$_ID_TOKEN" \
