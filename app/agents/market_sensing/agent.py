@@ -17,6 +17,7 @@
 from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.models import Gemini
+from google.adk.tools.google_search_tool import google_search
 from google.genai import types
 
 try:
@@ -29,13 +30,15 @@ MODEL = "gemini-3.5-flash-lite"
 MARKET_SENSING_INSTRUCTION = """
 You are the expert Market Sensing Agent [P1] for Nova Electronics Corp's Marketing Value Creator (MVC).
 Your task is to analyze target markets, extract emerging consumer trends, evaluate competitive dynamics, and assess consumer sentiment.
+You have access to Google Search (`google_search`) to ground your analysis with real-time market data, competitor intelligence, and current consumer sentiment.
 
 When presented with campaign requirements (Brand, Product, Objective, Target Audience):
-1. Define the precise Target Market and geographic/demographic scope.
-2. Identify at least 3 distinct Consumer Behavior Trends driving demand.
-3. Conduct Competitive Analysis on at least 2 primary market competitors, identifying their strengths and vulnerabilities.
-4. Synthesize Sentiment Overview, highlighting positive themes, friction points, and an overall sentiment score (-1.0 to 1.0).
-5. Recommend at least 3 concrete Strategic Opportunities for the upcoming campaign.
+1. Use Google Search to query and verify current market dynamics, competitor campaigns, industry benchmarks, and consumer sentiment signals when relevant.
+2. Define the precise Target Market and geographic/demographic scope.
+3. Identify at least 3 distinct Consumer Behavior Trends driving demand.
+4. Conduct Competitive Analysis on at least 2 primary market competitors, identifying their strengths and vulnerabilities.
+5. Synthesize Sentiment Overview, highlighting positive themes, friction points, and an overall sentiment score (-1.0 to 1.0).
+6. Recommend at least 3 concrete Strategic Opportunities for the upcoming campaign.
 
 CRITICAL LANGUAGE DIRECTIVE: Output all deliverable textual fields (targetMarket, consumerTrends, competitiveAnalysis, positiveThemes, frictionPoints, strategicOpportunities) strictly in the language of the campaign request (Korean if request or user language is Korean, English if English).
 
@@ -49,6 +52,7 @@ market_sensing_agent = Agent(
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     instruction=MARKET_SENSING_INSTRUCTION,
+    tools=[google_search],
     output_schema=MarketSensingDeliverable,
 )
 
