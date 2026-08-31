@@ -14,11 +14,39 @@
 
 resource "google_model_armor_template" "mvc_guardrails" {
   for_each    = local.deploy_project_ids
-  location    = var.region
+  location    = "us"
   template_id = "${var.project_name}-guardrails"
   project     = each.value
 
   filter_config {
+    pi_and_jailbreak_filter_settings {
+      filter_enforcement = "ENABLED"
+      confidence_level   = "LOW_AND_ABOVE"
+    }
+
+    malicious_uri_filter_settings {
+      filter_enforcement = "ENABLED"
+    }
+
+    rai_settings {
+      rai_filters {
+        filter_type      = "HATE_SPEECH"
+        confidence_level = "LOW_AND_ABOVE"
+      }
+      rai_filters {
+        filter_type      = "HARASSMENT"
+        confidence_level = "LOW_AND_ABOVE"
+      }
+      rai_filters {
+        filter_type      = "DANGEROUS"
+        confidence_level = "LOW_AND_ABOVE"
+      }
+      rai_filters {
+        filter_type      = "SEXUALLY_EXPLICIT"
+        confidence_level = "LOW_AND_ABOVE"
+      }
+    }
+
     sdp_settings {
       basic_config {
         filter_enforcement = "ENABLED"
@@ -29,6 +57,10 @@ resource "google_model_armor_template" "mvc_guardrails" {
   template_metadata {
     custom_prompt_safety_error_message       = "Prompt rejected by Model Armor inspection."
     custom_llm_response_safety_error_message = "Response rejected by Model Armor inspection."
+    enforcement_type                          = "INSPECT_AND_BLOCK"
+    multi_language_detection {
+      enable_multi_language_detection = true
+    }
   }
 
   depends_on = [resource.google_project_service.deploy_project_services]

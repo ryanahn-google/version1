@@ -148,7 +148,7 @@
       "category": "edge_case",
       "brand_name": "Nova Electronics Corp",
       "product_name": "Nova Smart Soundbar S60",
-      "campaign_objective": "Hyper-local community pop-up studio test targeting urban neighborhood cafes with micro spend.",
+      "campaign_objective": "Hyper-local geo-targeted social and search pilot promoting compact soundbar aesthetics to neighborhood cafe patrons and acoustic music lovers on a micro budget.",
       "target_audience": "Local neighborhood music lovers and cafe patrons in downtown Seoul.",
       "budget_amount": 5000.0,
       "currency": "USD",
@@ -174,7 +174,7 @@
       "scenario_id": "edge_08_korean_bilingual_marketer_edit",
       "category": "edge_case",
       "brand_name": "Nova Electronics Corp",
-      "product_name": "갤럭시 S27 울트라",
+      "product_name": "노바폰 17 울트라",
       "campaign_objective": "국내 프리미엄 스마트폰 교체 수요를 겨냥한 온디바이스 AI 야간 사진 프로모션.",
       "target_audience": "모바일 사진과 브이로그를 즐기는 2030 크리에이터 및 직장인.",
       "budget_amount": 600000.0,
@@ -190,7 +190,7 @@
         "stage": "CREATIVE_CONTENT",
         "deliverable_updates": {
           "creativeContent": {
-            "headlineCopy": "밤을 지배하는 온디바이스 AI, 갤럭시 S27 울트라"
+            "headlineCopy": "밤을 지배하는 온디바이스 AI, 노바폰 17 울트라"
           }
         }
       },

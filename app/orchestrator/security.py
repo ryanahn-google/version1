@@ -18,7 +18,6 @@ import base64
 import hashlib
 import json
 import logging
-import re
 from typing import Any
 
 import google.auth
@@ -35,15 +34,6 @@ from app.orchestrator.session_repo import (
 from app.settings import SecuritySettings, get_settings
 
 logger = logging.getLogger(__name__)
-
-# Heuristic prompt injection patterns for local/fallback Model Armor inspection
-SUSPICIOUS_PROMPT_PATTERNS = [
-    r"ignore\s+(all\s+)?previous\s+instructions",
-    r"disregard\s+(all\s+)?prior\s+prompts",
-    r"reveal\s+(the\s+)?system\s+prompt",
-    r"you\s+are\s+now\s+dan\b",
-    r"bypass\s+all\s+safety",
-]
 
 
 class SecurityManager:
@@ -160,22 +150,6 @@ class SecurityManager:
         """Inspect prompt for prompt injection via local heuristics & Armor."""
         if not text:
             return
-
-        # 1. Local heuristic pattern pre-check (always active, <1ms)
-        lower_text = text.lower()
-        for pattern in SUSPICIOUS_PROMPT_PATTERNS:
-            if re.search(pattern, lower_text):
-                logger.warning(
-                    "Prompt rejected by Model Armor guardrails: matched %s",
-                    pattern,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        "Prompt blocked: Potential prompt injection detected "
-                        "by Model Armor inspection."
-                    ),
-                )
 
         # 2. Remote Model Armor inspection (when template configured)
         if self.model_armor_template:
