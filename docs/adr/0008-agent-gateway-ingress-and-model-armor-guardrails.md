@@ -36,7 +36,7 @@ We adopt a **Client-to-Agent (Ingress) Agent Gateway with Regional Model Armor a
    - Generated binary visual assets (PNG/JPEG) produced by [P3] are uploaded directly to Google Cloud Storage (`gs://{project_id}-version1-artifacts/`) via authenticated IAM credentials, bypassing gateway serialization overhead.
 
 5. **Agent Identity & Automated Deployment Pipeline**:
-   - All subagents deployed to Agent Runtime are provisioned with SPIFFE-based **Agent Identity** (`--enable-agent-identity`), enabling cryptographic attestation and binding via `--agent-gateway-ingress`.
+   - All subagents deployed to Agent Runtime are provisioned with SPIFFE-based **Agent Identity** (`--agent-identity`), enabling cryptographic attestation and binding via `--agent-gateway-ingress`.
    - Deployment logic is standardized in a modular script (`scripts/deploy_subagents.sh`) invoked by Cloud Build in `.cloudbuild/staging.yaml` and `deploy-to-prod.yaml`.
 
 6. **Error Propagation & Client Resilience**:
