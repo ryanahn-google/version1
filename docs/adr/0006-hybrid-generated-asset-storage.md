@@ -22,14 +22,15 @@ We implement a dual-mode, environment-aware asset storage architecture managed b
    - The returned `assetUrl` is an accessible HTTPS GCS URL or signed URL.
 
 2. **Local Development Storage Mode (`ENV=development` or bucket unset)**:
-   - In local development without configured GCS access, the subagent directly returns the verified fallback public asset URL (`FALLBACK_ASSET_URL`) without writing files to local disk.
+   - In local development without configured GCS access, the subagent returns `None` for storage persistence without writing files to local disk.
    - Eliminates local `static/generated/` disk pollution and git noise completely across all environments.
 
 3. **Automated Test Isolation (`INTEGRATION_TEST=TRUE`)**:
-   - Automated tests bypass live image generation API calls and return a deterministic fixture URL (`https://storage.googleapis.com/mvc-artifacts-public/campaigns/galaxy_s27_visual.jpg`), preserving fast local test execution and CI stability.
+   - Automated tests store in-memory mock drafts or return `None` when storage is unconfigured, preserving fast local test execution and CI stability.
 
-4. **Graceful Fallback on Quota or Network Failure**:
-   - If Vertex AI image generation encounters a rate limit, quota exhaustion, or temporary network timeout, the `creative_content` subagent catches the exception and falls back to the default sample placeholder asset so the campaign workflow can proceed to human review without failing the entire session.
+4. **Explicit Handling on Inaccessible Storage or Generation Failure**:
+   - If image generation or GCS upload is unavailable, the backend returns `None` and the API serves a `404 Not Found`.
+   - The frontend (`ContentView`, `AssetLibraryView`, `CampaignPdfReport`) renders a clean, themed "No Image Available" (이미지 없음) placeholder, avoiding broken image icons or mock fallback asset redirects.
 
 ## Alternatives considered
 ### Alternative A: Cloud Storage Only (Local requires GCP Bucket)

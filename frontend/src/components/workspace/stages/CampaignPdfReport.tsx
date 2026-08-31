@@ -32,10 +32,15 @@ export const CampaignPdfReport = React.forwardRef<HTMLDivElement, CampaignPdfRep
     if (!session) return null;
 
     const isKo = locale === 'ko';
+    const [imageError, setImageError] = React.useState(false);
     const market = session.deliverables?.marketSensing;
     const brief = session.deliverables?.campaignBrief;
     const creative = session.deliverables?.creativeContent;
     const insights = session.deliverables?.performanceInsights;
+
+    React.useEffect(() => {
+      setImageError(false);
+    }, [creative?.assetUrl, session.sessionId]);
 
     const currency = (session.currency as 'USD' | 'KRW') || 'USD';
     const sym = currency === 'KRW' ? '₩' : '$';
@@ -417,17 +422,18 @@ export const CampaignPdfReport = React.forwardRef<HTMLDivElement, CampaignPdfRep
                     <span>{isKo ? '생성된 비주얼 에셋 (Imagen 3 / GCS)' : 'Generated Visual Asset'}</span>
                   </span>
                   <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center h-[148px]">
-                    {creative?.assetUrl ? (
+                    {creative?.assetUrl && !imageError ? (
                       <img
                         src={creative.assetUrl}
                         alt="Campaign Asset Deliverable"
                         crossOrigin="anonymous"
                         className="w-full h-full object-cover"
+                        onError={() => setImageError(true)}
                       />
                     ) : (
-                      <div className="p-4 text-center text-slate-400 text-xs">
+                      <div className="p-4 text-center text-slate-400 text-xs flex flex-col items-center justify-center h-full">
                         <ImageIcon className="h-6 w-6 mx-auto text-slate-500 mb-1" />
-                        <span>{isKo ? '에셋 이미지 로드 대기' : 'Visual Asset Preview'}</span>
+                        <span>{isKo ? '생성된 이미지 없음' : 'No image available'}</span>
                       </div>
                     )}
                   </div>

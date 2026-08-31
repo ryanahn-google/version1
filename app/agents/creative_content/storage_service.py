@@ -28,8 +28,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_ASSET_URL = "https://storage.googleapis.com/mvc-artifacts-public/campaigns/galaxy_s27_visual.jpg"
-
 
 def _resolve_project_and_bucket() -> tuple[str, str, bool]:
     """Resolve effective (project_id, bucket_name, is_cloud_env)."""
@@ -100,10 +98,10 @@ def save_visual_marketing_asset(
     filename: str | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
-) -> str:
+) -> str | None:
     """Save marketing visual bytes exclusively to Google Cloud Storage under users/{user_id}/campaigns/{campaign_id}/.
 
-    Returns the accessible HTTPS GCS URL or fallback URL.
+    Returns the accessible HTTPS GCS URL or None if storage is unavailable.
     Never writes to local filesystem.
     """
     if not user_id or user_id == "default" or str(user_id).startswith("A2A_USER_"):
@@ -158,8 +156,8 @@ def save_visual_marketing_asset(
             logger.info("Uploaded visual to GCS (REST): %s", gcs_url)
             return gcs_url
 
-    logger.warning("GCS upload unavailable or unconfigured. Returning fallback URL.")
-    return FALLBACK_ASSET_URL
+    logger.warning("GCS upload unavailable or unconfigured. No visual asset persisted.")
+    return None
 
 
 def extract_bucket_and_blob_path(

@@ -9,3 +9,4 @@
 | [0005](0005-direct-vpc-egress-and-cloud-sql-auth-proxy.md) | Direct VPC Egress and Cloud SQL Auth Proxy Architecture | Accepted | 2026-08-28 | — |
 | [0006](0006-hybrid-generated-asset-storage.md) | Hybrid Generated Visual Asset Storage (Local Static Mount vs Google Cloud Storage) | Accepted | 2026-08-29 | — |
 | [0007](0007-domain-restricted-sharing-and-asset-streaming-proxy.md) | Domain-Restricted Sharing (DRS) Compliance and Authenticated Asset Streaming Proxy | Accepted | 2026-08-29 | — |
+| [0008](0008-agent-gateway-ingress-and-model-armor-guardrails.md) | Agent Gateway Ingress and Model Armor Inline Guardrails | Accepted | 2026-08-31 | — |

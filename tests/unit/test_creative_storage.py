@@ -21,7 +21,6 @@ import pytest
 
 from app.settings import get_settings
 from app.storage_service import (
-    FALLBACK_ASSET_URL,
     extract_bucket_and_blob_path,
     save_visual_marketing_asset,
 )
@@ -198,7 +197,7 @@ def test_save_visual_marketing_asset_fallback_without_local_write(
             user_id="user-123",
         )
 
-    assert url == FALLBACK_ASSET_URL
+    assert url is None
     assert not os.path.exists("static/generated")
     assert not os.path.exists("static")
 
@@ -711,5 +710,67 @@ def test_get_campaign_visual_cross_bucket_direct_bytes(
             blob_path=blob_path,
             bucket_name=target_bucket,
         )
+    finally:
+        app.dependency_overrides.pop(get_session_repo, None)
+
+
+def test_get_campaign_visual_404_when_blob_missing_or_inaccessible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify GET /api/v1/campaigns/{sessionId}/visual returns 404 when blob not in storage."""
+    from starlette.testclient import TestClient
+
+    from app.fast_api_app import app
+    from app.models.campaign import CampaignStage, CampaignStatus
+    from app.orchestrator.session_repo import get_session_repo
+    from app.schemas.campaign import CampaignDeliverables, CampaignSessionResponse
+    from app.schemas.deliverables import CreativeContentDeliverable
+    from app.settings import get_settings
+
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "capstone-cicd")
+    monkeypatch.setenv("ARTIFACTS_BUCKET_NAME", "capstone-cicd-version1-artifacts")
+    get_settings.cache_clear()
+
+    mock_deliverables = CampaignDeliverables(
+        creativeContent=CreativeContentDeliverable(
+            visualConceptTitle="Missing Visual Test",
+            visualPromptUsed="Prompt",
+            assetUrl="/api/v1/campaigns/sess-404/visual",
+            storageUri="https://storage.googleapis.com/test-bucket/users/u1/campaigns/sess-404/missing.png",
+            headlineCopy="Headline",
+            bodyCopy="Body",
+            callToAction="CTA",
+        )
+    )
+    mock_session = CampaignSessionResponse(
+        sessionId="sess-404",
+        userId="u1",
+        brandName="Brand",
+        productName="Product",
+        campaignObjective="Awareness",
+        budgetAmount=1000.0,
+        currency="USD",
+        currentStage=CampaignStage.PERFORMANCE_INSIGHTS,
+        status=CampaignStatus.PAUSED_FOR_REVIEW,
+        deliverables=mock_deliverables,
+    )
+
+    fake_repo = MagicMock()
+    fake_repo.get_session = AsyncMock(return_value=mock_session)
+    app.dependency_overrides[get_session_repo] = lambda: fake_repo
+
+    try:
+        with (
+            patch("app.storage_service.generate_v4_signed_url", return_value=None),
+            patch("app.storage_service.get_blob_bytes", return_value=None),
+            TestClient(app) as client,
+        ):
+            response = client.get(
+                "/api/v1/campaigns/sess-404/visual",
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 404
+        assert "not found or inaccessible" in response.json()["detail"]
     finally:
         app.dependency_overrides.pop(get_session_repo, None)

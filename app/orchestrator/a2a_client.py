@@ -21,6 +21,7 @@ import uuid
 from typing import Any
 
 import aiohttp
+from fastapi import HTTPException, status
 
 from app.schemas.campaign import ParsePromptResponse
 from app.schemas.deliverables import (
@@ -117,6 +118,31 @@ class A2ASubAgentClient:
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=60),
             ) as resp:
+                if resp.status in (400, 403):
+                    err_text = await resp.text()
+                    err_lower = err_text.lower()
+                    if any(
+                        term in err_lower
+                        for term in (
+                            "model armor",
+                            "guardrail",
+                            "safety",
+                            "blocked",
+                            "violation",
+                        )
+                    ):
+                        logger.warning(
+                            "Subagent call blocked by Agent Gateway Model Armor: %s",
+                            err_text,
+                        )
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=(
+                                "보안 가드레일(Model Armor) 정책에 의해 "
+                                "요청이 차단되었습니다. 입력 프롬프트를 "
+                                "확인해 주세요."
+                            ),
+                        )
                 resp.raise_for_status()
                 data = await resp.json()
                 res = data.get("result", {})
