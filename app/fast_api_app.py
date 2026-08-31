@@ -71,6 +71,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         rpc_path=f"/a2a/{adk_app.name}",
     )
     yield
+    from app.orchestrator.security import get_security_manager
+
+    await get_security_manager().aclose()
 
 
 def _create_app() -> FastAPI:

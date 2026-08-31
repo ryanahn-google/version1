@@ -14,6 +14,7 @@
 
 """Authentication and Model Armor security guardrail middleware."""
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -45,20 +46,48 @@ class SecurityManager:
         self.oauth_client_id = cfg.google_oauth_client_id
         self.session_cookie_name = cfg.session_cookie_name
         self.model_armor_template = cfg.model_armor_template
-        self._credentials = None
+        self._credentials: Any = None
+        self._http_client: httpx.AsyncClient | None = None
 
-    def _get_auth_headers(self) -> dict[str, str]:
-        """Obtain authorization headers via Application Default Credentials."""
+    def _get_credentials(self) -> Any:
+        """Lazily initialize Google Application Default Credentials."""
         if self._credentials is None:
             self._credentials, _ = google.auth.default(
                 scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
-        req = google_requests.Request()
-        self._credentials.refresh(req)
+        return self._credentials
+
+    async def _get_auth_headers(self) -> dict[str, str]:
+        """Obtain authorization headers via Application Default Credentials.
+
+        Only refreshes credentials if expired or invalid, offloading any
+        network refresh to a thread so the asyncio event loop remains unblocked.
+        """
+        creds = self._get_credentials()
+        if not creds.valid:
+            req = google_requests.Request()
+            await asyncio.to_thread(creds.refresh, req)
         return {
-            "Authorization": f"Bearer {self._credentials.token}",
+            "Authorization": f"Bearer {creds.token}",
             "Content-Type": "application/json",
         }
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        """Returns or lazily creates a shared AsyncClient with connection pooling."""
+        if self._http_client is None or self._http_client.is_closed:
+            limits = httpx.Limits(
+                max_keepalive_connections=50,
+                max_connections=100,
+                keepalive_expiry=60.0,
+            )
+            timeout = httpx.Timeout(15.0, connect=5.0)
+            self._http_client = httpx.AsyncClient(limits=limits, timeout=timeout)
+        return self._http_client
+
+    async def aclose(self) -> None:
+        """Close pooled HTTP resources."""
+        if self._http_client and not self._http_client.is_closed:
+            await self._http_client.aclose()
 
     async def _call_model_armor_api(self, text: str) -> None:
         """Calls Google Cloud Model Armor sanitizeUserPrompt API."""
@@ -75,10 +104,12 @@ class SecurityManager:
         )
         url = f"{endpoint}/{template}:sanitizeUserPrompt"
         payload = {"userPromptData": {"text": text}}
-        headers = self._get_auth_headers()
+        headers = await self._get_auth_headers()
+        client = self._get_http_client()
 
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+        last_exc: Exception | None = None
+        for attempt in range(2):
+            try:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
                 body = resp.json()
@@ -99,26 +130,44 @@ class SecurityManager:
                             f"({action_taken})."
                         ),
                     )
-        except httpx.HTTPStatusError as http_err:
-            logger.error("Model Armor service error: %s", http_err)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Prompt blocked: Model Armor security service "
-                    "inspection failed (fail-closed)."
-                ),
-            ) from http_err
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.error("Model Armor request failed: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Prompt blocked: Model Armor security service "
-                    "unavailable (fail-closed)."
-                ),
-            ) from exc
+                return
+            except HTTPException:
+                raise
+            except httpx.HTTPStatusError as http_err:
+                logger.error("Model Armor service error: %r", http_err)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Prompt blocked: Model Armor security service "
+                        "inspection failed (fail-closed)."
+                    ),
+                ) from http_err
+            except (httpx.TimeoutException, httpx.NetworkError) as net_err:
+                last_exc = net_err
+                logger.warning(
+                    "Model Armor network/timeout error (attempt %d/2): %r",
+                    attempt + 1,
+                    net_err,
+                )
+                if attempt == 0:
+                    await asyncio.sleep(0.3)
+                    headers = await self._get_auth_headers()
+                    continue
+            except Exception as exc:
+                last_exc = exc
+                logger.error("Model Armor request failed: %r", exc, exc_info=True)
+                break
+
+        logger.error(
+            "Model Armor request permanently failed: %r", last_exc, exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Prompt blocked: Model Armor security service "
+                "unavailable (fail-closed)."
+            ),
+        ) from last_exc
 
     def verify_google_credential(self, credential: str) -> dict[str, Any]:
         """Verify Google OIDC ID token and return user profile dict."""
