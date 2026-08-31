@@ -37,14 +37,6 @@ steps:
     args:
       - "validate"
 
-  # Terraform Plan
-  - name: "hashicorp/terraform:1.9.5"
-    id: terraform-plan
-    dir: "deployment/terraform/cicd"
-    args:
-      - "plan"
-      - "-input=false"
-      - "-var-file=vars/env.tfvars"
 
   # Install uv package manager and sync dependencies
   - name: "gcr.io/cloud-builders/gcloud"
