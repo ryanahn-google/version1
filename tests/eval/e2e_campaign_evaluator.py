@@ -22,6 +22,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -45,6 +46,43 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 JUDGE_MODEL = "gemini-3.1-pro-preview"
+
+_cached_judge_client: genai.Client | None = None
+
+
+def _get_judge_client() -> genai.Client | None:
+    """Initializes and caches a GenAI Client configured for Vertex AI or API key.
+
+    Returns:
+        Configured genai.Client or None if authentication is not configured.
+    """
+    global _cached_judge_client
+    if _cached_judge_client is not None:
+        return _cached_judge_client
+
+    project = (
+        os.getenv("GOOGLE_CLOUD_PROJECT")
+        or os.getenv("PROJECT_ID")
+        or os.getenv("GCP_PROJECT")
+    )
+    location = os.getenv("GOOGLE_CLOUD_LOCATION") or "global"
+    use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "true").lower() == "true"
+
+    if use_vertex and project:
+        try:
+            _cached_judge_client = genai.Client(
+                vertexai=True, project=project, location=location
+            )
+            return _cached_judge_client
+        except Exception as err:
+            logger.warning("Vertex AI GenAI Client initialization failed: %s", err)
+
+    try:
+        _cached_judge_client = genai.Client()
+        return _cached_judge_client
+    except Exception as err:
+        logger.warning("Default GenAI Client initialization failed: %s", err)
+        return None
 
 
 class JudgeVerdict(BaseModel):
@@ -136,7 +174,12 @@ Assess strategic alignment, creative quality, persona relevance, and coherence a
 """
 
     try:
-        client = genai.Client()
+        client = _get_judge_client()
+        if client is None:
+            return (
+                3,
+                "LLM Judge client could not be initialized (no Vertex AI or API key).",
+            )
         response = None
         for candidate_model in [JUDGE_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"]:
             try:

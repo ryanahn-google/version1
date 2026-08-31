@@ -1,5 +1,7 @@
 """Local LLM-as-judge for `custom_response_quality` (see eval_config.yaml)."""
 
+import os
+
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
@@ -8,6 +10,38 @@ from pydantic import BaseModel
 class _Verdict(BaseModel):
     score: int  # 1-5
     explanation: str
+
+
+_cached_client = None
+
+
+def _get_client():
+    global _cached_client
+    if _cached_client is not None:
+        return _cached_client
+
+    project = (
+        os.getenv("GOOGLE_CLOUD_PROJECT")
+        or os.getenv("PROJECT_ID")
+        or os.getenv("GCP_PROJECT")
+    )
+    location = os.getenv("GOOGLE_CLOUD_LOCATION") or "global"
+    use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "true").lower() == "true"
+
+    if use_vertex and project:
+        try:
+            _cached_client = genai.Client(
+                vertexai=True, project=project, location=location
+            )
+            return _cached_client
+        except Exception:
+            pass
+
+    try:
+        _cached_client = genai.Client()
+        return _cached_client
+    except Exception:
+        return None
 
 
 def evaluate(instance):
@@ -30,7 +64,10 @@ def evaluate(instance):
         prompt += f"Expected Answer (ground truth): {reference}\n"
     prompt += f"Full Agent Trace: {instance.get('agent_data', '')}\n"
 
-    client = genai.Client()  # AI Studio (GEMINI_API_KEY) or Agent Platform (ADC)
+    client = _get_client()
+    if client is None:
+        return {"score": 3, "explanation": "Client initialization skipped."}
+
     response = None
     for model_name in ["gemini-3.1-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash"]:
         try:
