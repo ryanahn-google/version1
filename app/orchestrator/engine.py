@@ -19,7 +19,7 @@ import uuid
 
 from fastapi import HTTPException, status
 
-from app.orchestrator.a2a_client import A2ASubAgentClient
+from app.orchestrator.a2a_client import A2ASubAgentClient, resolve_language
 from app.orchestrator.draft_store import get_draft_image_store
 from app.orchestrator.session_repo import SessionRepository, get_session_repo
 from app.schemas.campaign import (
@@ -65,7 +65,11 @@ class CampaignOrchestrationEngine:
             channels=request.channels,
             tenant_id="nova-corp",
         )
-        lang = getattr(request, "language", "ko")
+        explicit_lang = getattr(request, "language", None)
+        lang = resolve_language(
+            f"{request.campaignObjective} {request.productName} {request.targetAudience}",
+            explicit_lang,
+        )
         deliv1 = await self.a2a.run_market_sensing(
             brand_name=request.brandName,
             product_name=request.productName,
