@@ -14,6 +14,24 @@
 
 steps:
 
+  # Terraform Init
+  - name: "hashicorp/terraform:1.9.5"
+    id: terraform-init
+    dir: "deployment/terraform/cicd"
+    args:
+      - "init"
+      - "-input=false"
+
+  # Terraform Apply (Auto-approved immediately upon merge to main)
+  - name: "hashicorp/terraform:1.9.5"
+    id: terraform-apply
+    dir: "deployment/terraform/cicd"
+    args:
+      - "apply"
+      - "-auto-approve"
+      - "-input=false"
+      - "-var-file=vars/env.tfvars"
+
   # Build and Push Orchestrator (Subagents strictly excluded from image)
   - name: "gcr.io/cloud-builders/docker"
     id: build-image

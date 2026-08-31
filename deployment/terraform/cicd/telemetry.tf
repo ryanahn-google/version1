@@ -67,7 +67,7 @@ resource "google_logging_project_sink" "genai_logs_to_bq" {
   destination = "bigquery.googleapis.com/projects/${each.value}/datasets/${google_bigquery_dataset.telemetry_dataset[each.key].dataset_id}"
   # Match GenAI completion logs on the event.name label (the log id, and hence
   # the BigQuery sink table name, varies by deployment target).
-  filter      = "labels.\"event.name\"=\"gen_ai.client.inference.operation.details\" AND (labels.\"gen_ai.input.messages_ref\" =~ \".*${var.project_name}.*\" OR labels.\"gen_ai.output.messages_ref\" =~ \".*${var.project_name}.*\")"
+  filter = "labels.\"event.name\"=\"gen_ai.client.inference.operation.details\" AND (labels.\"gen_ai.input.messages_ref\" =~ \".*${var.project_name}.*\" OR labels.\"gen_ai.output.messages_ref\" =~ \".*${var.project_name}.*\")"
 
   unique_writer_identity = true
 

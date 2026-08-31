@@ -30,9 +30,12 @@ from app.orchestrator.session_repo import (
     SessionRepository,
     get_session_repo,
 )
+from app.schemas.campaign import CampaignSessionResponse
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
+CampaignSession = CampaignSessionResponse
 
 router = APIRouter(prefix="/api/v1/campaigns", tags=["Campaigns"])
 
@@ -63,6 +66,64 @@ async def get_draft_image(
             "Content-Disposition": f'inline; filename="draft_{sessionId}.png"',
         },
     )
+
+
+def _resolve_visual_blob_path(
+    session: CampaignSession,
+    session_id: str,
+    bucket_name: str,
+    project_id: str,
+) -> tuple[str, str]:
+    """Resolve target bucket and GCS blob path for a campaign session.
+
+    Args:
+        session: Campaign session containing deliverable details.
+        session_id: Campaign session identifier.
+        bucket_name: Default fallback Cloud Storage bucket name.
+        project_id: Google Cloud project ID for storage client initialization.
+
+    Returns:
+        A tuple of (target_bucket, blob_path).
+
+    Raises:
+        HTTPException: If user ID is missing when scanning user directory.
+    """
+    creative = session.deliverables.creativeContent
+    if not creative:
+        return bucket_name, ""
+
+    target_uri = creative.storageUri or creative.assetUrl
+    if target_uri and target_uri.startswith("/api/v1/"):
+        target_uri = creative.storageUri or None
+
+    target_bucket = bucket_name
+    blob_path = ""
+    if target_uri:
+        target_bucket, blob_path = storage_service.extract_bucket_and_blob_path(
+            target_uri, default_bucket=bucket_name
+        )
+
+    if not blob_path and target_bucket:
+        if not session.userId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot access visual asset: Session has no associated user_id.",
+            )
+        blob_prefix = f"users/{session.userId}/campaigns/{session_id}/"
+        try:
+            client = storage.Client(project=project_id)
+            bucket = client.bucket(target_bucket)
+            blobs = list(bucket.list_blobs(prefix=blob_prefix, max_results=1))
+            if blobs:
+                blob_path = blobs[0].name
+        except Exception as scan_exc:
+            logger.debug(
+                "Failed scanning bucket for blob prefix %s: %s",
+                blob_prefix,
+                scan_exc,
+            )
+
+    return target_bucket, blob_path
 
 
 @router.get(
@@ -96,39 +157,15 @@ async def get_campaign_visual(
             detail=f"No visual deliverable found for campaign session '{sessionId}'.",
         )
 
-    creative = session.deliverables.creativeContent
-    target_uri = creative.storageUri or creative.assetUrl
-    if target_uri and target_uri.startswith("/api/v1/"):
-        target_uri = creative.storageUri or None
-
     settings = get_settings()
-    bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket
+    default_bucket = settings.artifacts_bucket_name or settings.resolved_bucket
 
-    blob_path = ""
-    if target_uri:
-        blob_path = storage_service.extract_blob_path_from_gcs_url(
-            target_uri, bucket_name
-        )
-
-    if not blob_path and bucket_name:
-        if not session.userId:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot access visual asset: Session has no associated user_id.",
-            )
-        blob_prefix = f"users/{session.userId}/campaigns/{sessionId}/"
-        try:
-            client = storage.Client(project=settings.google_cloud_project)
-            bucket = client.bucket(bucket_name)
-            blobs = list(bucket.list_blobs(prefix=blob_prefix, max_results=1))
-            if blobs:
-                blob_path = blobs[0].name
-        except Exception as scan_exc:
-            logger.debug(
-                "Failed scanning bucket for blob prefix %s: %s",
-                blob_prefix,
-                scan_exc,
-            )
+    target_bucket, blob_path = _resolve_visual_blob_path(
+        session=session,
+        session_id=sessionId,
+        bucket_name=default_bucket,
+        project_id=settings.google_cloud_project,
+    )
 
     if not blob_path:
         raise HTTPException(
@@ -139,7 +176,7 @@ async def get_campaign_visual(
     # Method 1: Generate V4 Signed URL and return 307 Temporary Redirect
     signed_url = storage_service.generate_v4_signed_url(
         blob_path=blob_path,
-        bucket_name=bucket_name,
+        bucket_name=target_bucket,
         expiration_minutes=60,
     )
     if signed_url:
@@ -151,7 +188,7 @@ async def get_campaign_visual(
 
     # Method 2 (Fallback / Offline Dev): Direct byte read from GCS or safe fallback redirect
     image_bytes = storage_service.get_blob_bytes(
-        blob_path=blob_path, bucket_name=bucket_name
+        blob_path=blob_path, bucket_name=target_bucket
     )
     if image_bytes:
         return Response(
@@ -188,33 +225,15 @@ async def get_campaign_visual_token(
             detail=f"No visual deliverable found for campaign session '{sessionId}'.",
         )
 
-    creative = session.deliverables.creativeContent
-    target_uri = creative.storageUri or creative.assetUrl
     settings = get_settings()
-    bucket_name = settings.artifacts_bucket_name or settings.resolved_bucket
+    default_bucket = settings.artifacts_bucket_name or settings.resolved_bucket
 
-    blob_path = storage_service.extract_blob_path_from_gcs_url(
-        target_uri or "", bucket_name
+    target_bucket, blob_path = _resolve_visual_blob_path(
+        session=session,
+        session_id=sessionId,
+        bucket_name=default_bucket,
+        project_id=settings.google_cloud_project,
     )
-    if not blob_path and bucket_name:
-        if not session.userId:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot generate visual token: Session has no associated user_id.",
-            )
-        blob_prefix = f"users/{session.userId}/campaigns/{sessionId}/"
-        try:
-            client = storage.Client(project=settings.google_cloud_project)
-            bucket = client.bucket(bucket_name)
-            blobs = list(bucket.list_blobs(prefix=blob_prefix, max_results=1))
-            if blobs:
-                blob_path = blobs[0].name
-        except Exception as scan_exc:
-            logger.debug(
-                "Failed scanning bucket for blob prefix %s: %s",
-                blob_prefix,
-                scan_exc,
-            )
 
     if not blob_path:
         raise HTTPException(
@@ -227,7 +246,7 @@ async def get_campaign_visual_token(
 
     signed_url = storage_service.generate_v4_signed_url(
         blob_path=blob_path,
-        bucket_name=bucket_name,
+        bucket_name=target_bucket,
         expiration_minutes=60,
     )
     if not signed_url:

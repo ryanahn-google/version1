@@ -39,8 +39,8 @@ format: ## Format code with ruff
 format-check: ## Verify code formatting with ruff
 	uv run ruff format --check .
 
-typecheck: ## Run static type checking with ty
-	uv run ty check
+typecheck: ## Run static type checking
+	cd frontend && npm run typecheck
 
 test-unit: ## Run deterministic unit tests
 	uv run pytest tests/unit

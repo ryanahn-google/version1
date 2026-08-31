@@ -165,5 +165,3 @@ export function AssistantAndLogsPanel({
     </aside>
   );
 }
-
-export const AgentLogsPanel = AssistantAndLogsPanel;

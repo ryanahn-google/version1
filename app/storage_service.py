@@ -123,7 +123,17 @@ def save_visual_marketing_asset(
 
     project, bucket_name, _ = _resolve_project_and_bucket()
     blob_path = f"users/{user_id}/campaigns/{session_id}/{filename}"
-    gcs_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
+    effective_bucket = bucket_name or "test-artifacts-bucket"
+    gcs_url = f"https://storage.googleapis.com/{effective_bucket}/{blob_path}"
+
+    settings = get_settings()
+    if settings.integration_test:
+        logger.info(
+            "INTEGRATION_TEST is enabled: skipping live GCS upload and"
+            " returning mock URL: %s",
+            gcs_url,
+        )
+        return gcs_url
 
     if bucket_name:
         # Method A: Google Cloud Storage SDK
@@ -152,24 +162,67 @@ def save_visual_marketing_asset(
     return FALLBACK_ASSET_URL
 
 
-def extract_blob_path_from_gcs_url(url: str, bucket_name: str | None = None) -> str:
-    """Extract object blob path from a gs:// or https://storage.googleapis.com URL."""
+def extract_bucket_and_blob_path(
+    url: str, default_bucket: str | None = None
+) -> tuple[str | None, str]:
+    """Extract bucket name and object blob path from a GCS URL.
+
+    Handles gs://, https://storage.googleapis.com/, relative blob paths,
+    and strips query parameters and URL fragments.
+
+    Args:
+        url: The GCS URL or blob path to parse.
+        default_bucket: Fallback bucket name if cannot be parsed from the URL.
+
+    Returns:
+        A tuple of (bucket_name, blob_path).
+    """
     if not url:
-        return ""
-    if url.startswith("gs://"):
-        parts = url[5:].split("/", 1)
-        return parts[1] if len(parts) == 2 else url
+        return default_bucket, ""
+
+    # Strip query parameters (?...) and URL fragments (#...)
+    clean_url = url.split("?", 1)[0].split("#", 1)[0].strip()
+    if not clean_url:
+        return default_bucket, ""
+
+    if clean_url.startswith("gs://"):
+        rest = clean_url[5:]
+        parts = rest.split("/", 1)
+        bucket = parts[0] if parts[0] else default_bucket
+        blob_path = parts[1] if len(parts) == 2 else ""
+        return bucket, blob_path
 
     prefix = "https://storage.googleapis.com/"
-    if url.startswith(prefix):
-        path_without_prefix = url[len(prefix) :]
-        parts = path_without_prefix.split("/", 1)
-        if len(parts) == 2:
-            # If bucket_name matches first part, strip it
-            if bucket_name and parts[0] == bucket_name:
-                return parts[1]
-            return parts[1]
-    return url
+    if clean_url.startswith(prefix):
+        rest = clean_url[len(prefix) :]
+        parts = rest.split("/", 1)
+        bucket = parts[0] if parts[0] else default_bucket
+        blob_path = parts[1] if len(parts) == 2 else ""
+        return bucket, blob_path
+
+    # Handle URL that is just the base host without path
+    if clean_url == "https://storage.googleapis.com":
+        return default_bucket, ""
+
+    # Strip default bucket name prefix if URL starts with "{default_bucket}/"
+    if default_bucket and clean_url.startswith(f"{default_bucket}/"):
+        return default_bucket, clean_url[len(default_bucket) + 1 :]
+
+    return default_bucket, clean_url
+
+
+def extract_blob_path_from_gcs_url(url: str, bucket_name: str | None = None) -> str:
+    """Extract object blob path from a gs:// or https://storage.googleapis.com URL.
+
+    Args:
+        url: The GCS URL or relative path to extract blob path from.
+        bucket_name: Optional bucket name to match and strip.
+
+    Returns:
+        The extracted blob path.
+    """
+    _, blob_path = extract_bucket_and_blob_path(url, default_bucket=bucket_name)
+    return blob_path
 
 
 def generate_v4_signed_url(

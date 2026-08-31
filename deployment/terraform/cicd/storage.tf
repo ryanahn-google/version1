@@ -34,7 +34,7 @@ resource "google_storage_bucket" "logs_data_bucket" {
 }
 
 resource "google_storage_bucket" "artifacts_bucket" {
-  for_each                    = toset(local.all_project_ids)
+  for_each                    = toset(values(local.deploy_project_ids))
   name                        = "${each.value}-${var.project_name}-artifacts"
   location                    = var.region
   project                     = each.value

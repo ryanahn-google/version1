@@ -21,7 +21,7 @@ Step 2: Native visual asset synthesis and persistence (Nano Banana 2 Lite).
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from google.adk.agents import Agent
 from google.adk.apps import App
@@ -30,25 +30,18 @@ from google.adk.tools.tool_context import ToolContext
 from google.adk.workflow import START, Workflow
 from google.genai import types
 
-if TYPE_CHECKING:
+try:
     from app.schemas.deliverables import (
         CampaignBriefDeliverable,
         CreativeContentDeliverable,
     )
     from app.settings import get_settings
-else:
-    try:
-        from app.schemas.deliverables import (
-            CampaignBriefDeliverable,
-            CreativeContentDeliverable,
-        )
-        from app.settings import get_settings
-    except ImportError:
-        from schemas.deliverables import (  # type: ignore[no-redef]
-            CampaignBriefDeliverable,
-            CreativeContentDeliverable,
-        )
-        from settings import get_settings  # type: ignore[no-redef]
+except ImportError:
+    from schemas.deliverables import (  # type: ignore[no-redef]
+        CampaignBriefDeliverable,
+        CreativeContentDeliverable,
+    )
+    from settings import get_settings  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 
@@ -162,11 +155,7 @@ def generate_marketing_visual(
     try:
         from google.genai import Client
 
-        project = settings.google_cloud_project or (
-            "capstone-prod-506811"
-            if settings.env == "prod"
-            else "capstone-staging-506811"
-        )
+        project = settings.google_cloud_project
         location = settings.google_cloud_location or "global"
         image_model = settings.image_model or IMAGE_MODEL
 

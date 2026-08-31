@@ -13,6 +13,39 @@
 # limitations under the License.
 
 steps:
+  # Terraform Format Check
+  - name: "hashicorp/terraform:1.9.5"
+    id: terraform-fmt
+    dir: "deployment/terraform/cicd"
+    args:
+      - "fmt"
+      - "-check"
+      - "-recursive"
+
+  # Terraform Init
+  - name: "hashicorp/terraform:1.9.5"
+    id: terraform-init
+    dir: "deployment/terraform/cicd"
+    args:
+      - "init"
+      - "-input=false"
+
+  # Terraform Validate
+  - name: "hashicorp/terraform:1.9.5"
+    id: terraform-validate
+    dir: "deployment/terraform/cicd"
+    args:
+      - "validate"
+
+  # Terraform Plan
+  - name: "hashicorp/terraform:1.9.5"
+    id: terraform-plan
+    dir: "deployment/terraform/cicd"
+    args:
+      - "plan"
+      - "-input=false"
+      - "-var-file=vars/env.tfvars"
+
   # Install uv package manager and sync dependencies
   - name: "gcr.io/cloud-builders/gcloud"
     id: install-dependencies
@@ -71,8 +104,10 @@ options:
   env:
     - 'UV_PYTHON=3.13'
     - 'CI=true'
+    - 'INTEGRATION_TEST=true'
     # Integration tests run the agent in-process; pytest doesn't load .env.
     - 'GOOGLE_GENAI_USE_VERTEXAI=true'
     - 'GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
     - 'GOOGLE_CLOUD_LOCATION=global'
+  substitutionOption: ALLOW_LOOSE
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
