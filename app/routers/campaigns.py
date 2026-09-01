@@ -16,8 +16,14 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.orchestrator.agent_runner import (
+    agent_approve_stage,
+    agent_create_campaign,
+    agent_parse_prompt,
+    agent_rollback_stage,
+)
 from app.orchestrator.engine import (
     CampaignOrchestrationEngine,
     get_orchestration_engine,
@@ -51,13 +57,20 @@ router = APIRouter(prefix="/api/v1/campaigns", tags=["Campaigns"])
 )
 async def parse_campaign_prompt(
     payload: ParsePromptRequest,
+    request: Request,
     user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
 ) -> ParsePromptResponse:
-    """Parse natural language prompt into structured campaign brief parameters."""
+    """Parse natural language prompt into structured parameters via ADK root_agent."""
     await security.inspect_prompt_safety(payload.prompt)
-    return await engine.parse_prompt(payload.prompt, language=payload.language)
+    runner = getattr(request.app.state, "runner", None)
+    return await agent_parse_prompt(
+        runner=runner,
+        user=user,
+        payload=payload,
+        engine=engine,
+    )
 
 
 @router.get(
@@ -81,15 +94,21 @@ async def list_campaigns(
 )
 async def create_campaign(
     payload: CreateCampaignRequest,
+    request: Request,
     user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
+    repo: SessionRepository = Depends(get_session_repo),
 ) -> CampaignSessionResponse:
-    """Start a new multi-agent campaign planning DAG."""
+    """Start a new multi-agent campaign planning DAG via ADK root_agent."""
     await security.inspect_prompt_safety(payload.campaignObjective)
-
-    return await engine.create_campaign(
-        payload, principal=user.email, user_id=user.user_id
+    runner = getattr(request.app.state, "runner", None)
+    return await agent_create_campaign(
+        runner=runner,
+        user=user,
+        payload=payload,
+        engine=engine,
+        repo=repo,
     )
 
 
@@ -125,16 +144,24 @@ async def get_campaign_session(
 async def approve_stage(
     sessionId: str,
     payload: StageApprovalRequest,
+    request: Request,
     user: UserModel = Depends(get_current_user),
     security: SecurityManager = Depends(get_security_manager),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
+    repo: SessionRepository = Depends(get_session_repo),
 ) -> CampaignSessionResponse:
-    """Submit human review approval or revision feedback."""
+    """Submit human review approval or revision feedback via ADK root_agent."""
     if payload.feedback:
         await security.inspect_prompt_safety(payload.feedback)
 
-    updated = await engine.approve_stage(
-        sessionId, payload, principal=user.email, user_id=user.user_id
+    runner = getattr(request.app.state, "runner", None)
+    updated = await agent_approve_stage(
+        runner=runner,
+        user=user,
+        session_id=sessionId,
+        payload=payload,
+        engine=engine,
+        repo=repo,
     )
     if not updated:
         raise HTTPException(
@@ -155,11 +182,20 @@ async def approve_stage(
 )
 async def rollback_stage(
     sessionId: str,
+    request: Request,
     user: UserModel = Depends(get_current_user),
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
+    repo: SessionRepository = Depends(get_session_repo),
 ) -> CampaignSessionResponse:
-    """Rollback session strictly to the immediately preceding stage (N - 1)."""
-    return await engine.rollback_stage(sessionId, user_id=user.user_id)
+    """Rollback session strictly to the immediately preceding stage via ADK root_agent."""
+    runner = getattr(request.app.state, "runner", None)
+    return await agent_rollback_stage(
+        runner=runner,
+        user=user,
+        session_id=sessionId,
+        engine=engine,
+        repo=repo,
+    )
 
 
 @router.patch(
@@ -181,28 +217,14 @@ async def update_campaign_session(
             detail=f"Campaign session '{sessionId}' not found.",
         )
 
-    deliverables_update = payload.get("deliverables")
-    current_delivs = session.deliverables.model_dump(mode="json")
-    if deliverables_update and isinstance(deliverables_update, dict):
-        for k, v in deliverables_update.items():
-            if v is not None:
-                if (
-                    k in current_delivs
-                    and isinstance(current_delivs[k], dict)
-                    and isinstance(v, dict)
-                ):
-                    current_delivs[k].update(v)
-                else:
-                    current_delivs[k] = v
-
     updated = await repo.update_session(
         sessionId,
-        deliverables=current_delivs,
+        deliverables=payload.get("deliverables"),
         user_id=user.user_id,
     )
     if not updated:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Campaign session '{sessionId}' could not be updated.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update campaign session.",
         )
     return updated

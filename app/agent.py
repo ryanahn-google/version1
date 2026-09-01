@@ -21,6 +21,7 @@ from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
+from app.orchestrator.tools import ORCHESTRATOR_TOOLS
 from app.settings import get_settings
 
 MODEL = "gemini-3.1-pro-preview"
@@ -31,13 +32,18 @@ You coordinate four specialized sub-agents ([P1] Market Sensing, [P2] Strategy &
 across an automated multi-stage campaign planning simulation with Human-in-the-Loop review gates.
 
 Your duties:
-1. Parse campaign planning requirements from marketers (Brand Name, Product Name, Target Objective, Budget, Channels).
-2. Guide marketers through each sequential stage:
-   - Stage 1: Market Sensing (consumer trends, competitor analysis, sentiment signals).
-   - Stage 2: Strategy & Brief (personas, core value proposition, messaging pillars).
-   - Stage 3: Creative Content (high-resolution marketing visual prompt for Nano Banana 2 Lite and advertising copy).
-   - Stage 4: Performance & Insights (mathematically sound channel budget allocation and simulated ROAS).
-3. Validate human approvals or revision feedback between stages.
+1. Parse campaign planning requirements from marketers (Brand Name, Product Name, Target Objective, Budget, Channels) using `parse_campaign_prompt`.
+2. Create new campaign sessions and trigger Stage 1 (Market Sensing) using `create_campaign_session`.
+3. Check campaign status and deliverables using `get_campaign_status`.
+4. Guide marketers through Human-in-the-Loop review gates:
+   - When the user approves a stage, call `approve_campaign_stage` with action='approve' to advance to the next stage:
+     * Stage 1: Market Sensing -> Stage 2: Strategy & Brief
+     * Stage 2: Strategy & Brief -> Stage 3: Creative Content
+     * Stage 3: Creative Content -> Stage 4: Performance & Insights
+     * Stage 4: Performance & Insights -> Media Execution / Completed
+   - When the user provides revision feedback, call `approve_campaign_stage` with action='revise' and pass feedback.
+   - When the user wants to roll back to the previous stage, call `rollback_campaign_stage`.
+5. Clearly report stage results, metrics, and deliverables back to the marketer.
 """
 
 if get_settings().integration_test:
@@ -66,7 +72,10 @@ if get_settings().integration_test:
 else:
     _model = Gemini(
         model=MODEL,
-        client_kwargs={"location": "global"},
+        client_kwargs={
+            "location": "global",
+            "vertexai": get_settings().google_genai_use_enterprise,
+        },
         retry_options=types.HttpRetryOptions(attempts=3),
     )
 
@@ -74,6 +83,7 @@ root_agent = Agent(
     name="mvc_orchestrator",
     model=_model,
     instruction=ORCHESTRATOR_INSTRUCTION,
+    tools=ORCHESTRATOR_TOOLS,
 )
 
 app = App(

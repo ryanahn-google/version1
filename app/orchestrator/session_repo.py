@@ -264,13 +264,19 @@ class SessionRepository:
         return self._to_schema(model)
 
     async def get_session(
-        self, session_id: str, user_id: str | None = None
+        self,
+        session_id: str | None = None,
+        user_id: str | None = None,
+        **kwargs: Any,
     ) -> CampaignSessionResponse | None:
         """Fetch an existing session by ID, optionally scoped to owner user."""
+        target_id = session_id or kwargs.get("sessionId")
+        if not target_id:
+            return None
         await self.init_db()
         async with self.session_factory() as session:
             stmt = select(CampaignSessionModel).where(
-                CampaignSessionModel.session_id == session_id
+                CampaignSessionModel.session_id == target_id
             )
             if user_id:
                 stmt = stmt.where(
