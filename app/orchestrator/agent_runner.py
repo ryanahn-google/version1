@@ -91,6 +91,10 @@ async def run_orchestrator_agent(
                             "ADK Root Agent successfully executed tool '%s'",
                             target_tool_name,
                         )
+                        break
+
+            if tool_output:
+                break
 
         return tool_output
     except Exception as exc:

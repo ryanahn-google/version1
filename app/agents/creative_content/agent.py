@@ -386,6 +386,8 @@ app = App(
     name="creative_content",
 )
 
+_background_tasks: set[asyncio.Task[Any]] = set()
+
 
 # --- Standalone High-Performance Sequential Pipeline for Local & Direct Execution ---
 async def run_creative_content_pipeline(
@@ -395,6 +397,7 @@ async def run_creative_content_pipeline(
     user_id: str | None = None,
     visual_prompt_override: str | None = None,
     language: str = "ko",
+    async_image: bool | None = None,
 ) -> CreativeContentDeliverable:
     """Self-contained 2-step sequential generation pipeline for [P3] Creative Content.
 
@@ -510,17 +513,80 @@ async def run_creative_content_pipeline(
     prompt_to_synthesize = visual_prompt_override or deliverable.visualPromptUsed
     if prompt_to_synthesize:
         deliverable.visualPromptUsed = prompt_to_synthesize
-        generated_url = await synthesize_nano_banana_image(
-            prompt_to_synthesize, session_id=session_id, user_id=user_id
+        should_async = (
+            async_image
+            if async_image is not None
+            else (not settings.integration_test and bool(session_id))
         )
-        if generated_url:
-            if generated_url.startswith("http") or generated_url.startswith("gs://"):
-                deliverable.storageUri = generated_url
-                deliverable.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
-            else:
-                deliverable.assetUrl = generated_url
-        else:
+
+        if should_async and session_id:
+            effective_sid = session_id
+            effective_uid = user_id
+
+            async def _background_visual_task() -> None:
+                try:
+                    logger.info(
+                        "Background Nano Banana image synthesis started for session '%s'...",
+                        effective_sid,
+                    )
+                    bg_url = await synthesize_nano_banana_image(
+                        prompt_to_synthesize,
+                        session_id=effective_sid,
+                        user_id=effective_uid,
+                    )
+                    if bg_url and effective_sid:
+                        from app.orchestrator.session_repo import get_session_repo
+
+                        repo = get_session_repo()
+                        curr_sess = await repo.get_session(session_id=effective_sid)
+                        if curr_sess and curr_sess.deliverables.creativeContent:
+                            deliv_dict = (
+                                curr_sess.deliverables.creativeContent.model_dump(
+                                    mode="json"
+                                )
+                            )
+                            if bg_url.startswith("http") or bg_url.startswith("gs://"):
+                                deliv_dict["storageUri"] = bg_url
+                                deliv_dict["assetUrl"] = (
+                                    f"/api/v1/campaigns/{effective_sid}/visual"
+                                )
+                            else:
+                                deliv_dict["assetUrl"] = bg_url
+                            await repo.update_session(
+                                effective_sid,
+                                deliverables={"creativeContent": deliv_dict},
+                            )
+                            logger.info(
+                                "Background visual synthesis completed and session '%s' updated: %s",
+                                effective_sid,
+                                deliv_dict.get("assetUrl"),
+                            )
+                except Exception as bg_err:
+                    logger.warning(
+                        "Background visual synthesis failed for session '%s': %s",
+                        effective_sid,
+                        bg_err,
+                    )
+
+            bg_task = asyncio.create_task(_background_visual_task())
+            _background_tasks.add(bg_task)
+            bg_task.add_done_callback(_background_tasks.discard)
             deliverable.assetUrl = None
             deliverable.storageUri = None
+        else:
+            generated_url = await synthesize_nano_banana_image(
+                prompt_to_synthesize, session_id=session_id, user_id=user_id
+            )
+            if generated_url:
+                if generated_url.startswith("http") or generated_url.startswith(
+                    "gs://"
+                ):
+                    deliverable.storageUri = generated_url
+                    deliverable.assetUrl = f"/api/v1/campaigns/{session_id}/visual"
+                else:
+                    deliverable.assetUrl = generated_url
+            else:
+                deliverable.assetUrl = None
+                deliverable.storageUri = None
 
     return deliverable

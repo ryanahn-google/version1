@@ -22,6 +22,9 @@ Developers also require a rapid local development and test loop (`pytest`, local
    - Configured with bounded exponential backoff and jitter (`attempts=3, initial_delay=0.5s, backoff_factor=2.0, max_delay=5.0s, jitter=0.5s`), preventing cascading 500 errors during proxy maintenance.
 4. **Resilient A2A Protocol Invocation with HTTP Backoff & Jitter**:
    - Both remote HTTP JSON-RPC and local fallback execution in `A2ASubAgentClient` enforce `HttpRetryOptions` with exponential backoff and jitter, ensuring network blips between Cloud Run and Agent Runtime do not fail the campaign DAG.
+5. **Dual-Path Execution Architecture (Deterministic REST vs Conversational Tool Calling)**:
+   - In REST endpoints (`POST /api/v1/campaigns/{sessionId}/approve`, `rollback`, `POST /api/v1/campaigns`), UI button clicks invoke `CampaignOrchestrationEngine` directly, eliminating redundant conversational LLM tool-calling turns (Gemini 3.1 Pro) that added 7-10s of unnecessary latency to deterministic operations.
+   - The ADK `root_agent` and `ORCHESTRATOR_TOOLS` (`create_campaign_session`, `approve_campaign_stage`, `rollback_campaign_stage`, `get_campaign_status`, `parse_campaign_prompt`) remain fully active for conversational and multi-agent mesh surfaces (`/a2a/mvc_orchestrator`, `POST /api/v1/campaigns/parse-prompt`, ADK Playground).
 
 ## Alternatives considered
 ### Alternative A: Strict Remote-Only A2A Client and PostgreSQL
@@ -57,3 +60,4 @@ Deploy Cloud Memorystore (Redis) as the session persistence tier.
 ## Changelog
 - 2026-08-27: Initial proposal and acceptance.
 - 2026-09-02: Added Database Transient Fault Retry (`@db_retry`) and Resilient A2A HTTP Backoff & Jitter policy.
+- 2026-09-02: Added Dual-Path Execution Architecture separating deterministic REST UI actions from conversational A2A tool calling.

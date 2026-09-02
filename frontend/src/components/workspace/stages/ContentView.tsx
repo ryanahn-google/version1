@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../../context/LanguageContext';
 import type { CampaignSessionResponse } from '../../../types/campaign';
+import { apiClient } from '../../../api/client';
 import { RevisionModal } from '../../hitl/RevisionModal';
 
 interface ContentViewProps {
@@ -38,10 +39,18 @@ export function ContentView({
   const [imageError, setImageError] = useState(false);
 
   const creativeData = session?.deliverables?.creativeContent;
+  const [backgroundAssetUrl, setBackgroundAssetUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBackgroundAssetUrl(null);
+  }, [session?.sessionId, session?.revisionCount]);
+
+  const assetUrl = creativeData?.assetUrl || backgroundAssetUrl;
 
   useEffect(() => {
     setImageError(false);
-  }, [creativeData?.assetUrl, session?.sessionId, session?.revisionCount]);
+  }, [assetUrl, session?.sessionId, session?.revisionCount]);
+
   const isReviewPending =
     session?.status === 'PAUSED_FOR_REVIEW' &&
     session?.currentStage === 'CREATIVE_CONTENT';
@@ -51,6 +60,40 @@ export function ContentView({
       session.currentStage !== 'CREATIVE_CONTENT' &&
       session.currentStage !== 'STRATEGY_BRIEF' &&
       session.currentStage !== 'MARKET_SENSING');
+
+  // Background visual synthesis polling when assetUrl is still being generated
+  useEffect(() => {
+    if (!isReviewPending || assetUrl || !session?.sessionId) {
+      return;
+    }
+
+    let isMounted = true;
+    let attempts = 0;
+    const maxAttempts = 25; // 25 * 2.5s = ~60s
+
+    const interval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const fresh = await apiClient.getSession(session.sessionId);
+        const freshUrl = fresh.deliverables?.creativeContent?.assetUrl;
+        if (freshUrl && isMounted) {
+          setBackgroundAssetUrl(freshUrl);
+          clearInterval(interval);
+        }
+      } catch {
+        // Polling retry on transient errors
+      }
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isReviewPending, assetUrl, session?.sessionId]);
 
   // Editable deliverable state
   const [headlineCopy, setHeadlineCopy] = useState(
@@ -220,10 +263,10 @@ export function ContentView({
 
             {/* Image Preview Box */}
             <div className="relative bg-slate-900 h-64 flex items-center justify-center overflow-hidden">
-              {creativeData?.assetUrl && !imageError ? (
+              {assetUrl && !imageError ? (
                 <>
                   <img
-                    src={`${creativeData.assetUrl}${creativeData.assetUrl.includes('?') ? '&' : '?'}v=${session?.revisionCount || 0}`}
+                    src={`${assetUrl}${assetUrl.includes('?') ? '&' : '?'}v=${session?.revisionCount || 0}`}
                     alt="Generated Deliverable"
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer"
                     onClick={() => setLightboxOpen(true)}
@@ -239,7 +282,7 @@ export function ContentView({
                       <Maximize2 className="h-4 w-4" />
                     </button>
                     <a
-                      href={creativeData.assetUrl}
+                      href={assetUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="p-2 rounded-full bg-white/90 hover:bg-white text-slate-800 shadow-md"
@@ -249,6 +292,23 @@ export function ContentView({
                     </a>
                   </div>
                 </>
+              ) : isReviewPending && !imageError ? (
+                <div className="flex flex-col items-center justify-center text-slate-400 p-6 text-center animate-pulse">
+                  <div className="relative mb-3">
+                    <ImageIcon className="h-10 w-10 text-blue-400 animate-bounce" />
+                    <Sparkles className="h-4 w-4 text-amber-400 absolute -top-1 -right-1 animate-spin" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-200">
+                    {locale === 'ko'
+                      ? 'Nano Banana 2 Lite 비주얼 렌더링 중...'
+                      : 'Rendering visual with Nano Banana 2 Lite...'}
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-1 max-w-xs">
+                    {locale === 'ko'
+                      ? '고화질 16:9 마케팅 이미지를 백그라운드에서 합성하고 있습니다. 잠시만 기다려 주세요.'
+                      : 'Synthesizing studio-grade 16:9 visual in the background. Ready in moments.'}
+                  </span>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                   <ImageIcon className="h-10 w-10 mb-2 text-slate-600" />
@@ -267,19 +327,23 @@ export function ContentView({
               <div className="flex items-center gap-1.5">
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    !creativeData?.assetUrl || imageError
-                      ? 'bg-slate-400'
-                      : isApproved
-                        ? 'bg-emerald-500'
-                        : 'bg-amber-500 animate-pulse'
+                    !assetUrl && isReviewPending
+                      ? 'bg-blue-400 animate-ping'
+                      : !assetUrl || imageError
+                        ? 'bg-slate-400'
+                        : isApproved
+                          ? 'bg-emerald-500'
+                          : 'bg-amber-500 animate-pulse'
                   }`}
                 />
                 <span className="text-[11px] font-medium text-slate-700">
-                  {!creativeData?.assetUrl || imageError
-                    ? t.content.noImage
-                    : isApproved
-                      ? t.common.approvedGcs
-                      : t.common.draftReviewable}
+                  {!assetUrl && isReviewPending
+                    ? (locale === 'ko' ? '백그라운드 렌더링 중' : 'Rendering in background')
+                    : !assetUrl || imageError
+                      ? t.content.noImage
+                      : isApproved
+                        ? t.common.approvedGcs
+                        : t.common.draftReviewable}
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono">
