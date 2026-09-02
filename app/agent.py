@@ -21,7 +21,9 @@ from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
+from app.models_fallback import FallbackGemini
 from app.orchestrator.tools import ORCHESTRATOR_TOOLS
+from app.retry_policy import get_default_http_retry_options
 from app.settings import get_settings
 
 MODEL = "gemini-3.1-pro-preview"
@@ -70,14 +72,24 @@ if get_settings().integration_test:
 
     _model = _IntegrationTestMockLlm()
 else:
-    _model = Gemini(
-        model=MODEL,
+    settings = get_settings()
+    primary_llm = Gemini(
+        model=settings.orchestrator_model,
         client_kwargs={
             "location": "global",
-            "vertexai": get_settings().google_genai_use_enterprise,
+            "vertexai": settings.google_genai_use_enterprise,
         },
-        retry_options=types.HttpRetryOptions(attempts=3),
+        retry_options=get_default_http_retry_options(),
     )
+    fallback_llm = Gemini(
+        model=settings.orchestrator_fallback_model,
+        client_kwargs={
+            "location": "global",
+            "vertexai": settings.google_genai_use_enterprise,
+        },
+        retry_options=get_default_http_retry_options(),
+    )
+    _model = FallbackGemini(primary=primary_llm, fallback=fallback_llm)
 
 root_agent = Agent(
     name="mvc_orchestrator",

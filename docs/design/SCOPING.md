@@ -21,7 +21,7 @@
 1. **What outcome does this unlock that you can't achieve today?**
    Automates desk research, briefing cycles, visual concept generation, and multi-channel budget allocation into a unified simulation, removing 4–6 weeks of fragmented email and agency friction.
 2. **Who specifically benefits, and how would they describe the benefit to a peer?**
-   Regional Campaign Planners & Global Brand Communications (GBC) Marketing Leads. "I can test 5 different campaign angles and have complete executive-ready briefs, Nano Banana 2 Lite visual mockups, and ROAS projections in minutes instead of waiting a month for an agency."
+   Regional Campaign Planners & Global Brand Communications (GBC) Marketing Leads. "I can test 5 different campaign angles and have complete executive-ready briefs, Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`) visual mockups, and ROAS projections in minutes instead of waiting a month for an agency."
 3. **What is the measurable success metric, and what is the baseline today?**
    - *Metric:* End-to-end DAG execution turnaround $< 15\text{s}$ (excluding human pause time); Golden eval dataset quality score $\ge 4.0 / 5.0$ (LLM-as-a-Judge); $100\%$ JSON schema compliance for P1, P2, P4.
    - *Baseline:* 4 to 6 weeks of manual cross-agency briefing, spreadsheet modeling, and subjective review.
@@ -56,11 +56,11 @@
     - Cloud SQL (PostgreSQL 15) for session persistence across scale-to-zero events.
 11. **Where must this run — region, VPC, data plane? Export controls?**
     - *Compute & Storage Region:* `asia-northeast3` (Seoul) via Direct VPC Egress (`asia-northeast3-subnet`).
-    - *Foundation Model Endpoint:* Vertex AI `global` (pinned to avoid regional quota/model availability errors).
+    - *Foundation Model Endpoint:* Agent Platform `global` (pinned to avoid regional quota/model availability errors).
 12. **What does the user experience as "fast", and what is the interaction shape?**
     - *First Response:* Time to First Token (TTFT) P95 $\le 2.0\text{s}$.
-    - *Sub-Agent Turn Latency:* Text (P1, P2, P4) P95 $< 3.0\text{s}$; Visual image (P3) P95 $< 8.0\text{s}$.
-    - *Interaction Shape:* Server-Sent Events (SSE) streaming (`POST /api/v1/campaigns`).
+    - *Sub-Agent Turn Latency:* Text (P1, P2, P4: Gemini 3.5 Flash Lite) P95 $< 3.0\text{s}$; Visual image (P3: Nano Banana 2 Lite / `gemini-3.1-flash-lite-image`) P95 $< 8.0\text{s}$.
+    - *Interaction Shape:* Unary REST JSON APIs with client-side activity stream; Server-Sent Events (SSE) streaming deprecated.
 13. **What volume must it carry?**
     - Peak QPS: 0.5 QPS (MVP) / 2.5 QPS (Enterprise Scale).
     - Concurrent users: 10 concurrent campaign planners.
@@ -73,7 +73,7 @@
 14. **Existing observability stack we must plug into?**
     Google Cloud Operations Suite: Cloud Trace (propagating `traceId`), Cloud Logging (structured JSON), and BigQuery Agent Analytics.
 15. **Who carries the pager when this breaks at 03:00?**
-    Automated Cloud Monitoring burn-rate alerts with Google Cloud Alert Policies; FDE engineering support team during active business hours.
+    Automated Cloud Monitoring burn-rate alerts with Google Cloud Alert Policies (configured via Cloud Monitoring console/gcloud; BigQuery telemetry export sinks provisioned via Terraform); FDE engineering support team during active business hours.
 16. **What is the eval set today? If none, who builds one with us?**
     Pre-configured Golden Evaluation Dataset ("Galaxy S27 Black Friday Global Campaign") stored in `agents/*/eval/datasets/golden-dataset.json`.
 17. **Rollback / kill-switch story when output quality regresses?**
@@ -97,17 +97,17 @@
 
 ```mermaid
 flowchart LR
-    Marketer([Marketer / Campaign Planner]) -->|Google OAuth 2.0 OIDC| CloudRun["Cloud Run Service (asia-northeast3)<br>React SPA + FastAPI Orchestrator (Gemini 3.1 Pro)"]
-    CloudRun <-->|A2A JSON-RPC Protocol| AgentRuntime["Agent Runtime Sub-Agents (asia-northeast3)<br>P1, P2, P4 (Gemini 3.5 Flash Lite) + P3 (Nano Banana 2 Lite)"]
-    CloudRun <-->|State Persistence (30d TTL)| CloudSQL[("Cloud SQL (PostgreSQL 15)<br>orchestrator_sessions")]
-    CloudRun & AgentRuntime <-->|Deliverable Storage (30d TTL)| GCS[("GCS Bucket<br>gs://mvc-artifacts-*")]
-    CloudRun -.->|Prompt Sanitization| ModelArmor["Model Armor Service (global)"]
+    Marketer([Marketer / Campaign Planner]) -->|"Google OAuth 2.0 OIDC"| CloudRun["Cloud Run Service (asia-northeast3)<br>React SPA + FastAPI Orchestrator (Gemini 3.1 Pro)"]
+    CloudRun <-->|"A2A JSON-RPC Protocol"| AgentRuntime["Agent Runtime Sub-Agents (asia-northeast3)<br>P1, P2, P4 (Gemini 3.5 Flash Lite) + P3 (Nano Banana 2 Lite / gemini-3.1-flash-lite-image)"]
+    CloudRun <-->|"State Persistence (30d TTL)"| CloudSQL[("Cloud SQL (PostgreSQL 15)<br>orchestrator_sessions")]
+    CloudRun & AgentRuntime <-->|"Deliverable Storage (30d TTL)"| GCS[("GCS Bucket<br>gs://mvc-artifacts-*")]
+    CloudRun -.->|"Prompt Sanitization"| ModelArmor["Model Armor Service (us multi-region)"]
 ```
 
 - **Actors:** Regional Marketing Planners, Brand Managers.
 - **Systems it reads from:** Market trend inputs, session state in Cloud SQL, GCS deliverables.
 - **Systems it writes to:** `orchestrator_sessions` table in Cloud SQL, marketing visuals & JSON in GCS.
-- **Trust boundaries crossed:** Public internet to Cloud Run (secured by Google OAuth 2.0 OIDC), Cloud Run to Vertex AI / Agent Runtime (secured via Google IAM & Direct VPC Egress).
+- **Trust boundaries crossed:** Public internet to Cloud Run (secured by Google OAuth 2.0 OIDC), Cloud Run to Agent Platform / Agent Runtime (secured via Google IAM & Direct VPC Egress).
 
 ---
 
@@ -144,9 +144,9 @@ flowchart LR
 
 ### Latency
 - **Perceived Speed:** Time to First Token P95 $\le 2.0\text{s}$ `confirmed`
-- **Sub-Agent Turn Latency:** P1, P2, P4 P95 $< 3.0\text{s}$; P3 (Image) P95 $< 8.0\text{s}$ `confirmed`
+- **Sub-Agent Turn Latency:** P1, P2, P4 (Gemini 3.5 Flash Lite) P95 $< 3.0\text{s}$; P3 (Nano Banana 2 Lite / `gemini-3.1-flash-lite-image`) P95 $< 8.0\text{s}$ `confirmed`
 - **Total E2E DAG Turnaround:** P95 $< 15.0\text{s}$ (excluding human pause time) `confirmed`
-- **Interaction Shape:** Server-Sent Events (SSE) streaming `confirmed`
+- **Interaction Shape:** Unary REST JSON transactions with client-side activity stream (SSE deprecated) `confirmed`
 - **Measured by:** Integration test suite (`tests/integration/test_mvc_campaign_e2e.py`) on 2026-08-27
 
 ### Quality
@@ -176,7 +176,7 @@ flowchart LR
 
 ### Residency & Data Plane
 - **Compute & Storage Region:** `asia-northeast3` (Seoul) `confirmed`
-- **Model Endpoint:** Vertex AI `global` `confirmed`
+- **Model Endpoint:** Agent Platform `global` `confirmed`
 - **Network Posture:** Direct VPC Egress via `asia-northeast3-subnet` `confirmed`
 - **Data Classification:** `internal` `confirmed`
 
@@ -190,7 +190,7 @@ flowchart LR
 
 | # | Assumption | Why it matters (what breaks if false) | Owner | Validate by | Status |
 | :-: | :--- | :--- | :--- | :---: | :---: |
-| 1 | Vertex AI `global` endpoint provides $>33\times$ RPM headroom for Gemini 3.5 Flash Lite | Quota throttling under concurrent simulation load | Ryan Ahn | 2026-08-27 | **validated** |
+| 1 | Agent Platform `global` endpoint provides $>33\times$ RPM headroom for Gemini 3.5 Flash Lite | Quota throttling under concurrent simulation load | Ryan Ahn | 2026-08-27 | **validated** |
 | 2 | Model Armor latency remains under 200ms per prompt | Violates P95 < 2s Time to First Token SLO | Ryan Ahn | 2026-08-27 | **validated** |
 | 3 | Marketers pause between 2 minutes and 24 hours per review stage | Cloud Run scales to zero; requires Cloud SQL session recovery | Ryan Ahn | 2026-08-27 | **validated** |
 | 4 | Synthetic market benchmarks are sufficient for MVP simulation | Real consumer PII would trigger high-stakes regulated compliance | Ryan Ahn | 2026-08-27 | **validated** |
@@ -208,7 +208,7 @@ Compress Nova Electronics Corp's manual 4-to-6-week multi-channel campaign plann
 
 #### 2. In Scope (MVP)
 - **Multi-Agent Sequential DAG**: Autonomous execution of [P1] Market Sensing $\to$ [P2] Strategy & Brief $\to$ [P3] Creative Content $\to$ [P4] Performance & Insights.
-- **Strict Structured Deliverables**: P1, P2, P4 output schema-validated JSON; P3 generates Nano Banana 2 Lite marketing visual image saved to GCS.
+- **Strict Structured Deliverables**: P1, P2, P4 output schema-validated JSON; P3 generates Nano Banana 2 Lite (foundation model: `gemini-3.1-flash-lite-image`) marketing visual image saved to GCS.
 - **Human-in-the-Loop Review Gates**: Marketers inspect outputs via Web UI and submit text feedback or approve progression.
 - **Enterprise Security**: Google OAuth 2.0 OIDC token verification on all API requests; Google Cloud Model Armor prompt sanitization; Direct VPC Egress.
 - **Scale-to-Zero State Persistence**: Cloud SQL (PostgreSQL 15) session store managing multi-turn state across idle pauses.

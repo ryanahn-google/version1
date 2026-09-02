@@ -10,7 +10,11 @@ import { AssetLibraryView } from './components/assets/AssetLibraryView';
 import { SettingsView } from './components/settings/SettingsView';
 import { useCampaignStream } from './hooks/useCampaignStream';
 import { apiClient } from './api/client';
-import type { CampaignSessionResponse, CreateCampaignRequest } from './types/campaign';
+import type {
+  CampaignSessionResponse,
+  CampaignSummaryResponse,
+  CreateCampaignRequest,
+} from './types/campaign';
 
 export function App() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -29,7 +33,7 @@ export function App() {
 
   const [currentView, setCurrentView] = useState<NavView>('HOME');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [campaigns, setCampaigns] = useState<CampaignSessionResponse[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignSummaryResponse[]>([]);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
   const [initialPrompt, setInitialPrompt] = useState<string | undefined>();
   const [dismissError, setDismissError] = useState(false);
@@ -49,17 +53,10 @@ export function App() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && (currentView === 'HOME' || currentView === 'ASSETS')) {
       fetchCampaigns();
     }
-  }, [isAuthenticated, fetchCampaigns]);
-
-  // Refresh campaigns list when a campaign completes or is approved
-  useEffect(() => {
-    if (session?.status === 'COMPLETED' || session?.status === 'PAUSED_FOR_REVIEW') {
-      fetchCampaigns();
-    }
-  }, [session?.status, fetchCampaigns]);
+  }, [isAuthenticated, currentView, fetchCampaigns]);
 
   if (authLoading) {
     return (
@@ -78,7 +75,9 @@ export function App() {
     return <LoginPage />;
   }
 
-  const handleOpenCampaign = (selectedSession: CampaignSessionResponse) => {
+  const handleOpenCampaign = (
+    selectedSession: CampaignSummaryResponse | CampaignSessionResponse
+  ) => {
     loadSession(selectedSession.sessionId);
     setCurrentView('WORKSPACE');
   };
@@ -92,16 +91,6 @@ export function App() {
 
   const handleStartCampaignSimulation = async (req: CreateCampaignRequest) => {
     await startCampaign(req);
-    fetchCampaigns();
-  };
-
-  const handleApproveWithRefresh = async (
-    action: 'approve' | 'revise',
-    feedback?: string,
-    deliverableUpdates?: Record<string, unknown>
-  ) => {
-    await handleApproveOrRevise(action, feedback, deliverableUpdates);
-    fetchCampaigns();
   };
 
   const campaignTitle =
@@ -178,7 +167,7 @@ export function App() {
               session={session}
               initialPrompt={initialPrompt}
               onStartSimulation={handleStartCampaignSimulation}
-              onApproveOrRevise={handleApproveWithRefresh}
+              onApproveOrRevise={handleApproveOrRevise}
               onRollbackStage={handleRollback}
               isLoading={isStreaming}
               logs={logs}

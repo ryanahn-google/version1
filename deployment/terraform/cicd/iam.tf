@@ -104,7 +104,7 @@ resource "google_service_account_iam_member" "cicd_run_invoker_account_user" {
   depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
 
-# 5. Allow Vertex AI Reasoning Engine service agent to act as subagent SA
+# 5. Allow Agent Platform Reasoning Engine service agent to act as subagent SA
 resource "google_service_account_iam_member" "aiplatform_sa_user" {
   for_each           = local.deploy_project_ids
   service_account_id = google_service_account.subagent_sa[each.key].name

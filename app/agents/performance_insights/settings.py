@@ -109,12 +109,12 @@ class SubAgentSettings(BaseSettings):
             "google_cloud_agent_engine_id",
             "agent_engine_id",
         ),
-        description="Vertex AI Agent Engine / Reasoning Engine ID.",
+        description="Agent Platform Agent Engine / Reasoning Engine ID.",
     )
     sub_agent_model: str = Field(
         default="gemini-3.5-flash-lite",
         validation_alias=AliasChoices("SUB_AGENT_MODEL", "sub_agent_model"),
-        description="Vertex AI foundation model for structured sub-agents.",
+        description=("Agent Platform foundation model for structured sub-agents."),
     )
     image_model: str = Field(
         default="gemini-3.1-flash-lite-image",
@@ -124,7 +124,9 @@ class SubAgentSettings(BaseSettings):
             "image_model",
             "nano_banana_model",
         ),
-        description="Vertex AI Nano Banana model for marketing visual generation.",
+        description=(
+            "Agent Platform Nano Banana model for marketing visual generation."
+        ),
     )
     service_account_email: str | None = Field(
         default=None,
@@ -138,7 +140,12 @@ class SubAgentSettings(BaseSettings):
     )
     otel_to_cloud: bool = Field(
         default=False,
-        validation_alias=AliasChoices("OTEL_TO_CLOUD", "otel_to_cloud"),
+        validation_alias=AliasChoices(
+            "OTEL_TO_CLOUD",
+            "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY",
+            "otel_to_cloud",
+            "google_cloud_agent_engine_enable_telemetry",
+        ),
         description="Whether to export telemetry traces to Google Cloud Trace.",
     )
 

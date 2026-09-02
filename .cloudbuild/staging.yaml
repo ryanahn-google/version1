@@ -25,7 +25,7 @@ steps:
           .
         docker push $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:$SHORT_SHA
 
-  # Deploy P1-P4 Sub-Agents exclusively to Vertex AI Agent Runtime with Agent Gateway Ingress
+  # Deploy P1-P4 Sub-Agents exclusively to Agent Platform Agent Runtime with Agent Gateway Ingress
   - name: "gcr.io/cloud-builders/gcloud"
     id: deploy-subagents-staging
     entrypoint: /bin/bash

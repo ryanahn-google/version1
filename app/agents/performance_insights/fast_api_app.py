@@ -38,6 +38,11 @@ except ImportError:
     from session_service import get_subagent_session_service
 
 try:
+    from .settings import get_settings
+except ImportError:
+    from settings import get_settings
+
+try:
     from .reasoning_engine_adapter import attach_reasoning_engine_routes
 except ImportError:
     from reasoning_engine_adapter import attach_reasoning_engine_routes
@@ -71,7 +76,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     web=False,
-    otel_to_cloud=False,
+    otel_to_cloud=get_settings().otel_to_cloud,
     lifespan=lifespan,
 )
 

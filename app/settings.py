@@ -238,7 +238,7 @@ class StorageSettings(BaseAppSettings):
 
 
 class GoogleCloudSettings(BaseAppSettings):
-    """Google Cloud Platform and Vertex AI environment configuration."""
+    """Google Cloud Platform and Agent Platform environment configuration."""
 
     google_cloud_project: str | None = Field(
         default=None,
@@ -250,6 +250,7 @@ class GoogleCloudSettings(BaseAppSettings):
         ),
         description="Google Cloud project ID.",
     )
+
     google_cloud_location: str = Field(
         default="asia-northeast3",
         validation_alias=AliasChoices(
@@ -268,7 +269,7 @@ class GoogleCloudSettings(BaseAppSettings):
             "google_cloud_agent_engine_id",
             "agent_engine_id",
         ),
-        description="Vertex AI Agent Engine / Reasoning Engine ID.",
+        description="Agent Platform Agent Engine / Reasoning Engine ID.",
     )
     google_genai_use_enterprise: bool = Field(
         default=True,
@@ -278,7 +279,7 @@ class GoogleCloudSettings(BaseAppSettings):
             "google_genai_use_enterprise",
             "google_genai_use_vertexai",
         ),
-        description="Whether to use Google GenAI Enterprise / Vertex AI mode.",
+        description=("Whether to use Google GenAI Enterprise / Agent Platform mode."),
     )
 
     @property
@@ -307,10 +308,29 @@ class GoogleCloudSettings(BaseAppSettings):
         ),
         description="Whether to use client certificate for Cloud SDK context.",
     )
+    orchestrator_model: str = Field(
+        default="gemini-3.1-pro-preview",
+        validation_alias=AliasChoices("ORCHESTRATOR_MODEL", "orchestrator_model"),
+        description="Primary foundation model for Root Orchestrator.",
+    )
+    orchestrator_fallback_model: str = Field(
+        default="gemini-2.5-pro",
+        validation_alias=AliasChoices(
+            "ORCHESTRATOR_FALLBACK_MODEL", "orchestrator_fallback_model"
+        ),
+        description="Fallback foundation model for Root Orchestrator.",
+    )
     sub_agent_model: str = Field(
         default="gemini-3.5-flash-lite",
         validation_alias=AliasChoices("SUB_AGENT_MODEL", "sub_agent_model"),
-        description="Vertex AI foundation model for structured sub-agents.",
+        description=("Agent Platform foundation model for structured sub-agents."),
+    )
+    sub_agent_fallback_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices(
+            "SUB_AGENT_FALLBACK_MODEL", "sub_agent_fallback_model"
+        ),
+        description="Fallback foundation model for structured sub-agents.",
     )
     image_model: str = Field(
         default="gemini-3.1-flash-lite-image",
@@ -320,7 +340,9 @@ class GoogleCloudSettings(BaseAppSettings):
             "image_model",
             "nano_banana_model",
         ),
-        description="Vertex AI Nano Banana model for marketing visual generation.",
+        description=(
+            "Agent Platform Nano Banana model for marketing visual generation."
+        ),
     )
     service_account_email: str | None = Field(
         default=None,
@@ -404,7 +426,12 @@ class TelemetrySettings(BaseAppSettings):
     )
     otel_to_cloud: bool = Field(
         default=False,
-        validation_alias=AliasChoices("OTEL_TO_CLOUD", "otel_to_cloud"),
+        validation_alias=AliasChoices(
+            "OTEL_TO_CLOUD",
+            "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY",
+            "otel_to_cloud",
+            "google_cloud_agent_engine_enable_telemetry",
+        ),
         description="Whether to export telemetry traces to Google Cloud Trace.",
     )
 

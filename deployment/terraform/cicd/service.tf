@@ -96,7 +96,7 @@ resource "google_secret_manager_secret_version" "db_password" {
   secret_data = random_password.db_password[each.key].result
 }
 
-# Vertex AI Reasoning Engine Sub-Agents (P1-P4) on Agent Runtime
+# Agent Platform Reasoning Engine Sub-Agents (P1-P4) on Agent Runtime
 resource "google_vertex_ai_reasoning_engine" "subagents" {
   for_each = {
     for pair in setproduct(keys(local.deploy_project_ids), local.subagent_names) :
@@ -152,8 +152,13 @@ resource "google_vertex_ai_reasoning_engine" "subagents" {
       }
 
       env {
+        name  = "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY"
+        value = "true"
+      }
+
+      env {
         name  = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
-        value = "NO_CONTENT"
+        value = "EVENT_ONLY"
       }
 
       env {
@@ -207,7 +212,7 @@ resource "google_cloud_run_v2_service" "app" {
   name                 = var.project_name
   location             = var.region
   project              = each.value
-  description          = "Marketing Value Creator (MVC) Root Orchestrator service communicating with subagents via A2A on Vertex AI Agent Runtime"
+  description          = "Marketing Value Creator (MVC) Root Orchestrator service communicating with subagents via A2A on Agent Platform Agent Runtime"
   deletion_protection  = false
   ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = true

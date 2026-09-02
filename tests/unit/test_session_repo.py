@@ -89,3 +89,94 @@ async def test_session_repo_utf8_json_serialization(tmp_path):
         assert "\\uc778\\uc2a4\\ud0c0" not in raw_channels
 
     await repo.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_list_user_campaigns_returns_summaries(tmp_path):
+    """Verify list_user_campaigns returns lightweight CampaignSummaryResponse without full deliverables."""
+    db_file = tmp_path / "test_summary_sessions.db"
+    db_url = f"sqlite+aiosqlite:///{db_file}"
+    repo = SessionRepository(db_url=db_url)
+    await repo.init_db()
+
+    # Create a session with full deliverables
+    await repo.create_session(
+        session_id="camp-summary-001",
+        brand_name="Nova Electronics Corp",
+        product_name="Galaxy S27 Ultra",
+        campaign_objective="Test summary listing",
+        budget_amount=500000.0,
+        currency="USD",
+        channels=["Social Media"],
+        user_id="user-123",
+    )
+    await repo.update_session(
+        session_id="camp-summary-001",
+        deliverables={
+            "marketSensing": {
+                "targetMarket": "Premium Smartphones",
+                "consumerTrends": ["Trend 1", "Trend 2", "Trend 3"],
+                "competitiveAnalysis": [
+                    {
+                        "competitor": "Comp A",
+                        "strengths": ["S1"],
+                        "vulnerabilities": ["V1"],
+                    }
+                ],
+                "strategicOpportunities": ["Opp 1"],
+                "sentimentOverview": {
+                    "positiveThemes": ["Theme 1"],
+                    "frictionPoints": ["Friction 1"],
+                    "overallSentimentScore": 0.8,
+                },
+            },
+            "creativeContent": {
+                "visualConceptTitle": "Next Gen AI",
+                "visualPromptUsed": "cinematic prompt",
+                "assetUrl": "/api/v1/campaigns/camp-summary-001/visual",
+                "headlineCopy": "Next Level AI, Galaxy S27",
+                "bodyCopy": "Experience unmatched intelligence.",
+                "callToAction": "Pre-order Now",
+                "aspectRatio": "16:9",
+            },
+            "performanceInsights": {
+                "totalBudget": 500000.0,
+                "currency": "USD",
+                "channelAllocations": [
+                    {
+                        "channel": "Social Media",
+                        "allocationAmount": 500000.0,
+                        "percentage": 100.0,
+                        "rationale": "Max impact",
+                    }
+                ],
+                "projectedKpis": {
+                    "estimatedImpressions": 1000000,
+                    "estimatedClicks": 50000,
+                    "estimatedConversions": 2500,
+                    "projectedCtr": 5.0,
+                },
+                "expectedRoas": 3.8,
+                "recommendations": ["Rec 1"],
+            },
+        },
+        user_id="user-123",
+    )
+
+    summaries = await repo.list_user_campaigns("user-123")
+    assert len(summaries) == 1
+    summary = summaries[0]
+
+    # Verify summary fields
+    assert summary.sessionId == "camp-summary-001"
+    assert summary.brandName == "Nova Electronics Corp"
+    assert summary.productName == "Galaxy S27 Ultra"
+    assert summary.budgetAmount == 500000.0
+    assert summary.expectedRoas == 3.8
+    assert summary.creativeAssetUrl == "/api/v1/campaigns/camp-summary-001/visual"
+    assert summary.creativeTitle == "Next Gen AI"
+
+    # Verify that deliverables attribute does not exist on summary
+    assert not hasattr(summary, "deliverables")
+
+    await repo.engine.dispose()

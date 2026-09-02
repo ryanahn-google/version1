@@ -25,37 +25,47 @@ Before restarting containers, updating Model Armor templates, or rolling back re
    ```
 2. **Snapshot Model Payload & Headers**: Record the offending prompt, tenant ID, and sub-agent stage.
 3. **Verify Cloud SQL Proxy Socket**: Confirm whether `/cloudsql/` Unix domain socket is active before recycling instances.
+4. **Verify Container Health Probe**: Confirm Orchestrator container liveness via `GET /healthz` (`app/routers/system.py:34`). Note: MVC implements exclusively `/healthz` for health and liveness checks; `/ready` does not exist in the application.
 
 ---
 
 ## 3. Incident Playbooks
 
-### Playbook A: Vertex AI 429 Resource Exhausted (Quota Contention)
-- **Symptom**: Sub-agents return HTTP 429 or `ResourceExhausted` during concurrent campaign simulations.
+### Playbook A: Agent Platform 429 Resource Exhausted (Quota Contention) & Model Failover
+- **Symptom**: Model calls encounter HTTP 429 `ResourceExhausted` or 503 `ServiceUnavailable` during traffic spikes.
 - **Diagnosis**:
   ```bash
-  gcloud logging read 'jsonPayload.error.code=429' --limit=5 --project=capstone-staging-506811
+  gcloud logging read 'jsonPayload.error.code=429 OR jsonPayload.error.code=503' --limit=10 --project=capstone-staging-506811
   ```
-- **Mitigation**:
-  1. Confirm endpoint is directed to `location="global"` (Vertex AI Dynamic Shared Quota).
-  2. Verify sub-agent exponential backoff with jitter is active.
-  3. If persistent, temporarily reduce Cloud Run container concurrency from 80 to 40 to space out concurrent token bursts.
+- **Automatic Mitigation (Active Engine)**:
+  1. **HTTP Exponential Backoff with Jitter**: Automatically retries up to 3 times with exponential backoff (`initial_delay=1.0s, max_delay=10.0s, exp_base=2.0, jitter=1.0s`) via `get_default_http_retry_options()` on HTTP status codes `[408, 429, 500, 502, 503, 504]`.
+  2. **Multi-Tier Model Fallback (`FallbackGemini`)**: If primary model (`gemini-3.1-pro-preview` for Orchestrator, `gemini-3.5-flash-lite` for subagents) remains unavailable, requests automatically and transparently fail over to secondary fallback models (`gemini-2.5-pro` and `gemini-2.5-flash` respectively).
+- **Manual Operational Actions**:
+  1. Inspect Cloud Logging to verify that `FallbackGemini` successfully switched to the secondary model.
+  2. Confirm endpoint location is pinned to `global`.
+  3. If quota contention is company-wide, temporarily reduce Cloud Run container concurrency from 80 to 40.
 
 ### Playbook B: Model Armor False-Positive Rejections (`PROMPT_INJECTION_DETECTED`)
 - **Symptom**: Marketer inputs valid marketing brief (e.g. competitor comparison) but receives HTTP 400 with `PROMPT_INJECTION_DETECTED`.
 - **Diagnosis**: Inspect Security Command Center (SCC) or Cloud Logging for Model Armor template `version1-guardrails` match filters.
 - **Mitigation**:
   1. Export the triggering brief text.
-  2. Update the Model Armor template confidence threshold from `LOW_AND_ABOVE` to `MEDIUM_AND_ABOVE` in `asia-northeast3`:
+  2. Update the Model Armor template confidence threshold from `LOW_AND_ABOVE` to `MEDIUM_AND_ABOVE` in multi-region `us` (where `version1-guardrails` is provisioned per `deployment/terraform/cicd/model_armor.tf:17`):
      ```bash
-     # Example: adjust floor settings in Terraform or Google Cloud Console
+     # Example: adjust floor settings in Terraform or Google Cloud Console (location: us)
      ```
   3. Advise the marketer to rephrase while template adjustment propagates.
 
-### Playbook C: Cloud SQL Auth Proxy Socket Disconnect
-- **Symptom**: Cloud Run returns HTTP 500 with `Cannot connect to host /cloudsql/...: Connection refused`.
-- **Diagnosis**: Check if Cloud SQL instance is in `MAINTENANCE` or restarting.
-- **Mitigation**:
+### Playbook C: Cloud SQL Auth Proxy Socket Disconnect & Transient Fault Recovery
+- **Symptom**: Ephemeral connection drops, proxy socket resets, or PostgreSQL transaction lock contention.
+- **Automatic Mitigation (Active Engine)**:
+  - All database query methods in `SessionRepository` are decorated with `@db_retry` (3 attempts, initial 0.5s, factor 2.0, max 5.0s, jitter 0.5s).
+  - Transient `OperationalError` and `DBAPIError` exceptions are retried with randomized jitter, absorbing brief proxy restarts and maintenance switchovers without returning 500 errors to clients.
+- **Diagnosis**: Check if Cloud SQL instance is in `MAINTENANCE` or restarting if errors persist past 3 retry attempts:
+  ```bash
+  gcloud logging read 'textPayload=~"database operation.*failed after.*attempts"' --limit=5 --project=capstone-staging-506811
+  ```
+- **Manual Operational Actions**:
   1. Check Cloud SQL instance health:
      ```bash
      gcloud sql instances describe version1-db-staging --project=capstone-staging-506811 --format="value(state)"
@@ -68,6 +78,13 @@ Before restarting containers, updating Model Armor templates, or rolling back re
 - **Mitigation**:
   1. Verify Cloud Run Service Account (`version1-app`) retains `roles/iam.serviceAccountTokenCreator`.
   2. Re-trigger the endpoint to issue a fresh 1-hour V4 signed URL dynamically.
+
+### Playbook E: P3 Creative Visual Generation Timeout / Exhaustion
+- **Symptom**: Stage 3 Creative Content takes longer than 15s or image rendering encounters upstream drop.
+- **Automatic Mitigation (Active Engine)**:
+  - Visual generation (`synthesize_nano_banana_image`) runs asynchronously via `client.aio.models.generate_content` with a strict 25.0s timeout and a 2-attempt exponential backoff retry loop (`attempts=2, backoff_base=2.0, jitter=1.0s`).
+  - File I/O for Google Cloud Storage is offloaded to worker threads (`asyncio.to_thread`), preventing event loop starvation.
+  - If both attempts fail, the agent logs a warning and returns a structured placeholder deliverable, allowing the campaign workflow to proceed without fatal termination.
 
 ---
 

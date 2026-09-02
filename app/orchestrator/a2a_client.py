@@ -180,54 +180,80 @@ class A2ASubAgentClient:
 
         try:
             from google.genai import Client
+            from google.genai import types as genai_types
 
-            project = settings.google_cloud_project
+            from app.retry_policy import get_default_http_retry_options
+
+            project = (
+                getattr(settings, "effective_project_id", None)
+                or settings.google_cloud_project
+                or "capstone-staging-506811"
+            )
             location = settings.google_cloud_location or "global"
 
             client = Client(
                 vertexai=True,
                 project=project,
                 location=location,
-            )
-            model_name = getattr(settings, "sub_agent_model", "gemini-2.5-flash")
-            logger.info(
-                "Synthesizing [%s] deliverable with Vertex AI (%s)...",
-                stage_name,
-                model_name,
+                http_options=genai_types.HttpOptions(
+                    retry_options=get_default_http_retry_options()
+                ),
             )
             config: dict[str, Any] = {
                 "response_mime_type": "application/json",
                 "response_schema": schema_cls,
             }
             if "Market Sensing" in stage_name:
-                from google.genai import types as genai_types
-
                 config["tools"] = [
                     genai_types.Tool(google_search=genai_types.GoogleSearch())
                 ]
 
-            resp = await asyncio.wait_for(
-                client.aio.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=config,
-                ),
-                timeout=25.0,
-            )
-            if resp.candidates and resp.candidates[0].grounding_metadata:
-                gm = resp.candidates[0].grounding_metadata
-                queries = getattr(gm, "web_search_queries", None)
-                if queries:
+            candidate_models = [
+                getattr(settings, "sub_agent_model", "gemini-3.5-flash-lite"),
+                getattr(settings, "sub_agent_fallback_model", "gemini-2.5-flash"),
+            ]
+            # Ensure unique candidate models in order
+            candidate_models = list(dict.fromkeys(candidate_models))
+
+            for model_name in candidate_models:
+                try:
                     logger.info(
-                        "[%s] Grounded with Google Search queries: %s",
+                        "Synthesizing [%s] deliverable with Agent Platform (%s)...",
                         stage_name,
-                        queries,
+                        model_name,
                     )
-            if resp.text:
-                return schema_cls.model_validate_json(resp.text)
+                    resp = await asyncio.wait_for(
+                        client.aio.models.generate_content(
+                            model=model_name,
+                            contents=prompt,
+                            config=config,
+                        ),
+                        timeout=25.0,
+                    )
+                    if resp.candidates and resp.candidates[0].grounding_metadata:
+                        gm = resp.candidates[0].grounding_metadata
+                        queries = getattr(gm, "web_search_queries", None)
+                        if queries:
+                            logger.info(
+                                "[%s] Grounded with Google Search queries: %s",
+                                stage_name,
+                                queries,
+                            )
+                    if resp.text:
+                        return schema_cls.model_validate_json(resp.text)
+                except Exception as model_exc:
+                    logger.warning(
+                        "Local Agent Platform agent execution for [%s] with model "
+                        "'%s' failed: %s. Trying fallback model...",
+                        stage_name,
+                        model_name,
+                        model_exc,
+                    )
+                    continue
         except Exception as exc:
             logger.warning(
-                "Local Vertex AI agent execution for [%s] failed or unavailable: %s. Using heuristic synthesizer.",
+                "Local Agent Platform agent execution for [%s] failed or "
+                "unavailable: %s. Using heuristic synthesizer.",
                 stage_name,
                 exc,
             )
@@ -264,14 +290,76 @@ class A2ASubAgentClient:
             return ai_res
 
         # Fallback when LLM parsing fails or is unavailable:
-        # Simply retain the original prompt as campaignObjective, with other fields empty for user input.
+        # Use intelligent regex and heuristic extraction for brand, product, and budget
+        import re
+
+        budget: float | None = None
+        curr = "KRW" if target_lang == "ko" else "USD"
+
+        m_eok = re.search(
+            r"(\d+(?:\.\d+)?)\s*억(?:\s*(\d+(?:,\d+)?|\d+)?\s*만)?\s*원?",
+            prompt,
+        )
+        if m_eok:
+            eok_val = float(m_eok.group(1)) * 100_000_000
+            man_val = (
+                float(m_eok.group(2).replace(",", "")) * 10_000
+                if m_eok.group(2)
+                else 0.0
+            )
+            budget = eok_val + man_val
+            curr = "KRW"
+        else:
+            m_man = re.search(r"(\d+(?:,\d+)?)\s*만\s*원?", prompt)
+            if m_man:
+                budget = float(m_man.group(1).replace(",", "")) * 10_000
+                curr = "KRW"
+            else:
+                m_usd = re.search(
+                    r"(?:$|USD\s*)(\d[\d,]*(?:\.\d+)?)", prompt, re.IGNORECASE
+                )
+                if not m_usd:
+                    m_usd = re.search(
+                        r"(\d[\d,]*(?:\.\d+)?)\s*(?:$|USD|dollars?)",
+                        prompt,
+                        re.IGNORECASE,
+                    )
+                if m_usd:
+                    budget = float(m_usd.group(1).replace(",", ""))
+                    curr = "USD"
+
+        known_brands = [
+            "삼성전자",
+            "삼성",
+            "Samsung",
+            "LG전자",
+            "LG",
+            "Apple",
+            "애플",
+            "Sony",
+            "소니",
+            "Nova Electronics",
+            "Nova",
+            "노바",
+            "현대자동차",
+            "현대",
+            "Hyundai",
+            "기아",
+            "Kia",
+        ]
+        detected_brand = ""
+        for b in known_brands:
+            if re.search(rf"{re.escape(b)}", prompt, re.IGNORECASE) or b in prompt:
+                detected_brand = b
+                break
+
         return ParsePromptResponse(
-            brandName="",
+            brandName=detected_brand,
             productName="",
             campaignObjective=prompt.strip(),
             targetAudience="",
-            budgetAmount=None,
-            currency="KRW" if target_lang == "ko" else "USD",
+            budgetAmount=budget,
+            currency=curr,
             channels=[],
         )
 

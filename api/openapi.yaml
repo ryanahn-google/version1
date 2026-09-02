@@ -176,13 +176,13 @@ paths:
       operationId: listUserCampaigns
       responses:
         "200":
-          description: List of campaigns owned by the current user
+          description: List of campaign summaries owned by the current user
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CampaignSessionResponse'
+                  $ref: '#/components/schemas/CampaignSummaryResponse'
         "401":
           description: Unauthenticated
           content:
@@ -517,6 +517,74 @@ components:
           type: object
           additionalProperties: true
           description: "Optional dictionary containing updated deliverable fields modified by marketer"
+
+    CampaignSummaryResponse:
+      type: object
+      required:
+        - sessionId
+        - status
+        - currentStage
+        - brandName
+        - productName
+        - campaignObjective
+        - budgetAmount
+        - currency
+        - createdAt
+        - updatedAt
+      properties:
+        sessionId:
+          type: string
+          example: "camp-9f8a3c21"
+        userId:
+          type: string
+          nullable: true
+          example: "a8098c1a-f86e-11da-bd1a-00112444be1e"
+        status:
+          type: string
+          enum: ["INITIALIZING", "RUNNING", "PAUSED_FOR_REVIEW", "COMPLETED", "FAILED"]
+          example: "PAUSED_FOR_REVIEW"
+        currentStage:
+          type: string
+          enum: ["MARKET_SENSING", "STRATEGY_BRIEF", "CREATIVE_CONTENT", "PERFORMANCE_INSIGHTS", "MEDIA_EXECUTION", "COMPLETED"]
+          example: "MARKET_SENSING"
+        tenantId:
+          type: string
+          example: "default"
+        channels:
+          type: array
+          items:
+            type: string
+        revisionCount:
+          type: integer
+          example: 0
+        brandName:
+          type: string
+        productName:
+          type: string
+        campaignObjective:
+          type: string
+        budgetAmount:
+          type: number
+        currency:
+          type: string
+        expectedRoas:
+          type: number
+          nullable: true
+          description: "Expected ROAS summary if performance modeling is complete"
+        creativeAssetUrl:
+          type: string
+          nullable: true
+          description: "Visual asset URL if creative step is completed"
+        creativeTitle:
+          type: string
+          nullable: true
+          description: "Creative visual title if available"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     CampaignSessionResponse:
       type: object

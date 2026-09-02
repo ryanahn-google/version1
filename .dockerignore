@@ -1,4 +1,4 @@
-# Exclude subagents from Cloud Run Orchestrator image (subagents deploy to Vertex AI Agent Runtime)
+# Exclude subagents from Cloud Run Orchestrator image (subagents deploy to Agent Platform Agent Runtime)
 app/agents/
 
 # Python cache & virtual environments

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Reasoning Engine HTTP contract adapter for Vertex AI Agent Runtime."""
+"""Reasoning Engine HTTP contract adapter for Agent Platform Agent Runtime."""
 
 import inspect
 import json

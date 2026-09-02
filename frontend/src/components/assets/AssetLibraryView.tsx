@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { FolderOpen, Image as ImageIcon, ExternalLink, Maximize2 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import type { CampaignSessionResponse } from '../../types/campaign';
+import type {
+  CampaignSessionResponse,
+  CampaignSummaryResponse,
+} from '../../types/campaign';
 
 interface AssetLibraryViewProps {
-  campaigns: CampaignSessionResponse[];
+  campaigns: (CampaignSummaryResponse | CampaignSessionResponse)[];
 }
 
 export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
@@ -14,15 +17,42 @@ export function AssetLibraryView({ campaigns }: AssetLibraryViewProps) {
 
   // Extract all creative assets from loaded campaigns
   const assets = campaigns
-    .filter((c) => c.deliverables?.creativeContent?.assetUrl)
-    .map((c) => ({
-      sessionId: c.sessionId,
-      productName: c.productName || 'Campaign Asset',
-      url: c.deliverables!.creativeContent!.assetUrl!,
-      title: c.deliverables?.creativeContent?.visualConceptTitle || 'Generated Visual',
-      aspectRatio: c.deliverables?.creativeContent?.aspectRatio || '16:9',
-      isApproved: Boolean(c.deliverables?.creativeContent?.storageUri) || c.status === 'COMPLETED',
-    }));
+    .map((c) => {
+      const summaryUrl = 'creativeAssetUrl' in c ? c.creativeAssetUrl : undefined;
+      const deliverableUrl =
+        'deliverables' in c
+          ? c.deliverables?.creativeContent?.assetUrl
+          : undefined;
+      const url = summaryUrl || deliverableUrl;
+      if (!url) return null;
+
+      const title =
+        ('creativeTitle' in c ? c.creativeTitle : undefined) ||
+        ('deliverables' in c
+          ? c.deliverables?.creativeContent?.visualConceptTitle
+          : undefined) ||
+        'Generated Visual';
+
+      const aspectRatio =
+        ('deliverables' in c
+          ? c.deliverables?.creativeContent?.aspectRatio
+          : undefined) || '16:9';
+
+      const isApproved =
+        ('deliverables' in c &&
+          Boolean(c.deliverables?.creativeContent?.storageUri)) ||
+        c.status === 'COMPLETED';
+
+      return {
+        sessionId: c.sessionId,
+        productName: c.productName || 'Campaign Asset',
+        url,
+        title,
+        aspectRatio,
+        isApproved,
+      };
+    })
+    .filter((a): a is NonNullable<typeof a> => a !== null);
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-8 space-y-6">

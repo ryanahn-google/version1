@@ -17,7 +17,7 @@ We implement a dual-mode, environment-aware asset storage architecture managed b
 
 1. **Production Storage Mode (`ENV=prod` or `ARTIFACTS_BUCKET_NAME` configured)**:
    - Generated image binaries from Nano Banana 2 Lite are uploaded to Google Cloud Storage at:
-     `gs://${ARTIFACTS_BUCKET_NAME}/campaigns/{sessionId}/{assetId}.png`
+     `gs://${ARTIFACTS_BUCKET_NAME}/users/{user_id}/campaigns/{session_id}/{filename}`
    - Assets inherit bucket lifecycle policies (30-day automatic expiration).
    - The returned `assetUrl` is an accessible HTTPS GCS URL or signed URL.
 

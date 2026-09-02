@@ -60,7 +60,7 @@ known-first-party = ["app", "frontend"]
 
 [tool.codespell]
 ignore-words-list = "rouge,anc"
-skip = "./locust_env/*,uv.lock,.venv,./frontend,**/package-lock.json,**/artifacts/*"
+skip = "./locust_env/*,uv.lock,.venv,./frontend,**/package-lock.json,**/artifacts/*,*.pdf,*.html"
 
 
 [build-system]

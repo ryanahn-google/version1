@@ -16,6 +16,12 @@ Developers also require a rapid local development and test loop (`pytest`, local
 2. **Hybrid SQLAlchemy Session Persistence**:
    - In production on Cloud Run, sessions are persisted to Cloud SQL (PostgreSQL 15) using `asyncpg` over Cloud SQL Auth Proxy Unix domain sockets.
    - In local development and unit tests, the repository falls back to local SQLite (`sqlite+aiosqlite`) or in-memory storage, preserving complete API compatibility.
+3. **Database Transient Fault Retry Policy (`@db_retry`)**:
+   - All 8 database query methods in `SessionRepository` (`app/orchestrator/session_repo.py`) are decorated with `@db_retry`.
+   - Traps transient `OperationalError` and `DBAPIError` (e.g. Cloud SQL Auth Proxy socket resets, connection pool timeouts, transient PostgreSQL locks).
+   - Configured with bounded exponential backoff and jitter (`attempts=3, initial_delay=0.5s, backoff_factor=2.0, max_delay=5.0s, jitter=0.5s`), preventing cascading 500 errors during proxy maintenance.
+4. **Resilient A2A Protocol Invocation with HTTP Backoff & Jitter**:
+   - Both remote HTTP JSON-RPC and local fallback execution in `A2ASubAgentClient` enforce `HttpRetryOptions` with exponential backoff and jitter, ensuring network blips between Cloud Run and Agent Runtime do not fail the campaign DAG.
 
 ## Alternatives considered
 ### Alternative A: Strict Remote-Only A2A Client and PostgreSQL
@@ -50,3 +56,4 @@ Deploy Cloud Memorystore (Redis) as the session persistence tier.
 
 ## Changelog
 - 2026-08-27: Initial proposal and acceptance.
+- 2026-09-02: Added Database Transient Fault Retry (`@db_retry`) and Resilient A2A HTTP Backoff & Jitter policy.

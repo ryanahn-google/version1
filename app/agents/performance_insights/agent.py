@@ -24,6 +24,24 @@ try:
 except ImportError:
     from schemas.deliverables import PerformanceInsightsDeliverable
 
+try:
+    from app.retry_policy import get_default_http_retry_options
+except ImportError:
+    try:
+        from retry_policy import get_default_http_retry_options
+    except ImportError:
+
+        def get_default_http_retry_options() -> types.HttpRetryOptions:
+            return types.HttpRetryOptions(
+                attempts=3,
+                initial_delay=1.0,
+                max_delay=10.0,
+                exp_base=2.0,
+                jitter=1.0,
+                http_status_codes=[408, 429, 500, 502, 503, 504],
+            )
+
+
 MODEL = "gemini-3.5-flash-lite"
 
 PERFORMANCE_INSIGHTS_INSTRUCTION = """
@@ -52,7 +70,7 @@ performance_insights_agent = Agent(
     name="performance_insights_agent",
     model=Gemini(
         model=MODEL,
-        retry_options=types.HttpRetryOptions(attempts=3),
+        retry_options=get_default_http_retry_options(),
     ),
     instruction=PERFORMANCE_INSIGHTS_INSTRUCTION,
     output_schema=PerformanceInsightsDeliverable,

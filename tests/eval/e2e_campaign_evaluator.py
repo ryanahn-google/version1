@@ -51,7 +51,7 @@ _cached_judge_client: genai.Client | None = None
 
 
 def _get_judge_client() -> genai.Client | None:
-    """Initializes and caches a GenAI Client configured for Vertex AI or API key.
+    """Initializes and caches a GenAI Client for Agent Platform or API key.
 
     Returns:
         Configured genai.Client or None if authentication is not configured.
@@ -75,7 +75,7 @@ def _get_judge_client() -> genai.Client | None:
             )
             return _cached_judge_client
         except Exception as err:
-            logger.warning("Vertex AI GenAI Client initialization failed: %s", err)
+            logger.warning("Agent Platform GenAI Client initialization failed: %s", err)
 
     try:
         _cached_judge_client = genai.Client()
@@ -178,7 +178,8 @@ Assess strategic alignment, creative quality, persona relevance, and coherence a
         if client is None:
             return (
                 3,
-                "LLM Judge client could not be initialized (no Vertex AI or API key).",
+                "LLM Judge client could not be initialized "
+                "(no Agent Platform or API key).",
             )
         response = None
         for candidate_model in [JUDGE_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"]:

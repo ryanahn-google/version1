@@ -4,6 +4,7 @@ export type CreateCampaignRequest = components['schemas']['CreateCampaignRequest
   language?: 'ko' | 'en';
 };
 export type CampaignSessionResponse = components['schemas']['CampaignSessionResponse'];
+export type CampaignSummaryResponse = components['schemas']['CampaignSummaryResponse'];
 export type StageApprovalRequest = components['schemas']['StageApprovalRequest'] & {
   deliverableUpdates?: Record<string, unknown>;
 };
