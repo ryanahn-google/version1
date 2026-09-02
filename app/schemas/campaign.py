@@ -190,8 +190,43 @@ class CampaignDeliverables(BaseModel):
     performanceInsights: PerformanceInsightsDeliverable | None = None
 
 
+class CampaignSummaryResponse(BaseModel):
+    """Lightweight summary of a campaign session for list endpoints."""
+
+    sessionId: str = Field(..., description="Unique campaign session identifier")
+    userId: str | None = Field(
+        default=None, description="Owner user ID for user-isolated access"
+    )
+    tenantId: str = Field(
+        default="default", description="Tenant identifier for multi-tenancy"
+    )
+    status: CampaignStatus = Field(..., description="Current lifecycle status")
+    currentStage: CampaignStage = Field(..., description="Active or paused stage")
+    brandName: str
+    productName: str
+    campaignObjective: str
+    budgetAmount: float
+    currency: str
+    channels: list[str] = Field(default_factory=list)
+    expectedRoas: float | None = Field(
+        default=None,
+        description="Expected ROAS from performance insights if available",
+    )
+    creativeAssetUrl: str | None = Field(
+        default=None,
+        description="URL to generated creative visual asset if available",
+    )
+    creativeTitle: str | None = Field(
+        default=None,
+        description="Visual concept title if available",
+    )
+    revisionCount: int = Field(default=0, description="Number of revisions requested")
+    createdAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updatedAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class CampaignSessionResponse(BaseModel):
-    """Complete campaign session details."""
+    """Complete campaign session details including full deliverables."""
 
     sessionId: str = Field(..., description="Unique campaign session identifier")
     userId: str | None = Field(

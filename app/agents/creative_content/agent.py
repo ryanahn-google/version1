@@ -20,7 +20,10 @@ Step 2: Native visual asset synthesis and persistence (Nano Banana 2 Lite).
 """
 
 import asyncio
+import concurrent.futures
 import logging
+import random
+import uuid
 from typing import Any
 
 from google.adk.agents import Agent
@@ -42,6 +45,23 @@ except ImportError:
         CreativeContentDeliverable,
     )
     from settings import get_settings  # type: ignore[no-redef]
+try:
+    from app.retry_policy import get_default_http_retry_options
+except ImportError:
+    try:
+        from retry_policy import get_default_http_retry_options
+    except ImportError:
+
+        def get_default_http_retry_options() -> types.HttpRetryOptions:
+            return types.HttpRetryOptions(
+                attempts=3,
+                initial_delay=1.0,
+                max_delay=10.0,
+                exp_base=2.0,
+                jitter=1.0,
+                http_status_codes=[408, 429, 500, 502, 503, 504],
+            )
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +89,7 @@ copy_and_prompt_agent = Agent(
     name="creative_copy_agent",
     model=Gemini(
         model=TEXT_MODEL,
-        retry_options=types.HttpRetryOptions(attempts=3),
+        retry_options=get_default_http_retry_options(),
     ),
     instruction=COPY_AND_PROMPT_INSTRUCTION,
     mode="single_turn",
@@ -102,46 +122,34 @@ _MOCK_PNG_BYTES = (
 
 
 # --- Step 2: Visual Asset Synthesis Function & Agent ---
-def generate_marketing_visual(
-    visual_prompt: str,
+async def synthesize_nano_banana_image(
+    prompt: str,
     session_id: str | None = None,
     user_id: str | None = None,
-    tool_context: ToolContext | None = None,
-) -> str:
-    """Synthesize 16:9 marketing visual with Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and hold in memory.
+    max_attempts: int = 2,
+    timeout_seconds: float = 25.0,
+    initial_delay: float = 1.5,
+    jitter: float = 1.0,
+) -> str | None:
+    """Synthesize marketing visual using Nano Banana 2 Lite asynchronously.
+
+    Executes non-blocking async generation with retry logic (exponential backoff
+    with jitter) and persists the asset to memory or GCS.
 
     Args:
-        visual_prompt: The photorealistic, studio-quality 16:9 visual prompt describing the scene.
-        session_id: Optional campaign session identifier to group assets under campaigns/{session_id}/.
-        user_id: Optional user identifier to isolate assets under users/{user_id}/.
-        tool_context: Optional ADK execution context injected automatically by the framework.
+        prompt: Detailed visual synthesis prompt.
+        session_id: Optional campaign session ID.
+        user_id: Optional authenticated user ID.
+        max_attempts: Number of generation attempts (default 2).
+        timeout_seconds: Timeout per generation attempt in seconds.
+        initial_delay: Base retry backoff in seconds.
+        jitter: Randomized jitter factor.
 
     Returns:
-        The accessible draft URL or fallback URL of the synthesized marketing visual.
+        Persisted asset URL or draft URL, or None if synthesis fails.
     """
-    # 1. Resolve effective session_id and user_id from arguments, tool_context, or prompt metadata
-    effective_session_id = session_id
+    effective_session_id = session_id or f"temp-session-{uuid.uuid4().hex[:8]}"
     effective_user_id = user_id
-
-    if tool_context:
-        try:
-            if hasattr(tool_context, "session") and tool_context.session:
-                effective_session_id = effective_session_id or getattr(
-                    tool_context.session, "id", None
-                )
-                ctx_user_id = getattr(tool_context.session, "user_id", None)
-                if ctx_user_id and not str(ctx_user_id).startswith("A2A_USER_"):
-                    effective_user_id = effective_user_id or str(ctx_user_id)
-            if not effective_session_id:
-                effective_session_id = getattr(tool_context, "session_id", None)
-            if not effective_user_id:
-                ctx_user_id = getattr(tool_context, "user_id", None)
-                if ctx_user_id and not str(ctx_user_id).startswith("A2A_USER_"):
-                    effective_user_id = str(ctx_user_id)
-        except Exception as ctx_err:
-            logger.debug(
-                "Could not resolve session_id/user_id from tool_context: %s", ctx_err
-            )
 
     if effective_user_id and str(effective_user_id).startswith("A2A_USER_"):
         effective_user_id = None
@@ -165,70 +173,182 @@ def generate_marketing_visual(
 
         client = Client(vertexai=True, project=project, location=location)
         logger.info(
-            "P3 Tool generate_marketing_visual: synthesizing with %s at %s (session_id=%s, user_id=%s)...",
+            "P3 synthesize_nano_banana_image: synthesizing with %s at %s "
+            "(session_id=%s, user_id=%s)...",
             image_model,
             location,
             effective_session_id,
             effective_user_id,
         )
-        resp = client.models.generate_content(
-            model=image_model,
-            contents=visual_prompt,
-        )
-        img_bytes: bytes | None = None
-        if resp and resp.candidates:
-            content = resp.candidates[0].content
-            if content and content.parts:
-                for part in content.parts:
-                    inline_data = getattr(part, "inline_data", None)
-                    if inline_data and inline_data.data:
-                        img_bytes = inline_data.data
-                        break
 
-        if img_bytes:
-            if get_draft_image_store:
-                store = get_draft_image_store()
-                if store:
-                    draft_url = store.save_draft(effective_session_id, img_bytes)
-                    logger.info(
-                        "P3 Tool successfully stored draft visual in memory: %s",
-                        draft_url,
-                    )
-                    return draft_url
-
+        for attempt in range(max_attempts):
             try:
-                from .storage_service import save_visual_marketing_asset
-            except ImportError:
-                try:
-                    from storage_service import save_visual_marketing_asset
-                except ImportError:
-                    try:
-                        from app.storage_service import save_visual_marketing_asset
-                    except ImportError:
-                        from app.agents.creative_content.storage_service import (
-                            save_visual_marketing_asset,
-                        )
+                import inspect
 
-            url = save_visual_marketing_asset(
-                img_bytes,
-                session_id=effective_session_id,
-                user_id=effective_user_id,
-            )
-            logger.info("P3 Tool successfully stored visual: %s", url)
-            return url
-    except Exception as exc:
-        logger.warning("P3 Tool generate_marketing_visual failed: %s", exc)
+                aio_models = getattr(client, "aio", None) and getattr(
+                    client.aio, "models", None
+                )
+                gen_func = getattr(aio_models, "generate_content", None)
+                if (
+                    aio_models
+                    and gen_func
+                    and (
+                        inspect.iscoroutinefunction(gen_func)
+                        or hasattr(gen_func, "assert_awaited")
+                    )
+                ):
+                    resp = await asyncio.wait_for(
+                        gen_func(model=image_model, contents=prompt),
+                        timeout=timeout_seconds,
+                    )
+                elif aio_models and hasattr(aio_models, "generate_content"):
+                    res = aio_models.generate_content(
+                        model=image_model, contents=prompt
+                    )
+                    if inspect.isawaitable(res):
+                        resp = await asyncio.wait_for(res, timeout=timeout_seconds)
+                    else:
+                        resp = await asyncio.to_thread(
+                            client.models.generate_content,
+                            model=image_model,
+                            contents=prompt,
+                        )
+                else:
+                    resp = await asyncio.to_thread(
+                        client.models.generate_content,
+                        model=image_model,
+                        contents=prompt,
+                    )
+                img_bytes: bytes | None = None
+                if resp and resp.candidates:
+                    cand_content = resp.candidates[0].content
+                    if cand_content and cand_content.parts:
+                        for part in cand_content.parts:
+                            inline_data = getattr(part, "inline_data", None)
+                            if inline_data and inline_data.data:
+                                img_bytes = inline_data.data
+                                break
+
+                if img_bytes:
+                    if get_draft_image_store:
+                        store = get_draft_image_store()
+                        if store:
+                            draft_url = store.save_draft(
+                                effective_session_id, img_bytes
+                            )
+                            logger.info(
+                                "P3 successfully stored draft visual: %s",
+                                draft_url,
+                            )
+                            return draft_url
+
+                    try:
+                        from .storage_service import save_visual_marketing_asset
+                    except ImportError:
+                        try:
+                            from storage_service import (
+                                save_visual_marketing_asset,
+                            )
+                        except ImportError:
+                            try:
+                                from app.storage_service import (
+                                    save_visual_marketing_asset,
+                                )
+                            except ImportError:
+                                from app.agents.creative_content.storage_service import (
+                                    save_visual_marketing_asset,
+                                )
+
+                    url = await asyncio.to_thread(
+                        save_visual_marketing_asset,
+                        img_bytes,
+                        session_id=effective_session_id,
+                        user_id=effective_user_id,
+                    )
+                    logger.info("P3 successfully stored visual: %s", url)
+                    return url
+            except Exception as exc:
+                if attempt + 1 >= max_attempts:
+                    logger.warning(
+                        "Nano Banana visual synthesis failed after %d attempts: %s",
+                        max_attempts,
+                        exc,
+                    )
+                    return None
+                delay = initial_delay * (2**attempt) + random.uniform(0.0, jitter)
+                logger.warning(
+                    "Nano Banana visual synthesis attempt %d failed: %s. "
+                    "Retrying in %.2fs...",
+                    attempt + 1,
+                    exc,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+
+    except Exception as outer_exc:
+        logger.warning(
+            "P3 synthesize_nano_banana_image initialization failed: %s",
+            outer_exc,
+        )
 
     return None
 
 
-async def synthesize_nano_banana_image(
-    prompt: str,
+def generate_marketing_visual(
+    visual_prompt: str,
+    tool_context: ToolContext | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
 ) -> str | None:
-    """Synthesize marketing visual using Nano Banana 2 Lite (gemini-3.1-flash-lite-image) and persist to storage."""
-    return generate_marketing_visual(prompt, session_id=session_id, user_id=user_id)
+    """Tool wrapper for marketing visual generation using Nano Banana 2 Lite.
+
+    Args:
+        visual_prompt: Studio-quality visual prompt describing the scene.
+        tool_context: Optional ADK execution context injected by framework.
+        session_id: Optional campaign session ID.
+        user_id: Optional user ID.
+
+    Returns:
+        The accessible draft URL or storage URL of the marketing visual.
+    """
+    effective_session_id = session_id
+    effective_user_id = user_id
+
+    if tool_context:
+        try:
+            if hasattr(tool_context, "session") and tool_context.session:
+                effective_session_id = effective_session_id or getattr(
+                    tool_context.session, "id", None
+                )
+                ctx_user_id = getattr(tool_context.session, "user_id", None)
+                if ctx_user_id and not str(ctx_user_id).startswith("A2A_USER_"):
+                    effective_user_id = effective_user_id or str(ctx_user_id)
+            if not effective_session_id:
+                effective_session_id = getattr(tool_context, "session_id", None)
+            if not effective_user_id:
+                ctx_user_id = getattr(tool_context, "user_id", None)
+                if ctx_user_id and not str(ctx_user_id).startswith("A2A_USER_"):
+                    effective_user_id = str(ctx_user_id)
+        except Exception as ctx_err:
+            logger.debug(
+                "Could not resolve session_id/user_id from tool_context: %s",
+                ctx_err,
+            )
+
+    coro = synthesize_nano_banana_image(
+        visual_prompt,
+        session_id=effective_session_id,
+        user_id=effective_user_id,
+    )
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    return asyncio.run(coro)
 
 
 IMAGE_SYNTHESIS_INSTRUCTION = """
@@ -247,7 +367,7 @@ image_synthesis_agent = Agent(
     name="creative_image_agent",
     model=Gemini(
         model=TEXT_MODEL,
-        retry_options=types.HttpRetryOptions(attempts=3),
+        retry_options=get_default_http_retry_options(),
     ),
     instruction=IMAGE_SYNTHESIS_INSTRUCTION,
     tools=[generate_marketing_visual],

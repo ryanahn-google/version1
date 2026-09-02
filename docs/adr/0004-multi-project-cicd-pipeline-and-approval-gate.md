@@ -23,27 +23,29 @@ We implement a **3-Project CI/CD Hub-and-Spoke Topology** using Google Cloud Bui
 
 2. **Automated Three-Trigger Pipeline**:
    - `pr-version1` (`.cloudbuild/pr_checks.yaml`): Triggered on Pull Requests to `main`.
-     1. Executes Terraform checks (`terraform fmt -check`, `terraform init`, `terraform validate`, `terraform plan -var-file=vars/env.tfvars`).
+     1. Installs project dependencies via `uv sync --locked`.
      2. Validates Alembic database migrations (`alembic upgrade head`, `alembic check`).
-     3. Builds React 19 SPA frontend (`npm run build`).
-     4. Executes `pytest tests/unit` and `pytest tests/integration` to gate merge approval.
+     3. Builds React 19 SPA frontend (`npm ci`, `npm run build`).
+     4. Executes unit tests (`uv run pytest tests/unit`).
+     5. Executes integration tests (`uv run pytest tests/integration`).
+     6. Validates evaluation suite syntax and dataset integrity (`uv run pytest tests/eval/test_golden_campaigns.py -k test_golden_dataset_syntax`).
    - `cd-version1` (`.cloudbuild/staging.yaml`): Triggered on push or merge to `main`.
-     1. Executes `terraform init` and `terraform apply -auto-approve -var-file=vars/env.tfvars` immediately to provision and update infrastructure across environments.
-     2. Builds the Python 3.13 container image and pushes to `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1:$SHORT_SHA`.
-     3. Deploys P1–P4 sub-agents to Vertex AI Agent Runtime.
-     4. Executes database migrations in staging via Cloud Run Job (`version1-db-migrate`).
-     5. Deploys Orchestrator to Staging Cloud Run (`version1`) via `agents-cli deploy`.
-     6. Extracts the Staging Cloud Run service URL and generates an internal OIDC authentication token.
-     7. Executes a 30-second headless Locust load test (`tests/load_test/load_test.py`) against `/apps/app/users/.../sessions` and `/run_sse`.
-     8. Exports load test HTML and CSV reports to `gs://capstone-staging-506811-version1-logs/load-test-results/`.
-     9. Invokes the Production deployment trigger (`deploy-version1`) via `gcloud beta builds triggers run deploy-version1`.
+     1. Builds the Python 3.13 container image and pushes to `asia-northeast3-docker.pkg.dev/capstone-cicd/version1-repo/version1:$SHORT_SHA`.
+     2. Deploys P1–P4 sub-agents to Agent Platform Agent Runtime via `scripts/deploy_subagents.sh`.
+     3. Executes database migrations in staging via Cloud Run Job (`version1-db-migrate`).
+     4. Deploys Orchestrator to Staging Cloud Run (`version1`) via `agents-cli deploy`.
+     5. Extracts the Staging Cloud Run service URL and generates an internal OIDC authentication token.
+     6. Executes a 30-second headless Locust load test (`tests/load_test/load_test.py`) against `/api/v1/campaigns` and `/api/v1/campaigns/{sessionId}`.
+     7. Exports load test HTML and CSV reports to `gs://${_LOGS_BUCKET_NAME_STAGING}/load-test-results/`.
+     8. Executes the automated pre-production evaluation quality gate (`scripts/eval_gate.py`) against deployed Staging services.
+     9. Invokes the Production deployment trigger (`deploy-version1`) via `gcloud beta builds triggers run deploy-version1` upon successful validation.
    - `deploy-version1` (`.cloudbuild/deploy-to-prod.yaml`): Configured with a Cloud Build Native Approval Gate:
      ```hcl
      approval_config {
        approval_required = true
      }
      ```
-     Enters a `PENDING` state until an authorized engineer clicks **Approve** in the Cloud Build Console. Upon approval, provisions/verifies production infrastructure via `terraform apply -auto-approve`, executes prod migrations, and deploys verified containers and subagents to `capstone-prod-506811`.
+     Enters a `PENDING` state until an authorized engineer clicks **Approve** in the Cloud Build Console. Upon approval, builds and pushes the production container image, deploys verified subagents via `scripts/deploy_subagents.sh`, executes prod database migrations via Cloud Run Job (`version1-db-migrate`), and deploys the Orchestrator to `capstone-prod-506811` via `agents-cli deploy`.
 
 ## Alternatives Considered
 
@@ -60,8 +62,7 @@ Deploy both Staging and Production workloads within a single GCP project, partit
 
 ### Positive
 - Complete physical blast radius isolation between build runner, staging, and production environments.
-- Immutable container artifact promotion: the exact image digest tested in Staging is promoted to Production without rebuilding.
-- Built-in automated performance gate via Locust ensures defective revisions are caught before human approval.
+- Automated performance and quality gating: 30-second Locust load testing on `/api/v1/campaigns` and `scripts/eval_gate.py` ensure defective or regressed revisions are blocked before human promotion approval.
 - Simple, auditable manual promotion via Cloud Build Console.
 
 ### Negative / Accepted Trade-offs

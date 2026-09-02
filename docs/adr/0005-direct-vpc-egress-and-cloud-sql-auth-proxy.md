@@ -8,7 +8,7 @@
 ## Context
 Marketing Value Creator (MVC) runs on Google Cloud Run and interacts with:
 1. Google Cloud SQL (PostgreSQL 15) for session persistence, state tracking, and campaign deliverable storage.
-2. Google Cloud APIs (Vertex AI Gemini, Secret Manager, Model Armor, Cloud Logging) and external webhooks over the Internet.
+2. Google Cloud APIs (Agent Platform Gemini, Secret Manager, Model Armor, Cloud Logging) and external webhooks over the Internet.
 
 Securing container outbound traffic and database connectivity requires balancing network isolation, authentication, encryption, and operational simplicity.
 
@@ -37,6 +37,13 @@ We adopt **Direct VPC Egress with Cloud SQL Auth Proxy**:
    - Application connects using asyncpg over the local Unix domain socket:
      `postgresql+asyncpg://{user}:{pass}@/{dbname}?host=/cloudsql/{instance_connection_name}`.
 
+3. **Zero-Trust VPC Firewall Policy (Default Deny + Whitelist)**:
+   - `ingress_deny_all`: Default deny for all incoming traffic (`0.0.0.0/0`, priority 65000), ensuring zero attack surface since Cloud Run Direct VPC Egress is outbound-only and user ingress terminates at Google Front End (GFE).
+   - `egress_deny_all`: Default deny for all outgoing traffic (`0.0.0.0/0`, priority 65000), preventing unauthorized egress or exfiltration.
+   - `egress_allow_https`: Whitelist TCP 443 outbound (`0.0.0.0/0`, priority 1000) for Google APIs (Agent Platform, Cloud Storage, Model Armor) and web grounding.
+   - `egress_allow_cloudsql_proxy`: Whitelist TCP 3307 outbound (`0.0.0.0/0`, priority 1010) for Cloud SQL Auth Proxy mTLS client-to-server tunnel.
+   - `egress_allow_dns`: Whitelist TCP/UDP 53 outbound (`0.0.0.0/0`, priority 1020) for Cloud NAT internal DNS name resolution.
+
 ## Alternatives Considered
 
 ### Alternative A: Private Services Access (PSA) VPC Peering with Private IP
@@ -60,7 +67,8 @@ Deploy a Serverless VPC Access connector (`google_vpc_access_connector`) to brid
 - **No IP Whitelisting Needed**: Cloud SQL does not require whitelisting dynamic Cloud Run IP ranges or managing public firewall openings.
 - **Mutual TLS & IAM Validation**: All database connections are cryptographically authenticated via Google IAM and encrypted in transit.
 - **Fast and Clean Infrastructure Teardown**: Eliminates PSA peering locks, allowing rapid and reproducible CI/CD Terraform creation and destruction in under 60 seconds.
-- **Predictable Egress Routing**: Outbound calls to Vertex AI and Google APIs exit through the dedicated `version1-nat` gateway with static IP routing.
+- **Predictable Egress Routing**: Outbound calls to Agent Platform and Google APIs exit through the dedicated `version1-nat` gateway with static IP routing.
+- **Zero-Trust Network Perimeter**: Ingress is default-denied (`0.0.0.0/0`, priority 65000), eliminating inbound attack surface since Cloud Run Direct VPC Egress is outbound-only. Egress is default-denied (`0.0.0.0/0`, priority 65000) and whitelisted strictly for necessary ports (TCP 443 for Google APIs, TCP 3307 for Cloud SQL Auth Proxy mTLS, TCP/UDP 53 for DNS), preventing data exfiltration.
 
 ### Negative / Accepted Trade-offs
 - Cloud SQL instance has a public IP address allocated, but direct public access is denied because authorized networks are empty (`0.0.0.0/0` is not authorized) and connections require IAM-signed proxy certificates.
@@ -80,3 +88,4 @@ Deploy a Serverless VPC Access connector (`google_vpc_access_connector`) to brid
 
 ## Changelog
 - 2026-08-28: Initial proposal and acceptance.
+- 2026-09-01: Added Zero-Trust VPC Firewall Policy (default-deny ingress/egress, whitelist egress TCP 443, TCP 3307, TCP/UDP 53).

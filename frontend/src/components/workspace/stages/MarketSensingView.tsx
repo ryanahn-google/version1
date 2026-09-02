@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Play,
@@ -75,9 +75,11 @@ export function MarketSensingView({
     session?.channels || ['Social Media', 'Search Ads', 'Digital Video']
   );
   const [isInterpretingPrompt, setIsInterpretingPrompt] = useState(false);
+  const parsedPromptRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (initialPrompt && !session) {
+    if (initialPrompt && !session && parsedPromptRef.current !== initialPrompt) {
+      parsedPromptRef.current = initialPrompt;
       setIsInterpretingPrompt(true);
       apiClient
         .parsePrompt({ prompt: initialPrompt, language: locale })
@@ -99,7 +101,7 @@ export function MarketSensingView({
           setIsInterpretingPrompt(false);
         });
     }
-  }, [initialPrompt]);
+  }, [initialPrompt, session, locale]);
 
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
 

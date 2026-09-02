@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MVC System Architecture & Design Specification | Nova Electronics Corp</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            nova: {
+              navy: '#0A1128',
+              dark: '#0F172A',
+              card: '#1E293B',
+              border: '#334155',
+              accent: '#38BDF8',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Mermaid.js for Diagram Rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0F172A',
+        primaryColor: '#1E293B',
+        primaryTextColor: '#F8FAFC',
+        primaryBorderColor: '#38BDF8',
+        lineColor: '#60A5FA',
+        secondaryColor: '#1E3A8A',
+        tertiaryColor: '#0A1128'
+      },
+      fontFamily: 'Inter, Pretendard, sans-serif',
+      securityLevel: 'loose'
+    });
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0F172A; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    /* Smooth Scrolling */
+    html { scroll-behavior: smooth; }
+
+    /* Code & Pre styling */
+    pre, code { font-family: 'JetBrains Mono', monospace; }
+
+    /* Mermaid Container */
+    .mermaid-box {
+      background: #0B1120;
+      border: 1px solid #1E293B;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+    }
+    .mermaid-box svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .light .mermaid-box {
+      background: #F8FAFC;
+      border-color: #E2E8F0;
+    }
+  </style>
+</head>
+<body class="bg-[#0A1128] text-slate-100 antialiased font-sans min-h-screen">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="sticky top-0 z-50 bg-[#0F172A]/90 backdrop-blur-md border-b border-slate-800 px-4 lg:px-8 py-3 transition-colors duration-200">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Brand & Title -->
+      <div class="flex items-center space-x-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/25 ring-2 ring-white/10">
+          <span class="text-white font-black text-xl tracking-tighter">NV</span>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-extrabold text-lg text-white tracking-tight">Marketing Value Creator <span class="text-cyan-400 font-mono text-sm">(MVC)</span></h1>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">v1.0 Production</span>
+          </div>
+          <p class="text-xs text-slate-400">Nova Electronics Corp &middot; Google Cloud Run & Agent Platform Agent Runtime</p>
+        </div>
+      <!-- Quick Metrics & Global Controls -->
+      <div class="flex items-center space-x-3">
+        <div class="hidden md:flex items-center space-x-2 text-xs">
+          <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
+            <span class="w-2 h-2 rounded-full bg-blue-400 mr-1.5 animate-pulse"></span>
+            Staging: asia-northeast3
+          </span>
+          <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            119 Tests Passed
+          </span>
+          <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20">
+            $0.0455 / run (-54%)
+          </span>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative hidden sm:block">
+          <input type="text" id="docSearch" placeholder="아키텍처 검색 (Cmd+K)..." 
+            class="bg-slate-900/80 border border-slate-700 text-xs rounded-lg px-3 py-1.5 w-44 lg:w-56 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-200 placeholder-slate-500">
+          <span class="absolute right-2.5 top-2 text-[10px] text-slate-500 font-mono">⌘K</span>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button id="themeToggle" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700" title="테마 전환">
+          <svg id="sunIcon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg id="moonIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+
+        <a href="/app-architecture" class="px-2.5 py-1.5 bg-cyan-900/40 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-semibold shadow-sm transition flex items-center space-x-1">
+          <span>app/ 상세 코드 명세</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+
+        <a href="#quick-start" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+          시작 가이드
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN LAYOUT WITH SIDEBAR ================= -->
+  <div class="max-w-7xl mx-auto px-4 lg:px-8 py-8 flex gap-8">
+    
+    <!-- STICKY SIDEBAR TABLE OF CONTENTS -->
+    <aside class="hidden lg:block w-64 shrink-0">
+      <div class="sticky top-20 bg-slate-900/60 border border-slate-800 rounded-xl p-4 backdrop-blur-md">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center">
+          <svg class="w-3.5 h-3.5 mr-1.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+          목차 (Table of Contents)
+        </h2>
+        <nav class="space-y-1 text-xs">
+          <a href="#sec-overview" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">1. 시스템 개요 & C4 Context</a>
+          <a href="#sec-topology" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">2. Multi-Project GCP 토폴로지</a>
+          <a href="#sec-orchestrator" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">3. ADK 오케스트레이터 & A2A</a>
+          <a href="#sec-subagents" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">4. 특화 서브에이전트 (P1~P4)</a>
+          <a href="#sec-hitl" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">5. HITL 상태 머신 워크플로우</a>
+          <a href="#sec-storage" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">6. 스토리지 & DRS 스트리밍</a>
+          <a href="#sec-security" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">7. 보안 & 제로 트러스트 경계</a>
+          <a href="#sec-frontend" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">8. 프론트엔드 3-패널 커맨드 센터</a>
+          <a href="#sec-cicd" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">9. CI/CD & 2단계 품질 게이트</a>
+          <a href="#sec-finops-slo" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">10. Reliability, FinOps & SLO</a>
+          <a href="#sec-adrs" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">11. 아키텍처 결정 기록 (ADR)</a>
+          <a href="#sec-api" class="toc-link block px-2.5 py-1.5 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition">12. RESTful API 명세 (19개 라우트)</a>
+        </nav>
+
+        <div class="mt-6 pt-4 border-t border-slate-800">
+          <div class="text-[11px] text-slate-400 space-y-1.5">
+            <div class="flex justify-between"><span>상태:</span><span class="text-emerald-400 font-medium">Staging Verified</span></div>
+            <div class="flex justify-between"><span>오케스트레이터:</span><span class="text-blue-400 font-mono">gemini-3.1-pro</span></div>
+            <div class="flex justify-between"><span>서브에이전트:</span><span class="text-cyan-400 font-mono">flash-lite</span></div>
+            <div class="flex justify-between"><span>비주얼 모델:</span><span class="text-purple-400 font-mono">Nano Banana 2</span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENT AREA -->
+    <main class="flex-1 min-w-0 space-y-12">
+
+      <!-- ================= HERO BANNER ================= -->
+      <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[#0E1A38] to-[#0A1128] border border-slate-800 p-8 shadow-2xl">
+        <div class="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div class="relative z-10">
+          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold mb-4">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span>엔터프라이즈 멀티에이전트 캠페인 플래닝 플랫폼</span>
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-4 leading-tight">
+            Nova Electronics Corp<br>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-300">
+              Marketing Value Creator (MVC)
+            </span>
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base max-w-3xl leading-relaxed mb-6">
+            기존 4~6주가 소요되던 복잡한 크로스 에이전시 마케팅 캠페인 기획 및 브리핑 과정을 
+            <strong>Google Agent Development Kit (ADK)</strong>와 <strong>Agent Platform Agent Runtime</strong> 기반 4단계 순차 자율 에이전트 DAG를 통해 
+            <strong>15초 이내 실시간 시뮬레이션</strong>으로 압축하고, 휴먼 인 더 루프(HITL) 거버넌스와 100% 결정론적 예산 보존을 보장합니다.
+          </p>
+
+          <!-- Key Metrics Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800">
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5">
+              <div class="text-xs text-slate-400 font-medium">컴퓨팅 완료 시간</div>
+              <div class="text-2xl font-black text-cyan-400 mt-1">&lt; 15.0<span class="text-xs font-normal text-slate-400">s</span></div>
+              <div class="text-[11px] text-slate-500 mt-0.5">인간 리뷰 대기 시간 제외</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5">
+              <div class="text-xs text-slate-400 font-medium">1회 실행 추론 비용</div>
+              <div class="text-2xl font-black text-emerald-400 mt-1">$0.0455</div>
+              <div class="text-[11px] text-emerald-400/80 mt-0.5">목표($0.10) 대비 54% 절감</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5">
+              <div class="text-xs text-slate-400 font-medium">단위/통합 테스트 통과</div>
+              <div class="text-2xl font-black text-blue-400 mt-1">119 / 119</div>
+              <div class="text-[11px] text-blue-400/80 mt-0.5">100% Pass (102 Unit + 17 Integration)</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5">
+              <div class="text-xs text-slate-400 font-medium">예산 보존 결정론</div>
+              <div class="text-2xl font-black text-purple-400 mt-1">100.0%</div>
+              <div class="text-[11px] text-purple-400/80 mt-0.5">P4 채널 분배 Zero Drift</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 1: SYSTEM OVERVIEW & C4 CONTEXT ================= -->
+      <section id="sec-overview" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">1</span>
+              시스템 개요 & C4 Context (Level 1)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">시스템 경계, 핵심 사용자 페르소나, 외부 연동 시스템 및 신뢰 경계</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">C4 Level 1 Context</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-2 space-y-4">
+            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-5">
+              <h3 class="text-sm font-bold text-white mb-2 flex items-center">
+                <svg class="w-4 h-4 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                핵심 목표 & 비즈니스 가치
+              </h3>
+              <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                Nova Electronics Corp의 신제품 출시 시 마케터는 브랜드 가이드라인과 예산 제약 조건 하에 시장 센싱, 크리에이티브 브리프, 키 비주얼 생성, 채널별 미디어 믹스 및 ROAS 예측을 수작업으로 취합했습니다.
+                MVC는 오케스트레이터가 주도하는 4개의 도메인 특화 에이전트를 통해 이를 자동화하며, 각 단계마다 <strong>검토 및 수정(HITL Gate)</strong>을 거쳐 
+                인간 마케터의 최종 승인을 받은 후 다음 단계로 전진합니다.
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
+                <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
+                  <span class="font-semibold text-blue-400 block mb-1">🎯 엔터프라이즈 보안 가이드레일</span>
+                  Model Armor (us) 템플릿으로 프롬프트 인젝션/탈옥, 악성 URI, RAI, SDP(PII)를 사전에 차단
+                </div>
+                <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
+                  <span class="font-semibold text-emerald-400 block mb-1">📊 결정론적 예산 보존 (100%)</span>
+                  P4 에이전트 채널 할당 비율 합계가 100.0%에 수렴하도록 Pydantic 검증
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RACI & Boundary Summary -->
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3 text-xs">
+            <h3 class="text-sm font-bold text-white border-b border-slate-800 pb-2">RACI & 거버넌스</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between"><span class="text-slate-400">Accountable:</span><span class="text-slate-200 font-semibold">Google Cloud Tech Lead</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Responsible:</span><span class="text-slate-200 font-semibold">Ryan Ahn (FDE Lead)</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Consulted:</span><span class="text-slate-200 font-semibold">Nova GBC Marketing Lead</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Informed:</span><span class="text-slate-200 font-semibold">Regional Campaign Planners</span></div>
+            </div>
+            <div class="pt-2 border-t border-slate-800">
+              <span class="text-slate-400 block mb-1 font-semibold">신뢰 경계 (Trust Boundaries):</span>
+              <span class="text-[11px] text-slate-400 leading-tight block">
+                • Public Internet ➔ Cloud Run: Google OAuth 2.0 OIDC<br>
+                • Cloud Run ➔ Cloud SQL: Auth Proxy Unix Socket<br>
+                • Cloud Run ➔ Agent Runtime: SPIFFE Agent Identity & A2A
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mermaid C4 Context Diagram -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="font-semibold text-slate-300">C4 Level 1: System Context Diagram</span>
+            <span class="text-slate-500 font-mono">Mermaid.js Flowchart</span>
+          </div>
+          <div class="mermaid-box">
+            <pre class="mermaid">
+flowchart TB
+    classDef actor fill:#1E3A8A,stroke:#38BDF8,stroke-width:2px,color:#fff;
+    classDef coreSystem fill:#0F172A,stroke:#2563EB,stroke-width:2px,color:#fff;
+    classDef gcpExt fill:#1E293B,stroke:#64748B,stroke-width:1px,color:#fff;
+    classDef security fill:#881337,stroke:#F43F5E,stroke-width:2px,color:#fff;
+
+    Marketer(["👤 마케터 / 캠페인 기획자<br>[User Persona]"]):::actor
+
+    subgraph MVC_Boundary["Marketing Value Creator (MVC) 시스템 경계"]
+        CloudRun["Cloud Run: version1 (Seoul asia-northeast3)<br>• React 19 SPA (Single-Origin)<br>• FastAPI + Google ADK Orchestrator<br>• Gemini 3.1 Pro (Orchestration Engine)"]:::coreSystem
+        AgentRuntime["Agent Platform Agent Runtime (Reasoning Engines in Seoul)<br>• [P1] Market Sensing: gemini-3.5-flash-lite (global)<br>• [P2] Strategy & Brief: gemini-3.5-flash-lite (global)<br>• [P3] Creative Content: gemini-3.1-flash-lite-image + 3.5-flash-lite (global)<br>• [P4] Performance Insights: gemini-3.5-flash-lite (global)"]:::coreSystem
+    end
+
+    subgraph GCP_Data_Perimeter["GCP 데이터 & 영속성 인프라"]
+        CloudSQL[("Google Cloud SQL<br>PostgreSQL 15<br>(Unix Socket /cloudsql/)")]:::gcpExt
+        GCS[("Google Cloud Storage<br>• Artifacts (30d TTL)<br>• Logs & Reports")]:::gcpExt
+        BigQuery[("Google BigQuery<br>version1_telemetry<br>completions Table & Spans")]:::gcpExt
+        ModelArmor["Google Cloud Model Armor<br>(version1-guardrails)<br>us Multi-Region (Prompt Injection, RAI, SDP)"]:::security
+    end
+
+    Marketer -->|"1. HTTPS / Google OAuth 2.0 OIDC<br>브라우저 UI 인터랙션 & HITL 피드백"| CloudRun
+    CloudRun <-->|"2. A2A JSON-RPC 프로토콜<br>(SPIFFE Agent Identity & Bearer Token)"| AgentRuntime
+    CloudRun <-->|"3. 세션/상태 영속화<br>(IAM + mTLS 유닉스 소켓 orchestrator_sessions)"| CloudSQL
+    CloudRun & AgentRuntime <-->|"4. 생성된 비주얼 & 산출물 저장<br>(DRS 준수 V4 서명 URL 307 리다이렉트)"| GCS
+    CloudRun -.->|"5. 프롬프트/응답 가이드레일 검사<br>(탈옥/RAI/SDP 차단, Fail-Closed)"| ModelArmor
+    CloudRun -.->|"6. Cloud Logging 싱크 비동기 전송<br>(BigQuery version1_telemetry)"| BigQuery
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 2: MULTI-PROJECT GCP CLOUD TOPOLOGY ================= -->
+      <section id="sec-topology" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">2</span>
+              Multi-Project GCP 클라우드 토폴로지 (C4 Level 2)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">3개 전용 GCP 프로젝트 물리적 격리, Direct VPC Egress, Cloud SQL Auth Proxy</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">C4 Level 2 Container</span>
+        </div>
+
+        <!-- 3-Project Table -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center space-x-2 text-indigo-400 font-bold mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+              <span>1. capstone-cicd</span>
+            </div>
+            <div class="text-slate-300 space-y-1.5">
+              <p><strong>역할:</strong> 중앙 CI/CD 러너 허브</p>
+              <p><strong>컴포넌트:</strong></p>
+              <ul class="list-disc list-inside text-slate-400 space-y-0.5">
+                <li>Cloud Build 2nd Gen (GitHub App)</li>
+                <li>Artifact Registry (<code class="text-indigo-300">version1-repo</code>)</li>
+                <li>Cloud Build Runner SA</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/80 border border-blue-900/40 rounded-xl p-4">
+            <div class="flex items-center space-x-2 text-blue-400 font-bold mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+              <span>2. capstone-staging-506811</span>
+            </div>
+            <div class="text-slate-300 space-y-1.5">
+              <p><strong>역할:</strong> 활성 검증 스테이징 환경</p>
+              <p><strong>컴포넌트:</strong></p>
+              <ul class="list-disc list-inside text-slate-400 space-y-0.5">
+                <li>Cloud Run <code class="text-blue-300">version1</code> (2vCPU, 4GiB, Concurrency 80)</li>
+                <li>Cloud SQL PostgreSQL 15 (<code class="text-blue-300">version1-db-staging</code>)</li>
+                <li>Custom VPC, Subnet, Cloud NAT</li>
+                <li>Zero-Trust Firewall (Default Deny + 443/3307/53 Whitelist)</li>
+                <li>Agent Platform Agent Runtime (P1~P4)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/80 border border-purple-900/40 rounded-xl p-4">
+            <div class="flex items-center space-x-2 text-purple-400 font-bold mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              <span>3. capstone-prod-506811</span>
+            </div>
+            <div class="text-slate-300 space-y-1.5">
+              <p><strong>역할:</strong> 완전 격리 프로덕션 환경</p>
+              <p><strong>컴포넌트:</strong></p>
+              <ul class="list-disc list-inside text-slate-400 space-y-0.5">
+                <li>스테이징과 100% 동일한 IaC 복제본 (Zero-Trust VPC 방화벽 포함)</li>
+                <li><strong>Cloud Build 수동 승인 게이트</strong> 보호</li>
+                <li><code class="text-purple-300">approval_required = true</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mermaid Topology Diagram -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="font-semibold text-slate-300">Multi-Project GCP Container Topology & Network Flows</span>
+            <span class="text-slate-500 font-mono">Direct VPC Egress & Auth Proxy</span>
+          </div>
+          <div class="mermaid-box">
+            <pre class="mermaid">
+flowchart TB
+    classDef cicd fill:#1E1B4B,stroke:#6366F1,stroke-width:2px,color:#fff;
+    classDef staging fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#fff;
+    classDef prod fill:#2E1065,stroke:#A855F7,stroke-width:2px,color:#fff;
+    classDef network fill:#1E293B,stroke:#64748B,stroke-width:1px,color:#fff;
+
+    subgraph Project_CICD["Project: capstone-cicd (Runner Hub)"]
+        GitHub["GitHub Repository<br>ryanahn-google/version1"]:::cicd -->|git push main| CB_Staging["Cloud Build: cd-version1<br>• Docker Build & Subagents Deploy<br>• Alembic DB Migration Job<br>• agents-cli deploy to Cloud Run<br>• 30s Locust Load Test<br>• Eval Gate (9 Golden Scenarios)"]:::cicd
+        CB_Staging --> AR["Artifact Registry<br>asia-northeast3-docker.pkg.dev/.../version1-repo"]:::cicd
+        CB_Staging -->|Trigger Deploy| CB_Prod["Cloud Build: deploy-version1<br>⏸️ Native Approval Gate (PENDING)"]:::cicd
+    end
+
+    subgraph Project_Staging["Project: capstone-staging-506811 (Staging Environment)"]
+        CR_Staging["Cloud Run: version1 (Seoul)<br>• FastAPI + React SPA<br>• Concurrency: 80, CPU: 2, RAM: 4GiB<br>• Direct VPC Egress: ALL_TRAFFIC"]:::staging
+        
+        subgraph VPC_Staging["Custom VPC: version1-vpc (asia-northeast3)"]
+            Subnet["Subnet: asia-northeast3-subnet<br>(10.10.0.0/24, PGA Enabled)"]:::network
+            CloudNAT["Cloud Router + Cloud NAT<br>(version1-nat)"]:::network
+            Subnet --> CloudNAT
+        end
+
+        SQL_Staging[("Cloud SQL: version1-db-staging<br>PostgreSQL 15<br>Auth Proxy Unix Socket /cloudsql/")]:::staging
+        GCS_Staging[("GCS Buckets (asia-northeast3)<br>• capstone-staging-506811-version1-artifacts (30d)<br>• capstone-staging-506811-version1-logs (30d)")]:::staging
+        Armor_Staging["Model Armor: version1-guardrails (us)<br>Prompt Injection, Jailbreak, RAI, SDP"]:::staging
+        BQ_Staging[("BigQuery: version1_telemetry<br>completions Partitioned Table")]:::staging
+
+        CR_Staging -->|Direct Egress| Subnet
+        CR_Staging -->|Unix Socket| SQL_Staging
+        CR_Staging -->|V4 Signed URL 307| GCS_Staging
+        CR_Staging -.->|Security Guardrails| Armor_Staging
+        CR_Staging -.->|Logging Sink| BQ_Staging
+    end
+
+    subgraph Subagents_Runtime["Agent Platform Agent Runtime (Reasoning Engine in Seoul)"]
+        P1["[P1] Market Sensing<br>gemini-3.5-flash-lite (global)"]:::staging
+        P2["[P2] Strategy & Brief<br>gemini-3.5-flash-lite (global)"]:::staging
+        P3["[P3] Creative Content<br>Copy: gemini-3.5-flash-lite (global)<br>Visual: gemini-3.1-flash-lite-image (global)"]:::staging
+        P4["[P4] Performance Insights<br>gemini-3.5-flash-lite (global)"]:::staging
+    end
+
+    AR -->|Deploy Image| CR_Staging
+    CR_Staging <-->|"A2A Protocol (Agent Identity)"| P1 & P2 & P3 & P4
+    CB_Prod -->|Manual Approval| CR_Prod["Production Cloud Run & Subagents<br>(capstone-prod-506811)"]:::prod
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 3: ORCHESTRATOR & A2A ================= -->
+      <section id="sec-orchestrator" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">3</span>
+              ADK 루트 오케스트레이터 & A2A 클라이언트 (C4 Level 3)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Google ADK Runner, 도구 체이닝, Dual-Mode A2A 실행 및 다계층 폴백 구조</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">C4 Level 3 Component</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <!-- ADK Orchestrator Card -->
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></span>
+                Root Orchestrator Agent (ADK)
+              </h3>
+              <span class="font-mono text-[11px] text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">gemini-3.1-pro (global)</span>
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              FastAPI 라이프사이클 컨텍스트 내에서 ADK <code class="text-cyan-300">Runner</code>가 마케터의 대화형 턴을 처리합니다. 마케터의 자연어 요청을 해석하여 세부 캠페인 세션을 구성하고, 단계별 승인 및 롤백 도구를 직접 호출합니다.
+              <span class="block text-[11px] text-slate-400 mt-1">*Agent Platform SDK 바인딩은 <code class="text-slate-300">gemini-3.1-pro-preview</code> 식별자를 사용하며 시스템 표준 명칭은 <code class="text-blue-300">gemini-3.1-pro</code>로 통일.</span>
+            </p>
+            <div class="border-t border-slate-800 pt-3 space-y-1.5">
+              <span class="font-semibold text-slate-200 block">바인딩된 5대 오케스트레이터 도구 (Tools):</span>
+              <ul class="space-y-1 text-slate-400 font-mono text-[11px]">
+                <li class="flex items-center"><code class="text-cyan-300 mr-2">parse_campaign_prompt</code> : 자연어 브리프 구조화</li>
+                <li class="flex items-center"><code class="text-cyan-300 mr-2">create_campaign_session</code> : 세션 생성 및 P1 트리거</li>
+                <li class="flex items-center"><code class="text-cyan-300 mr-2">get_campaign_status</code> : 현재 진행률 및 산출물 조회</li>
+                <li class="flex items-center"><code class="text-cyan-300 mr-2">approve_campaign_stage</code> : 승인(Approve) 및 수정(Revise)</li>
+                <li class="flex items-center"><code class="text-cyan-300 mr-2">rollback_campaign_stage</code> : 직전 단계(N-1) 안전 롤백</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Dual-Mode A2A Client Card -->
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center">
+                <span class="w-2.5 h-2.5 rounded-full bg-cyan-500 mr-2"></span>
+                Dual-Mode A2A Client
+              </h3>
+              <span class="font-mono text-[11px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">A2A-Version: 0.3</span>
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              <code class="text-cyan-300">A2ASubAgentClient</code>는 환경 변수(<code class="text-slate-400">A2A_P1_URL</code> 등) 존재 여부에 따라 원격 Agent Runtime 호출과 로컬 인프로세스 실행을 투명하게 전환합니다.
+            </p>
+            <div class="space-y-2 border-t border-slate-800 pt-3">
+              <div class="p-2 rounded bg-slate-800/60 border border-slate-700/60">
+                <div class="font-semibold text-slate-200">Mode A: Remote JSON-RPC over A2A</div>
+                <div class="text-[11px] text-slate-400">Agent Platform Agent Runtime 엔드포인트로 JSON-RPC 2.0 <code class="text-slate-300">message/send</code> 패킷 전송 및 SPIFFE 검증</div>
+              </div>
+              <div class="p-2 rounded bg-slate-800/60 border border-slate-700/60">
+                <div class="font-semibold text-slate-200">Mode B: In-Process Fallback with Structured Outputs</div>
+                <div class="text-[11px] text-slate-400">오프라인 테스트나 로컬 개발 시 Agent Platform GenAI SDK로 Pydantic 스키마를 강제하여 즉시 산출물 생성</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orchestrator Sequence Flow -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="font-semibold text-slate-300">FastAPI & ADK Runner 상호작용 및 폴백 흐름</span>
+            <span class="text-slate-500 font-mono">Agent Runner Bridge Pattern</span>
+          </div>
+          <div class="mermaid-box">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Marketer as 👤 마케터
+    participant API as FastAPI Router<br>(/api/v1/campaigns)
+    participant Runner as ADK Runner & Root Agent<br>(Gemini 3.1 Pro)
+    participant Engine as CampaignOrchestrationEngine
+    participant A2A as A2ASubAgentClient
+    participant SubAgent as Agent Platform Agent Runtime<br>(P1~P4 Reasoning Engine)
+    participant SQL as Cloud SQL (PostgreSQL 15)
+
+    Marketer->>API: POST /api/v1/campaigns (브랜드, 예산, 목표)
+    API->>Runner: run_orchestrator_agent(prompt, create_campaign_session)
+    alt ADK Agent 도구 실행 성공
+        Runner->>Engine: create_campaign(...) 도구 실행
+    else ADK 오류 또는 비가용 시
+        API->>Engine: 직접 Engine.create_campaign() 폴백 실행
+    end
+    Engine->>SQL: INSERT orchestrator_sessions (INITIALIZING)
+    Engine->>A2A: run_market_sensing(...)
+    A2A->>SubAgent: JSON-RPC message/send (A2A-Version: 0.3, X-User-Id)
+    SubAgent-->>A2A: MarketSensingDeliverable JSON
+    A2A-->>Engine: Pydantic 객체 반환
+    Engine->>SQL: UPDATE orchestrator_sessions (PAUSED_FOR_REVIEW, current_stage=MARKET_SENSING)
+    Engine-->>API: CampaignSessionResponse
+    API-->>Marketer: 200 OK + P1 산출물 (검토 대기 상태 전환)
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 4: SPECIALIZED SUB-AGENTS ================= -->
+      <section id="sec-subagents" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">4</span>
+              특화 서브에이전트 (P1 ~ P4) 아키텍처 & 산출물 스키마
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">도메인 특화 서브에이전트 역할, 모델 선택, 입출력 Pydantic v2 스키마</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">Domain-Specialized Subagents</span>
+        </div>
+
+        <!-- Subagent Tabs Selector -->
+        <div class="flex space-x-2 border-b border-slate-800 pb-2">
+          <button class="agent-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition shadow-sm" data-tab="p1">
+            [P1] Market Sensing
+          </button>
+          <button class="agent-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition" data-tab="p2">
+            [P2] Strategy & Brief
+          </button>
+          <button class="agent-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition" data-tab="p3">
+            [P3] Creative Content
+          </button>
+          <button class="agent-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition" data-tab="p4">
+            [P4] Performance Insights
+          </button>
+        </div>
+
+        <!-- TAB PANELS -->
+        <!-- P1 Panel -->
+        <div id="panel-p1" class="agent-panel space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2 text-xs">
+              <span class="font-bold text-blue-400 uppercase tracking-wider text-[10px]">Agent Profile</span>
+              <h3 class="text-sm font-bold text-white">[P1] Market Sensing Agent</h3>
+              <p class="text-slate-300">최신 시장 트렌드, 경쟁사 벤치마킹, 소비자 감성 분석을 종합하여 마케팅 기회를 포착합니다.</p>
+              <div class="pt-2 border-t border-slate-800 space-y-1 text-slate-400">
+                <div><strong>모델:</strong> <code class="text-slate-200">gemini-3.5-flash-lite</code> (global)</div>
+                <div><strong>도구:</strong> Google Search Grounding (<code class="text-slate-200">google_search</code>)</div>
+                <div><strong>지연 시간:</strong> P95 &lt; 3.0초</div>
+              </div>
+            </div>
+            <div class="md:col-span-2 bg-[#0B1120] border border-slate-800 rounded-xl p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-slate-400 font-mono">MarketSensingDeliverable (Pydantic Schema)</span>
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">100% Validated JSON</span>
+              </div>
+              <pre class="text-xs text-slate-300 overflow-x-auto p-2 bg-slate-950 rounded font-mono">
+{
+  "targetMarket": "글로벌 프리미엄 가전 및 테크 얼리어답터 (25-45세 모바일 프로페셔널)",
+  "consumerTrends": [
+    "2026 플래그십 구매 요인 1위: 온디바이스 AI 기반 실시간 프라이버시 보호 기능 선호",
+    "유럽 탄소발자국 규제 강화에 따른 친환경 에너지 절감 및 순환 알루미늄 소재 요구",
+    "모바일 디바이스 기반 전문가급 생성형 비주얼 콘텐츠 제작 수요 급증"
+  ],
+  "competitiveAnalysis": [
+    {
+      "competitor": "Competitor A",
+      "strengths": ["강력한 하드웨어-OS 생태계 락인", "프리미엄 브랜드 충성도"],
+      "vulnerabilities": ["신규 폼팩터 및 온디바이스 AI 기능 업데이트 지연", "고가 정책에 대한 피로감"]
+    },
+    {
+      "competitor": "Competitor B",
+      "strengths": ["스튜디오급 디스플레이 및 광학 센서 기술력"],
+      "vulnerabilities": ["독자적인 온디바이스 AI 플랫폼 생태계 및 앱 호환성 부족"]
+    }
+  ],
+  "sentimentOverview": {
+    "positiveThemes": ["강력한 온디바이스 AI 연산 성능", "세련된 티타늄 디자인과 빌드 퀄리티"],
+    "frictionPoints": ["복잡한 마케팅 용어로 인한 AI 기능 이해도 저하", "배터리 수명에 대한 우려"],
+    "overallSentimentScore": 0.74
+  },
+  "strategicOpportunities": [
+    "온디바이스 AI 카메라 및 보안성을 강조한 차별화된 런칭 캠페인 전개",
+    "사전 예약 고객 대상 보상 판매(Trade-in) 할인 프로모션 집중 연계",
+    "비즈니스 전문가를 타깃으로 한 생산성 혁신 유스케이스 바이럴 비디오 확산"
+  ]
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- P2 Panel (hidden by default) -->
+        <div id="panel-p2" class="agent-panel hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2 text-xs">
+              <span class="font-bold text-blue-400 uppercase tracking-wider text-[10px]">Agent Profile</span>
+              <h3 class="text-sm font-bold text-white">[P2] Strategy & Brief Agent</h3>
+              <p class="text-slate-300">P1의 시장 분석 결과를 바탕으로 핵심 가치 제안, 타겟 페르소나, 핵심 메시징 필러를 수립합니다.</p>
+              <div class="pt-2 border-t border-slate-800 space-y-1 text-slate-400">
+                <div><strong>모델:</strong> <code class="text-slate-200">gemini-3.5-flash-lite</code> (global)</div>
+                <div><strong>출력:</strong> <code class="text-slate-200">CampaignBriefDeliverable</code></div>
+                <div><strong>지연 시간:</strong> P95 &lt; 3.0초</div>
+              </div>
+            </div>
+            <div class="md:col-span-2 bg-[#0B1120] border border-slate-800 rounded-xl p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-slate-400 font-mono">CampaignBriefDeliverable (Pydantic Schema)</span>
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">100% Validated JSON</span>
+              </div>
+              <pre class="text-xs text-slate-300 overflow-x-auto p-2 bg-slate-950 rounded font-mono">
+{
+  "campaignTitle": "Galaxy S27 Ultra 온디바이스 AI 혁신 글로벌 캠페인",
+  "coreValueProposition": "일상의 한계를 넘어서는 개인 맞춤형 온디바이스 인텔리전스와 스튜디오급 크리에이티브",
+  "targetPersonas": [
+    {
+      "name": "테크 새비 프로페셔널 (민수)",
+      "demographics": "32세, 테크/금융 기업 프로젝트 매니저, 수도권 거주",
+      "primaryNeeds": [
+        "이동 중 실시간 회의록 요약 및 액션 아이템 자동 추출",
+        "클라우드 연결 없는 안전한 사내 보안 데이터 처리"
+      ],
+      "barriers": [
+        "온디바이스 AI 기능의 실제 유용성에 대한 회의감",
+        "플래그십 모델 교체에 따른 높은 초기 구매 비용"
+      ]
+    }
+  ],
+  "messagingPillars": [
+    {
+      "pillar": "무한한 생산성 (Boundless Productivity)",
+      "keyMessage": "실시간 온디바이스 AI 회의록 정리와 작업 자동화로 업무 생산성을 극대화합니다.",
+      "proofPoints": [
+        "NPU 가속 실시간 음성-텍스트 3개국어 동시 번역 및 요약",
+        "데이터 외부 전송 없이 완벽히 기기 내에서 처리되는 데이터 프라이버시"
+      ]
+    },
+    {
+      "pillar": "프로페셔널 비주얼 (Studio Photography)",
+      "keyMessage": "어두운 밤에도 흔들림 없는 전문가 수준의 AI 나이토그래피 비주얼을 구현합니다.",
+      "proofPoints": [
+        "2억 화소 광각 센서와 딥러닝 ISP 디테일 복원 기술",
+        "16:9 시네마틱 8K 비디오 촬영 및 온디바이스 객체 제거"
+      ]
+    }
+  ],
+  "toneAndVoice": [
+    "혁신적인 (Innovative)",
+    "신뢰할 수 있는 (Authoritative)",
+    "세련되고 프리미엄한 (Sophisticated)"
+  ]
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- P3 Panel (hidden by default) -->
+        <div id="panel-p3" class="agent-panel hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2 text-xs">
+              <span class="font-bold text-purple-400 uppercase tracking-wider text-[10px]">Agent Profile</span>
+              <h3 class="text-sm font-bold text-white">[P3] Creative Content Agent</h3>
+              <p class="text-slate-300">카피라이팅과 고해상도 16:9 포토그래픽 마케팅 키 비주얼을 동시에 합성합니다.</p>
+              <div class="pt-2 border-t border-slate-800 space-y-1 text-slate-400">
+                <div><strong>카피 모델:</strong> <code class="text-slate-200">gemini-3.5-flash-lite</code> (global)</div>
+                <div><strong>이미지 합성:</strong> <code class="text-purple-300">gemini-3.1-flash-lite-image</code> (Nano Banana 2 Lite, global)</div>
+                <div><strong>저장 정책:</strong> GCS 직접 업로드 + DraftImageStore</div>
+              </div>
+            </div>
+            <div class="md:col-span-2 bg-[#0B1120] border border-slate-800 rounded-xl p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-slate-400 font-mono">CreativeContentDeliverable</span>
+                <span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">Multimodal Visual Deliverable</span>
+              </div>
+              <pre class="text-xs text-slate-300 overflow-x-auto p-2 bg-slate-950 rounded font-mono">
+{
+  "visualConceptTitle": "Titanium Elegance & Volumetric Intelligence",
+  "visualPromptUsed": "Studio product photograph of modern sleek titanium smartphone on dark minimalist pedestal, dynamic volumetric cyan rim lighting, 16:9 aspect ratio, 8k resolution, cinematic atmosphere, sharp focus on edges",
+  "assetUrl": "/api/v1/campaigns/camp-a1b2c3d4/visual",
+  "storageUri": "gs://capstone-staging-506811-version1-artifacts/users/usr-dev-marketer-001/campaigns/camp-a1b2c3d4/visual.png",
+  "headlineCopy": "당신의 생각이 기술이 되는 순간",
+  "bodyCopy": "강력한 온디바이스 NPU와 결합된 차세대 AI. 네트워크 연결 없이도 모든 작업을 안전하고 즉각적으로 완료하세요.",
+  "callToAction": "지금 사전 예약하고 단독 런칭 혜택을 확인하세요",
+  "aspectRatio": "16:9",
+  "generationTimestamp": "2026-09-01T04:00:00Z"
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- P4 Panel (hidden by default) -->
+        <div id="panel-p4" class="agent-panel hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2 text-xs">
+              <span class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">Agent Profile</span>
+              <h3 class="text-sm font-bold text-white">[P4] Performance Insights Agent</h3>
+              <p class="text-slate-300">정확히 100.0%의 채널별 예산 배분, 예측 ROAS, CPC/CTR 시뮬레이션 지표를 도출합니다.</p>
+              <div class="pt-2 border-t border-slate-800 space-y-1 text-slate-400">
+                <div><strong>모델:</strong> <code class="text-slate-200">gemini-3.5-flash-lite</code> (global)</div>
+                <div><strong>규칙:</strong> 채널별 예산 배분율 합계 100.0% 보존</div>
+                <div><strong>ROAS 예측 범위:</strong> 2.5x ~ 6.5x 전자제품 벤치마크</div>
+              </div>
+            </div>
+            <div class="md:col-span-2 bg-[#0B1120] border border-slate-800 rounded-xl p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-slate-400 font-mono">PerformanceInsightsDeliverable</span>
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Deterministic 100% Budget</span>
+              </div>
+              <pre class="text-xs text-slate-300 overflow-x-auto p-2 bg-slate-950 rounded font-mono">
+{
+  "totalBudget": 50000.0,
+  "currency": "USD",
+  "channelAllocations": [
+    {
+      "channel": "Social Media (Instagram/TikTok)",
+      "allocationAmount": 17500.0,
+      "percentage": 35.0,
+      "rationale": "시각적 AI 기능(P3 티타늄 키 비주얼) 노출을 통한 2040 얼리어답터 타깃 인게이지먼트 극대화"
+    },
+    {
+      "channel": "Digital Video (YouTube)",
+      "allocationAmount": 15000.0,
+      "percentage": 30.0,
+      "rationale": "온디바이스 AI 회의 요약 및 야간 촬영 기능 시연 중심 15초 범퍼 및 인스트림 광고 집행"
+    },
+    {
+      "channel": "Paid Search (Google Search)",
+      "allocationAmount": 12500.0,
+      "percentage": 25.0,
+      "rationale": "'Galaxy S27', '온디바이스 AI 스마트폰' 등 고의도 검색 쿼리 전환율 선점"
+    },
+    {
+      "channel": "Retail Display & Partner POS",
+      "allocationAmount": 5000.0,
+      "percentage": 10.0,
+      "rationale": "오프라인 체험존 및 사전예약 매장 POP 키비주얼 디스플레이 지원"
+    }
+  ],
+  "projectedKpis": {
+    "estimatedImpressions": 8500000,
+    "estimatedClicks": 185300,
+    "estimatedConversions": 4820,
+    "projectedCtr": 2.18
+  },
+  "expectedRoas": 4.30,
+  "recommendations": [
+    "초기 2주간 고성과 비주얼 소재(소셜 미디어)로 예산 15% 탄력적 재할당 권장",
+    "검색 광고(Search) 랜딩 페이지를 P2 타깃 페르소나별 맞춤형 인터랙티브 페이지로 세분화",
+    "P3 생성 키 비주얼 A/B 테스트를 통해 CTR 리프트 효과 지속 모니터링"
+  ],
+  "creativeAssetUrl": "/api/v1/campaigns/camp-a1b2c3d4/visual",
+  "visualConceptSummary": "P3의 티타늄 미니멀리즘과 사이언 림 라이팅 키 비주얼이 소셜 및 비디오 채널의 CTR을 약 +0.45%p 리프트하는 것으로 모델링됨"
+}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 5: HITL WORKFLOW & STATE MACHINE ================= -->
+      <section id="sec-hitl" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">5</span>
+              Human-in-the-Loop (HITL) 캠페인 상태 머신
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">마케터 검토 게이트(PAUSED_FOR_REVIEW), Approve / Revise / Rollback 3대 전이 규칙</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">HITL State Machine</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/30">
+            <div class="font-bold text-emerald-400 flex items-center mb-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
+              1. Approve (다음 단계 전진)
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              마케터가 산출물을 승인하면 <code class="text-emerald-300">N ➔ N+1</code> 단계로 전진합니다. Stage 4 승인 시 Stage 5(<code class="text-emerald-300">MEDIA_EXECUTION</code>) 미디어 믹스 실행 계획으로 전진하며, Stage 5 승인 시 최종 <code class="text-emerald-300">COMPLETED</code> 상태로 종결됩니다.
+              <strong>Stage 3 승인 시점:</strong> <code class="text-slate-200">DraftImageStore</code>의 인메모리 드래프트 이미지를 GCS 버킷에 영구 커밋합니다.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-amber-500/30">
+            <div class="font-bold text-amber-400 flex items-center mb-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-400 mr-2"></span>
+              2. Revise (피드백 반영 재실행)
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              마케터의 텍스트 피드백(예: "더 고급스러운 톤앤매너로 수정")을 주입하여 현재 단계를 재실행합니다. 세션의 <code class="text-amber-300">revision_count</code>가 증가합니다.
+              <strong>Stage 3 수정 시점:</strong> <code class="text-slate-200">DraftImageStore.delete_draft()</code>를 호출하여 기존 인메모리 바이너리를 즉시 파기하고 새로운 비주얼 생성을 보장합니다.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-blue-500/30">
+            <div class="font-bold text-blue-400 flex items-center mb-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-400 mr-2"></span>
+              3. Rollback (직전 단계 안전 복귀)
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              전용 엔드포인트(<code class="text-blue-300">POST /api/v1/campaigns/{sessionId}/rollback</code>)를 통해 즉시 직전 단계(<code class="text-blue-300">N ➔ N-1</code>)로 되돌아가 이전 기획 방향이나 전략을 다시 수정할 수 있습니다 (Stage 5 ➔ Stage 4 포함).
+            </p>
+          </div>
+        </div>
+
+        <!-- Mermaid State Machine Diagram -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="font-semibold text-slate-300">HITL Review Gate State Diagram</span>
+            <span class="text-slate-500 font-mono">Mermaid StateDiagram</span>
+          </div>
+          <div class="mermaid-box">
+            <pre class="mermaid">
+stateDiagram-v2
+    [*] --> INITIALIZING: POST /api/v1/campaigns
+    
+    INITIALIZING --> RUNNING_P1: A2A Dispatch
+    RUNNING_P1 --> S1_PAUSED: [P1] Market Sensing 완료
+
+    state "Stage 1: Market Sensing (PAUSED_FOR_REVIEW)" as S1_PAUSED
+    S1_PAUSED --> RUNNING_P1: action=revise (피드백 반영)
+    S1_PAUSED --> RUNNING_P2: action=approve (승인)
+
+    state "Stage 2: Strategy & Brief (PAUSED_FOR_REVIEW)" as S2_PAUSED
+    RUNNING_P2 --> S2_PAUSED: [P2] Strategy Brief 완료
+    S2_PAUSED --> RUNNING_P2: action=revise
+    S2_PAUSED --> S1_PAUSED: POST /rollback (P1으로 롤백)
+    S2_PAUSED --> RUNNING_P3: action=approve
+
+    state "Stage 3: Creative Content (PAUSED_FOR_REVIEW)" as S3_PAUSED
+    RUNNING_P3 --> S3_PAUSED: [P3] 비주얼/카피 완료 (인메모리 드래프트)
+    S3_PAUSED --> RUNNING_P3: action=revise (기존 드래프트 삭제 후 재생성)
+    S3_PAUSED --> S2_PAUSED: POST /rollback (P2로 롤백)
+    S3_PAUSED --> RUNNING_P4: action=approve (GCS 영구 커밋!)
+
+    state "Stage 4: Performance Insights (PAUSED_FOR_REVIEW)" as S4_PAUSED
+    RUNNING_P4 --> S4_PAUSED: [P4] 예산/ROAS 산출 완료
+    S4_PAUSED --> RUNNING_P4: action=revise
+    S4_PAUSED --> S3_PAUSED: POST /rollback (P3로 롤백)
+    S4_PAUSED --> S5_MEDIA: action=approve (P4 승인 & 미디어 믹스 산출)
+
+    state "Stage 5: Media Execution (MEDIA_EXECUTION)" as S5_MEDIA
+    S5_MEDIA --> S4_PAUSED: POST /rollback (P4로 롤백)
+    S5_MEDIA --> COMPLETED: action=approve (최종 캠페인 확정)
+
+    COMPLETED --> [*]
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 6: STORAGE & DRS STREAMING ================= -->
+      <section id="sec-storage" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">6</span>
+              스토리지 & DRS(Domain-Restricted Sharing) 자산 스트리밍
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Cloud SQL PostgreSQL 15, GCS 버킷 및 0-Byte Cloud Run Egress 307 리다이렉트</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">Storage & DRS Proxy</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <!-- PostgreSQL Relational Models -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-white flex items-center">
+              <svg class="w-4 h-4 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+              Cloud SQL PostgreSQL 15 테이블 스키마
+            </h3>
+            <p class="text-slate-300">Cloud Run 인스턴스가 0으로 스케일다운(Scale-to-Zero)되더라도 마케터의 세션과 산출물은 영구 보존됩니다.</p>
+            <div class="space-y-1.5 font-mono text-[11px] text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800">
+              <div class="text-blue-300">TABLE orchestrator_sessions:</div>
+              <div>• session_id VARCHAR(64) PRIMARY KEY</div>
+              <div>• user_id VARCHAR(64) REFERENCES users(user_id) ON DELETE SET NULL</div>
+              <div>• tenant_id VARCHAR(64) NOT NULL DEFAULT 'default'</div>
+              <div>• status VARCHAR(32) NOT NULL (INITIALIZING, RUNNING, PAUSED_FOR_REVIEW, COMPLETED, FAILED)</div>
+              <div>• current_stage VARCHAR(32) NOT NULL (MARKET_SENSING ... MEDIA_EXECUTION, COMPLETED)</div>
+              <div>• brand_name VARCHAR(128), product_name VARCHAR(128), campaign_objective TEXT</div>
+              <div>• budget_amount FLOAT, currency VARCHAR(16), channels JSON</div>
+              <div>• deliverables JSON (P1~P4 Pydantic v2 산출물 종합)</div>
+              <div>• revision_count INT DEFAULT 0, created_at, updated_at TIMESTAMP</div>
+              <div>• INDEX: ix_orchestrator_sessions_user_id ON orchestrator_sessions (user_id)</div>
+              <div class="pt-2 text-indigo-300 border-t border-slate-800">TABLE users & user_sessions:</div>
+              <div>• users: user_id (PK), google_sub VARCHAR(128) UQ, email VARCHAR(255) UQ, name, role (MARKETER), tenant_id</div>
+              <div>• user_sessions: session_token (PK), user_id (FK ON DELETE CASCADE), expires_at, ip_address, user_agent</div>
+              <div>• INDEXES: ix_user_sessions_expires_at, ix_user_sessions_user_id</div>
+            </div>
+          </div>
+
+          <!-- DRS Signed URL Proxy Card -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-white flex items-center">
+              <svg class="w-4 h-4 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              DRS 준수 V4 서명 URL 307 임시 리다이렉트
+            </h3>
+            <p class="text-slate-300">
+              조직 정책상 GCS 버킷 공개 접근이 차단된 상태에서, Cloud Run은 인증된 사용자에게만 1시간 유효한 <strong>Google Cloud Storage V4 Signed URL</strong>을 동적으로 발급하여 
+              <code class="text-cyan-300">HTTP 307 Temporary Redirect</code>로 브라우저에 전달합니다. 객체는 사용자 격리 경로(<code class="text-slate-300">users/{user_id}/campaigns/{session_id}/{filename}</code>)로 안전하게 저장됩니다.
+            </p>
+            <div class="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-slate-300 space-y-1">
+              <div class="font-semibold text-blue-300">💡 핵심 아키텍처 이점 & 헬퍼 엔드포인트:</div>
+              <div>• <strong>0 Bytes Cloud Run Memory Buffering:</strong> 대용량 이미지를 메모리에 로드하지 않음</div>
+              <div>• <strong>0 Bytes Cloud Run Egress Cost:</strong> 브라우저가 GCS로부터 직접 다운로드</div>
+              <div>• <strong>완벽한 보안:</strong> OIDC 인증 없는 비인가자의 직접 다운로드 원천 차단</div>
+              <div>• <strong>드래프트 및 토큰 API:</strong> <code class="text-cyan-300">/draft-image</code>(인메모리 프리뷰) 및 <code class="text-cyan-300">/visual-token</code>(직접 서명 토큰 JSON) 완벽 지원</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mermaid Sequence Diagram for DRS -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="font-semibold text-slate-300">DRS Signed URL Proxy Sequence Diagram</span>
+            <span class="text-slate-500 font-mono">0-Byte Memory Egress Pattern</span>
+          </div>
+          <div class="mermaid-box">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Browser as 🌐 웹 브라우저 (Marketer)
+    participant Run as Cloud Run: version1<br>(FastAPI Orchestrator)
+    participant StorageSvc as StorageService (IAM signBlob)
+    participant GCS as Google Cloud Storage<br>(storage.googleapis.com)
+
+    Browser->>Run: GET /api/v1/campaigns/{sessionId}/visual (Auth Cookie / Bearer)
+    Note over Run: 1. OIDC 사용자 인증 및 세션 소유권 검증
+    alt 승인 전 인메모리 드래프트인 경우
+        Run-->>Browser: 200 OK (Content-Type: image/png, draft binary)<br>Cache-Control: no-cache, no-store
+    else 승인 완료 후 GCS 저장 상태인 경우
+        Run->>StorageSvc: generate_v4_signed_url(blob_path, 60m)
+        Note over StorageSvc: IAM signBlob (roles/iam.serviceAccountTokenCreator)
+        StorageSvc-->>Run: https://storage.googleapis.com/...X-Goog-Signature=...
+        Run-->>Browser: HTTP 307 Temporary Redirect<br>Location: https://storage.googleapis.com/...<br>Cache-Control: public, max-age=3600
+        Browser->>GCS: GET https://storage.googleapis.com/... (Direct Stream)
+        GCS-->>Browser: 200 OK (Marketing Visual Stream)
+        Note over Run,GCS: Cloud Run Egress = 0 Byte / Memory Buffering = 0 Byte
+    end
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 7: SECURITY & ZERO TRUST ================= -->
+      <section id="sec-security" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">7</span>
+              보안 & 제로 트러스트(Zero-Trust) 네트워크 경계
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Google OAuth 2.0 OIDC, Model Armor SDP 가드레일, Direct VPC Egress, 최소 권한 IAM</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">Security Architecture</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">1</div>
+            <h3 class="font-bold text-white text-sm">OAuth 2.0 OIDC</h3>
+            <p class="text-slate-400 leading-relaxed">모든 보호된 REST 엔드포인트에 Google OAuth 2.0 ID 토큰 및 안전한 HTTP-only 세션 쿠키 검증 강제.</p>
+          </div>
+
+          <div class="bg-slate-900/80 border border-rose-900/40 rounded-xl p-4 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">2</div>
+            <h3 class="font-bold text-white text-sm">Model Armor 활성 가드레일</h3>
+            <p class="text-slate-400 leading-relaxed"><code class="text-rose-300">us</code> 멀티리전 템플릿(<code class="text-slate-300">version1-guardrails</code>)으로 프롬프트 인젝션/탈옥(LOW+), 악성 URI, 4대 RAI(MEDIUM+), SDP(PII)를 검사하며 위반 시 즉각 Fail-Closed 차단.</p>
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">3</div>
+            <h3 class="font-bold text-white text-sm">Direct VPC Egress &amp; Zero-Trust Firewall</h3>
+            <p class="text-slate-400 leading-relaxed">Serverless VPC 커넥터 오버헤드 없이 전용 서브넷(<code class="text-cyan-300">10.10.0.0/24</code>)과 Cloud NAT 사용. Ingress/Egress Default Deny 및 최소 포트만 허용하는 제로 트러스트 방화벽 정책 강제.</p>
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">4</div>
+            <h3 class="font-bold text-white text-sm">Cloud SQL Auth Proxy</h3>
+            <p class="text-slate-400 leading-relaxed">공인 IP 노출 완전 차단(<code class="text-purple-300">0.0.0.0/0</code> 없음). Unix 도메인 소켓 마운트와 IAM 기반 mTLS 암호화 채널 강제 (TCP 3307 방화벽 터널링).</p>
+          </div>
+        </div>
+
+        <!-- Zero-Trust VPC Firewall Policy Spec Table -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center">
+              <svg class="w-4 h-4 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              Custom VPC (<code class="text-cyan-300">version1-vpc</code>) Zero-Trust 방화벽 규칙 명세 (Staging &amp; Prod)
+            </h3>
+            <span class="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Terraform Provisioned &amp; Verified</span>
+          </div>
+          <p class="text-xs text-slate-300">
+            Cloud Run Direct VPC Egress는 단방향 아웃바운드 전용이며, 사용자 인바운드 트래픽은 Google Front End(GFE)를 통해 인입되므로 인바운드를 100% 차단(Zero Attack Surface)하고, 아웃바운드는 필수 엔드포인트 포트만 선별 허용합니다.
+          </p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-[11px] text-slate-300">
+              <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="p-2">규칙 리소스</th>
+                  <th class="p-2">방향</th>
+                  <th class="p-2">우선순위</th>
+                  <th class="p-2">프로토콜 / 포트</th>
+                  <th class="p-2">대상 대역</th>
+                  <th class="p-2">동작 및 보안 목적</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60 font-mono text-[10.5px]">
+                <tr class="hover:bg-slate-800/30">
+                  <td class="p-2 text-rose-300">version1-ingress-deny-all</td>
+                  <td class="p-2"><span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">INGRESS</span></td>
+                  <td class="p-2">65000</td>
+                  <td class="p-2">ALL</td>
+                  <td class="p-2">0.0.0.0/0</td>
+                  <td class="p-2 text-rose-400 font-sans"><strong>DENY</strong>: 외부 직접 인입 원천 차단 (Zero Inbound Attack Surface)</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="p-2 text-rose-300">version1-egress-deny-all</td>
+                  <td class="p-2"><span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">EGRESS</span></td>
+                  <td class="p-2">65000</td>
+                  <td class="p-2">ALL</td>
+                  <td class="p-2">0.0.0.0/0</td>
+                  <td class="p-2 text-rose-400 font-sans"><strong>DENY</strong>: 미승인 아웃바운드 트래픽 기본 차단 및 데이터 유출 방지</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="p-2 text-cyan-300">version1-egress-allow-https</td>
+                  <td class="p-2"><span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">EGRESS</span></td>
+                  <td class="p-2">1000</td>
+                  <td class="p-2 text-emerald-400">tcp: 443</td>
+                  <td class="p-2">0.0.0.0/0</td>
+                  <td class="p-2 text-emerald-400 font-sans"><strong>ALLOW</strong>: Google APIs (Agent Platform, Cloud Storage, Model Armor) &amp; Web Grounding</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="p-2 text-purple-300">version1-egress-allow-cloudsql-proxy</td>
+                  <td class="p-2"><span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">EGRESS</span></td>
+                  <td class="p-2">1010</td>
+                  <td class="p-2 text-emerald-400">tcp: 3307</td>
+                  <td class="p-2">0.0.0.0/0</td>
+                  <td class="p-2 text-emerald-400 font-sans"><strong>ALLOW</strong>: Cloud SQL Auth Proxy mTLS 클라이언트-서버 터널 암호화 통신</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="p-2 text-indigo-300">version1-egress-allow-dns</td>
+                  <td class="p-2"><span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">EGRESS</span></td>
+                  <td class="p-2">1020</td>
+                  <td class="p-2 text-emerald-400">tcp: 53, udp: 53</td>
+                  <td class="p-2">0.0.0.0/0</td>
+                  <td class="p-2 text-emerald-400 font-sans"><strong>ALLOW</strong>: Cloud NAT 내부 DNS 도메인 네임 해석</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- IAM & Ingress Hardening Banner -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 space-y-1.5">
+          <div class="font-bold text-blue-400 flex items-center">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            최소 권한 IAM &amp; Direct A2A 보안 아키텍처
+          </div>
+          <p class="text-slate-400 leading-relaxed">
+            • <strong>Cloud Run Orchestrator SA (<code class="text-slate-300">version1-app</code>):</strong> BigQuery 직접 편집 권한을 제거하고 Cloud Logging Sink 전용 Writer Identity를 통해서만 <code class="text-slate-300">version1_telemetry</code> 데이터셋에 적재합니다.<br>
+            • <strong>Subagent SA (<code class="text-slate-300">version1-subagent</code>):</strong> 버킷 관리 권한을 배제하고 <code class="text-slate-300">roles/storage.objectAdmin</code>으로 최소화하여 Agent Runtime 서브에이전트가 격리된 경로에만 아티팩트를 쓰도록 강제합니다.<br>
+            • <strong>Direct A2A Ingress:</strong> Agent Gateway의 서울 리전 501 Unimplemented에 따라, Cloud Run과 Agent Platform Agent Runtime 간에는 SPIFFE 기반 Agent Identity(<code class="text-slate-300">--agent-identity</code>)와 Direct VPC Egress를 통한 안전한 내부 통신을 수행합니다 (ADR-0008).
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 8: FRONTEND 3-PANEL COMMAND CENTER ================= -->
+      <section id="sec-frontend" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">8</span>
+              프론트엔드: MVC 3-패널 커맨드 센터 UX
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">React 19 + TypeScript + Tailwind CSS Single-Origin 아키텍처 및 3-패널 인터랙션 그리드</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">React 19 SPA Architecture</span>
+        </div>
+
+        <!-- Wireframe Layout Container -->
+        <div class="bg-[#0B1120] border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3 text-xs text-slate-400">
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+              <span class="font-mono text-slate-300 ml-2">https://version1-797135441724.asia-northeast3.run.app/mvc</span>
+            </div>
+            <span class="bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded font-mono">Single-Origin (Zero-CORS)</span>
+          </div>
+
+          <!-- 3-Panel Wireframe Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-4 text-xs min-h-[380px]">
+            
+            <!-- PANEL 1: INTAKE & HISTORY (3 Cols) -->
+            <div class="md:col-span-3 bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-4">
+              <div>
+                <div class="flex items-center justify-between text-slate-300 font-bold border-b border-slate-800 pb-2 mb-3">
+                  <span>패널 1: 캠페인 설정 & 세션</span>
+                  <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">25%</span>
+                </div>
+                <div class="space-y-2.5">
+                  <div>
+                    <label class="text-[11px] text-slate-400 block mb-1">Brand & Product</label>
+                    <input disabled value="Nova / Galaxy S27" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-300 text-xs">
+                  </div>
+                  <div>
+                    <label class="text-[11px] text-slate-400 block mb-1">Campaign Objective</label>
+                    <textarea disabled class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-300 text-[11px] h-14 resize-none">온디바이스 AI 혁신 글로벌 런칭</textarea>
+                  </div>
+                  <div>
+                    <label class="text-[11px] text-slate-400 block mb-1">Budget ($)</label>
+                    <input disabled value="$50,000 USD" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-300 text-xs font-mono">
+                  </div>
+                </div>
+              </div>
+              <div class="border-t border-slate-800 pt-3">
+                <span class="text-[11px] font-bold text-slate-400 block mb-1.5">최근 캠페인 세션 목록</span>
+                <div class="space-y-1 text-[11px] text-slate-300">
+                  <div class="p-1.5 rounded bg-blue-600/20 border border-blue-500/30 font-medium truncate">Galaxy S27 AI (Reviewing)</div>
+                  <div class="p-1.5 rounded bg-slate-800/40 text-slate-400 truncate">Neo QLED 8K (Done)</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 2: MULTI-AGENT DAG & ACTIVITY CONSOLE (4 Cols) -->
+            <div class="md:col-span-4 bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-4">
+              <div>
+                <div class="flex items-center justify-between text-slate-300 font-bold border-b border-slate-800 pb-2 mb-3">
+                  <span>패널 2: 4단계 DAG & 액티비티 콘솔</span>
+                  <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">35%</span>
+                </div>
+                <!-- Stepper Progress -->
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between p-2 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px]">
+                    <span>1. Market Sensing</span>
+                    <span class="font-mono text-[10px]">완료 (1.8s)</span>
+                  </div>
+                  <div class="flex items-center justify-between p-2 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px]">
+                    <span>2. Strategy & Brief</span>
+                    <span class="font-mono text-[10px]">완료 (2.1s)</span>
+                  </div>
+                  <div class="flex items-center justify-between p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px]">
+                    <span class="flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-ping"></span>3. Creative Content</span>
+                    <span class="font-mono text-[10px]">검토 대기중 (HITL)</span>
+                  </div>
+                  <div class="flex items-center justify-between p-2 rounded bg-slate-800/40 border border-slate-800 text-slate-500 text-[11px]">
+                    <span>4. Performance Insights</span>
+                    <span class="font-mono text-[10px]">대기</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Synthetic Activity Logging Console (Unary REST) -->
+              <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-[10px] text-slate-400 space-y-1">
+                <div class="text-cyan-400">> [Unary REST Connected] /api/v1/campaigns (State Synced)</div>
+                <div>> [P3] Headline: "당신의 생각이 기술이 되는 순간"</div>
+                <div>> [P3] Rendering 16:9 photographic prompt with Nano Banana 2...</div>
+                <div class="text-amber-400">> [HITL Gate] Workflow paused for marketer review</div>
+              </div>
+            </div>
+
+            <!-- PANEL 3: DELIVERABLE INSPECTOR & HITL BAR (5 Cols) -->
+            <div class="md:col-span-5 bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-4">
+              <div>
+                <div class="flex items-center justify-between text-slate-300 font-bold border-b border-slate-800 pb-2 mb-3">
+                  <span>패널 3: 멀티모달 산출물 & 승인</span>
+                  <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">40%</span>
+                </div>
+                
+                <!-- Deliverable Preview (Image Mockup) -->
+                <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2">
+                  <div class="flex justify-between items-center text-[11px]">
+                    <span class="font-semibold text-slate-300">[P3] 비주얼 컨셉 에셋</span>
+                    <span class="text-purple-400 font-mono text-[10px]">16:9 Studio Photo</span>
+                  </div>
+                  <div class="h-28 rounded bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900 flex items-center justify-center border border-slate-800/80 text-slate-500 text-xs">
+                    <span class="flex items-center text-slate-400">
+                      <svg class="w-5 h-5 mr-1.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      Galaxy S27 AI Visual Mockup Preview
+                    </span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 truncate">
+                    <strong>Headline:</strong> 당신의 생각이 기술이 되는 순간
+                  </div>
+                </div>
+              </div>
+
+              <!-- STICKY HITL ACTION BAR -->
+              <div class="border-t border-slate-800 pt-3 space-y-2">
+                <span class="text-[11px] font-bold text-amber-400 block">HITL 거버넌스 제어</span>
+                <div class="flex items-center space-x-2">
+                  <button class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold shadow">
+                    Approve & Continue ➔
+                  </button>
+                  <button class="px-3 py-1.5 bg-amber-600/20 text-amber-300 border border-amber-500/30 rounded text-xs font-semibold">
+                    수정 요청
+                  </button>
+                  <button class="px-2.5 py-1.5 bg-slate-800 text-slate-300 hover:text-white rounded text-xs" title="이전 단계로 롤백">
+                    ↩
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 9: CI/CD & QUALITY GATES ================= -->
+      <section id="sec-cicd" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">9</span>
+              자동화 CI/CD & 2단계 배포 품질 게이트 (ADR-0004 / ADR-0009)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Cloud Build 2nd Gen, Headless Locust 부하 테스트, Agent Platform 회귀 차단</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">CI/CD & Quality Gate</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <!-- Gate 1: PR Gate -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-2.5">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-white text-sm flex items-center">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></span>
+                Gate 1: Pull Request 빠른 검증 (<code class="text-blue-300">pr_checks.yaml</code>)
+              </h3>
+              <span class="text-slate-500 font-mono text-[11px]">In-Process</span>
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              모든 Pull Request에 대해 프로덕션 브랜치 머지 전 구조적 회귀를 즉각 차단합니다.
+            </p>
+            <ul class="space-y-1.5 text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px]">
+              <li>• <code class="text-cyan-400">uv sync --locked</code> (결정론적 의존성 동기화)</li>
+              <li>• <code class="text-amber-400">alembic check</code> (Cloud SQL 스키마 드리프트 방지)</li>
+              <li>• <code class="text-blue-400">npm run build</code> (React 19 SPA 번들 무결성)</li>
+              <li>• <code class="text-emerald-400">pytest tests/unit</code> (102개 단위 테스트 100% 통과)</li>
+              <li>• <code class="text-emerald-400">pytest tests/integration</code> (17개 통합 테스트 100% 통과, 총 119개)</li>
+              <li>• <code class="text-purple-400">pytest tests/eval (syntax)</code> (골든 데이터셋 스키마 검증)</li>
+            </ul>
+          </div>
+
+          <!-- Gate 2: Pre-Prod Eval Gate -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-2.5">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-white text-sm flex items-center">
+                <span class="w-2.5 h-2.5 rounded-full bg-purple-500 mr-2"></span>
+                Gate 2: 스테이징 배포 후 품질 게이트 (<code class="text-purple-300">eval_gate.py</code>)
+              </h3>
+              <span class="text-slate-500 font-mono text-[11px]">Pre-Prod Block</span>
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              배포된 Staging Cloud Run 환경을 대상으로 골든 시나리오 9종(플래그십 4, 엣지 3, 가드레일 프로브 2)을 직접 실행합니다.
+            </p>
+            <ul class="space-y-1 text-slate-300 bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px]">
+              <li><strong class="text-rose-400">P0 차단:</strong> 스키마 검증 실패, P4 예산 합계 ≠ 100.0%, 또는 실행 실패 시나리오 > 0건 발생 시 즉시 빌드 차단</li>
+              <li><strong class="text-rose-400">P1 차단:</strong> LLM Judge 평점 &lt; 4.0/5.0 또는 베이스라인 대비 회귀 &gt; 0.2점</li>
+              <li><strong class="text-cyan-400">결과 아카이빙:</strong> Locust 및 eval_gate 보고서(HTML/JSON) GCS Logs 버킷 영구 저장</li>
+              <li><strong class="text-emerald-400">안전 통과 시:</strong> Cloud Build Production 승인 게이트 자동 대기 상태 전환</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Mermaid CI/CD Diagram -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="font-semibold text-slate-300">Cloud Build Multi-Project Promotion Flow</span>
+            <span class="text-slate-500 font-mono">Continuous Delivery Pipeline</span>
+          </div>
+          <div class="mermaid-box">
+            <pre class="mermaid">
+flowchart LR
+    classDef git fill:#1E293B,stroke:#64748B,stroke-width:1px,color:#fff;
+    classDef staging fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#fff;
+    classDef gate fill:#881337,stroke:#F43F5E,stroke-width:2px,color:#fff;
+    classDef prod fill:#2E1065,stroke:#A855F7,stroke-width:2px,color:#fff;
+
+    Dev["👨‍💻 개발자<br>git push main"]:::git --> Staging_Build["1. Cloud Build (cd-version1)<br>• Docker Image Build & Push<br>• Deploy Subagents (P1~P4)<br>• Execute DB Migration Job"]:::staging
+    Staging_Build --> Deploy_Staging["2. Staging Deploy<br>agents-cli deploy to Cloud Run"]:::staging
+    Deploy_Staging --> Locust["3. Locust Load Test<br>30초 10-User 부하테스트 &<br>결과 GCS Logs 아카이빙"]:::staging
+    Locust --> EvalGate["4. eval_gate.py<br>골든 시나리오 9종 평가<br>(HTML/JSON 보고서 GCS 업로드)"]:::gate
+    EvalGate -->|"품질 기준 충족 (점수≥4.0, 회귀≤0.2)"| ApprovalGate{"5. Cloud Build<br>Production Approval Gate<br>(수동 승인 대기)"}:::gate
+    ApprovalGate -->|운영자 승인 클릭| Deploy_Prod["6. Release to Production<br>Subagents + DB Migrate + Cloud Run<br>(capstone-prod-506811)"]:::prod
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 10: RELIABILITY, FINOPS & SLO ================= -->
+      <section id="sec-finops-slo" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">10</span>
+              신뢰성(SLO), 관측 가능성 & FinOps 원가 분석
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">28일 에러 버짓, 지연 시간 SLO 목표 대비 실측, 그리고 토큰 비용 최적화 분석</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">FinOps & Reliability</span>
+        </div>
+
+        <!-- SLO Table & FinOps Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <!-- SLO Scoreboard -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-white flex items-center">
+              <svg class="w-4 h-4 text-emerald-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              SLO 목표 대비 실측 지표
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr class="border-b border-slate-800 text-slate-400">
+                    <th class="py-2">SLO 지표</th>
+                    <th class="py-2">목표 (Target)</th>
+                    <th class="py-2">실측 (Actual)</th>
+                    <th class="py-2">상태</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                  <tr>
+                    <td class="py-2 font-medium">API 가용성 (Availability)</td>
+                    <td class="py-2">99.5%</td>
+                    <td class="py-2 text-emerald-400 font-bold">99.8%</td>
+                    <td class="py-2"><span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">Met</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-medium">Time to First Token (TTFT)</td>
+                    <td class="py-2">P95 &le; 2.0s</td>
+                    <td class="py-2 text-emerald-400 font-bold">1.24s</td>
+                    <td class="py-2"><span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">Met</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-medium">텍스트 서브에이전트 턴</td>
+                    <td class="py-2">P95 &le; 3.0s</td>
+                    <td class="py-2 text-emerald-400 font-bold">1.82s</td>
+                    <td class="py-2"><span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">Met</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-medium">비주얼 키 에셋 생성</td>
+                    <td class="py-2">P95 &le; 8.0s</td>
+                    <td class="py-2 text-emerald-400 font-bold">5.40s</td>
+                    <td class="py-2"><span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">Met</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-medium">전체 E2E DAG 완료</td>
+                    <td class="py-2">P95 &le; 15.0s</td>
+                    <td class="py-2 text-emerald-400 font-bold">11.16s</td>
+                    <td class="py-2"><span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">Met</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-medium">예산 보존 (Budget Conservation)</td>
+                    <td class="py-2">100.0%</td>
+                    <td class="py-2 text-emerald-400 font-bold">100.0%</td>
+                    <td class="py-2"><span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">Zero Drift</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- FinOps Cost Breakdown -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-white flex items-center justify-between">
+              <span class="flex items-center">
+                <svg class="w-4 h-4 text-purple-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                캠페인 1회 실행 원가 (FinOps Breakdown)
+              </span>
+              <span class="text-emerald-400 font-mono font-bold">$0.0455 Total</span>
+            </h3>
+            <p class="text-slate-300 leading-relaxed">
+              모든 단계에 Pro 모델을 일괄 적용하던 초기 설계 대비, 텍스트 서브에이전트에 <strong>Gemini 3.5 Flash Lite</strong>를 배치하고 오케스트레이션에만 <strong>Gemini 3.1 Pro</strong>를 사용하는 계층화 설계를 통해 원가를 3배 이상 절감했습니다.
+            </p>
+            <div class="space-y-1.5 font-mono text-[11px] text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800">
+              <div class="flex justify-between"><span>Orchestrator (Gemini 3.1 Pro):</span><span class="text-slate-200">$0.0150</span></div>
+              <div class="flex justify-between"><span>[P1] Market Sensing (Flash Lite):</span><span class="text-slate-200">$0.0030</span></div>
+              <div class="flex justify-between"><span>[P2] Strategy & Brief (Flash Lite):</span><span class="text-slate-200">$0.0035</span></div>
+              <div class="flex justify-between"><span>[P3] Creative Visual (Nano Banana 2):</span><span class="text-slate-200">$0.0210</span></div>
+              <div class="flex justify-between"><span>[P4] Performance Insights (Flash Lite):</span><span class="text-slate-200">$0.0030</span></div>
+              <div class="pt-2 border-t border-slate-800 flex justify-between font-bold text-emerald-400">
+                <span>합계 (Total / Campaign Run):</span>
+                <span>$0.0455 (목표 $0.10 대비 -54.5%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4-Pillar Resilience Engine -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <h3 class="text-sm font-bold text-white flex items-center">
+              <svg class="w-4 h-4 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              엔터프라이즈 다계층 장애 복구 및 탄력성 아키텍처 (4-Pillar Resilience Engine)
+            </h3>
+            <span class="text-[11px] font-mono text-cyan-400 bg-cyan-950/50 border border-cyan-800/40 px-2 py-0.5 rounded">Active Resilience</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            <!-- Pillar 1 -->
+            <div class="bg-slate-900/80 border border-cyan-500/30 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-cyan-400">1. Centralized HTTP Retry</span>
+                <span class="code-badge bg-cyan-900/40 text-cyan-300 border border-cyan-700/50">Jittered Backoff</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-[11px]">
+                <code class="text-cyan-300 font-mono">app/retry_policy.py</code>: <code class="text-slate-300 font-mono">HttpRetryOptions</code>로 지수 백오프 및 무작위 지터 일괄 적용.
+                <br>• <strong>설정</strong>: 3회 시도, 초기 1.0s, 최대 10.0s, 승수 2.0, 지터 1.0.
+                <br>• <strong>대상</strong>: 408, 429, 500, 502, 503, 504. Orchestrator 및 전 서브에이전트 보호.
+              </p>
+            </div>
+            <!-- Pillar 2 -->
+            <div class="bg-slate-900/80 border border-blue-500/30 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-blue-400">2. Multi-Tier Model Fallback</span>
+                <span class="code-badge bg-blue-900/40 text-blue-300 border border-blue-700/50">FallbackGemini</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-[11px]">
+                <code class="text-blue-300 font-mono">app/models_fallback.py</code>: ADK <code class="text-slate-300 font-mono">BaseLlm</code> 기반 복합 모델로 무중단 장애 복구 보장.
+                <br>• <strong>Orchestrator</strong>: <code class="text-slate-300 font-mono">gemini-3.1-pro-preview</code> &rarr; <code class="text-emerald-300 font-mono">gemini-2.5-pro</code>.
+                <br>• <strong>Subagents</strong>: <code class="text-slate-300 font-mono">gemini-3.5-flash-lite</code> &rarr; <code class="text-emerald-300 font-mono">gemini-2.5-flash</code>.
+              </p>
+            </div>
+            <!-- Pillar 3 -->
+            <div class="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-emerald-400">3. Async Visual Synthesis</span>
+                <span class="code-badge bg-emerald-900/40 text-emerald-300 border border-emerald-700/50">2-Attempt Loop</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-[11px]">
+                <code class="text-emerald-300 font-mono">app/agents/creative_content/agent.py</code>: Nano Banana 2 Lite 이미지 생성 완전 비동기화.
+                <br>• <strong>비동기 실행</strong>: <code class="text-slate-300 font-mono">client.aio.models.generate_content</code>로 메인 루프 블로킹 방지.
+                <br>• <strong>2회 재시도</strong>: 25s 타임아웃, 지수 백오프 및 <code class="text-slate-300 font-mono">asyncio.to_thread</code> GCS 저장.
+              </p>
+            </div>
+            <!-- Pillar 4 -->
+            <div class="bg-slate-900/80 border border-purple-500/30 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-purple-400">4. Database Fault Resilience</span>
+                <span class="code-badge bg-purple-900/40 text-purple-300 border border-purple-700/50">@db_retry</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-[11px]">
+                <code class="text-purple-300 font-mono">app/orchestrator/session_repo.py</code>: 전 세션 쿼리 메서드 대상 데코레이터.
+                <br>• <strong>동작</strong>: <code class="text-slate-300 font-mono">OperationalError</code>, <code class="text-slate-300 font-mono">DBAPIError</code> 포착 시 3회 지수 백오프.
+                <br>• <strong>효과</strong>: Cloud SQL Auth Proxy 소켓 재연결 및 트랜잭션 락 일시 장애를 100% 흡수.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 11: ADR SUMMARY ================= -->
+      <section id="sec-adrs" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">11</span>
+              아키텍처 결정 기록 (ADR Index)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">FDE 표준 아키텍처 결정 기록 9종 및 선택 근거 요약</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">ADR-0001 ~ ADR-0009</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0001</span>
+            <h4 class="font-bold text-white">A2A Multi-Agent DAG Orchestration</h4>
+            <p class="text-slate-400">단일 거대 프롬프트 대신 4개 독립 Reasoning Engine과 중앙 오케스트레이터 분리 채택.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0002</span>
+            <h4 class="font-bold text-white">Hybrid Model & Global Pinning</h4>
+            <p class="text-slate-400">Pro + Flash Lite + Nano Banana 2 하이브리드 조합, global 엔드포인트 고정 및 FallbackGemini 다계층 모델 장애 복구.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0003</span>
+            <h4 class="font-bold text-white">Dual-Mode A2A Client & Hybrid DB</h4>
+            <p class="text-slate-400">원격 Agent Runtime과 로컬 인프로세스 실행을 투명 지원하며 @db_retry 기반 Cloud SQL 장애 복구 및 A2A 재시도 보장.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0004</span>
+            <h4 class="font-bold text-white">Multi-Project CI/CD & Native Approval</h4>
+            <p class="text-slate-400">CI/CD 허브, 스테이징, 프로덕션 3개 프로젝트 격리 및 Cloud Build 수동 승인 게이트 연동.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0005</span>
+            <h4 class="font-bold text-white">Direct VPC Egress & Auth Proxy</h4>
+            <p class="text-slate-400">VPC 커넥터 오버헤드 제거, Cloud Run Direct VPC Egress와 Cloud SQL Auth Proxy 유닉스 소켓 바인딩.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0006</span>
+            <h4 class="font-bold text-white">Hybrid Generated Visual Storage</h4>
+            <p class="text-slate-400">미승인 시 인메모리 드래프트 보관, 승인 시 GCS 버킷에 영구 커밋하는 2단계 생명주기 분리.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0007</span>
+            <h4 class="font-bold text-white">DRS Signed URL Streaming Proxy</h4>
+            <p class="text-slate-400">Cloud Run 메모리 버퍼링 및 아웃바운드 Egress 0-Byte 달성을 위한 V4 Signed URL 307 임시 리다이렉트.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0008</span>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Superseded</span>
+            </div>
+            <h4 class="font-bold text-white">Direct A2A &amp; Orchestrator Model Armor</h4>
+            <p class="text-slate-400">Agent Gateway 서울 501 오류에 따라 Direct A2A(SPIFFE)와 오케스트레이터 직접 Model Armor(<code class="text-slate-300">us</code> 멀티리전 활성 가드레일) 채택.</p>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-1.5">
+            <span class="text-blue-400 font-mono font-bold text-[11px]">ADR-0009</span>
+            <h4 class="font-bold text-white">Agent Platform Two-Stage Quality Gate</h4>
+            <p class="text-slate-400">PR 단위/통합 테스트 게이트(119개 100% 통과) + 스테이징 배포 후 골든 데이터셋 9종 평가 회귀 차단 파이프라인.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 12: API SURFACE ================= -->
+      <section id="sec-api" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <span class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mr-2.5 text-sm font-bold">12</span>
+              RESTful API 명세 (OpenAPI 3.1.0 완벽 일치 &amp; 19개 전체 엔드포인트)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">OpenAPI 3.1.0 및 FastAPI 라우터와 100% 일치하는 19개 엔드포인트 (표준 camelCase <code class="text-blue-300">{sessionId}</code> 파라미터 및 컨테이너 프로브 <code class="text-emerald-300">/healthz</code>)</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500">Contract-First Zero-Drift</span>
+        </div>
+
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden text-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-950/80 border-b border-slate-800 text-slate-400">
+                  <th class="py-2.5 px-4">Method</th>
+                  <th class="py-2.5 px-4">Path</th>
+                  <th class="py-2.5 px-4">Auth</th>
+                  <th class="py-2.5 px-4">설명 (Purpose)</th>
+                  <th class="py-2.5 px-4">주요 응답</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300">
+                <!-- Auth Routes -->
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/auth/google</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400">None</span></td>
+                  <td class="py-2.5 px-4">Google OAuth 2.0 OIDC 로그인 및 사용자 자동 등록 (mvc_session 쿠키 발급)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">UserProfileResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/auth/dev-login</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400">None (Dev Only)</span></td>
+                  <td class="py-2.5 px-4">로컬 개발 및 테스트용 Mock 계정 빠른 로그인 (스테이징/프로덕션 403 차단)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">UserProfileResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/auth/me</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">현재 로그인된 마케터 사용자 프로필 정보 조회</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">UserProfileResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/auth/logout</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">Cloud SQL 세션 토큰 무효화 및 브라우저 세션 쿠키 삭제</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">LogoutResponse</td>
+                </tr>
+
+                <!-- Campaign Routes -->
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">새 캠페인 기획 DAG 시작 (P1 트리거)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">CampaignSessionResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">로그인 사용자의 최근 캠페인 세션 목록 조회</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">list[CampaignSessionResponse]</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">특정 캠페인의 전체 상태 및 산출물 조회</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">CampaignSessionResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-amber-400">PATCH</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">캠페인 세션 산출물(deliverables) 또는 필드 직접 수정 저장</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">CampaignSessionResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}/approve</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">HITL 검토 게이트: 단계 승인(Approve) 또는 피드백 재실행(Revise)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">CampaignSessionResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}/rollback</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">직전 단계(N-1)로 세션 상태 안전 롤백</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">CampaignSessionResponse</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-blue-400">POST</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/parse-prompt</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">자연어 캠페인 프롬프트를 Pydantic 구조로 파싱</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">ParsePromptResponse</td>
+                </tr>
+
+                <!-- Visual Asset Routes -->
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}/visual</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">비주얼 에셋 스트리밍 (GCS V4 Signed URL 307 임시 리다이렉트 또는 바이너리)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-cyan-400">307 Redirect / image/png</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}/draft-image</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">Stage 3 승인 전 인메모리(DraftImageStore) 임시 생성 비주얼 에셋 조회</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-cyan-400">image/png</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/api/v1/campaigns/{sessionId}/visual-token</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">Bearer / Cookie</span></td>
+                  <td class="py-2.5 px-4">GCS V4 서명 URL 및 만료 시간(3,600초) 메타데이터 JSON 반환</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">{"signedUrl": str, "expiresIn": 3600}</td>
+                </tr>
+
+                <!-- System & Documentation Routes -->
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/healthz</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800/60 text-[10px] text-slate-400">None</span></td>
+                  <td class="py-2.5 px-4">Cloud Run 컨테이너 라이브니스 프로브</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-emerald-400">{"status": "healthy"}</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/meta</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800/60 text-[10px] text-slate-400">None</span></td>
+                  <td class="py-2.5 px-4">런타임 모델 구성, 버전 및 리전 메타데이터</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">Metadata JSON</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/ &amp; /mvc</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800/60 text-[10px] text-slate-400">None</span></td>
+                  <td class="py-2.5 px-4">React 19 SPA 정적 엔트리포인트 (index.html Single-Origin 제공)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">text/html</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-emerald-400">GET</td>
+                  <td class="py-2.5 px-4 font-mono">/architecture</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-slate-800/60 text-[10px] text-slate-400">None</span></td>
+                  <td class="py-2.5 px-4">대화형 시스템 아키텍처 다이어그램 및 설계 명세 뷰어 (HTML)</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300">text/html</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-4 font-mono font-bold text-indigo-400">GET/POST</td>
+                  <td class="py-2.5 px-4 font-mono">/a2a/{appName}/...</td>
+                  <td class="py-2.5 px-4"><span class="px-1.5 py-0.5 rounded bg-indigo-900/40 text-[10px] text-indigo-300">SPIFFE / Bearer</span></td>
+                  <td class="py-2.5 px-4">A2A 동적 Agent Card 디스커버리 및 JSON-RPC 2.0 서브에이전트 실행 프로토콜</td>
+                  <td class="py-2.5 px-4 font-mono text-[11px] text-indigo-300">AgentCard / JSON-RPC</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= QUICK START & RUN COMMANDS ================= -->
+      <section id="quick-start" class="bg-gradient-to-r from-slate-900 to-[#0F172A] border border-slate-800 rounded-2xl p-6 text-xs space-y-4">
+        <h3 class="text-sm font-bold text-white flex items-center">
+          <svg class="w-4 h-4 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+          로컬 개발 및 검증 명령어 (Cheat Sheet)
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono">
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+            <span class="text-slate-400 block mb-1"># 1. 전체 품질 게이트 (린트 + 타입 + 119개 테스트 100% 통과)</span>
+            <div class="text-cyan-300">make quality</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+            <span class="text-slate-400 block mb-1"># 2. 로컬 풀스택 개발 서버 실행 (:8000/mvc)</span>
+            <div class="text-cyan-300">make dev</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+            <span class="text-slate-400 block mb-1"># 3. CLI 멀티에이전트 시뮬레이션 즉시 실행</span>
+            <div class="text-cyan-300">make sim</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+            <span class="text-slate-400 block mb-1"># 4. OpenAPI TypeScript 타입 클라이언트 동기화</span>
+            <div class="text-cyan-300">make generate-api</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= FOOTER ================= -->
+      <footer class="border-t border-slate-800 pt-8 pb-12 text-center text-xs text-slate-500 space-y-2">
+        <div class="flex items-center justify-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-slate-400 font-medium">Nova Electronics Corp &middot; Marketing Value Creator (MVC) v1.0</span>
+        </div>
+        <p>Architected and Developed by Ryan Ahn (ryanahn@, Forward Deployed Engineer). Google Cloud Platform.</p>
+        <p class="text-[11px] font-mono">Canonical Spec: <a href="design/TDD.md" class="text-blue-400 hover:underline">docs/design/TDD.md</a> &middot; <a href="adr/README.md" class="text-blue-400 hover:underline">docs/adr/</a></p>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- ================= CLIENT-SIDE INTERACTIVITY SCRIPTS ================= -->
+  <script>
+    // 1. Theme Toggle (Dark / Light Mode)
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+    const htmlEl = document.documentElement;
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = htmlEl.classList.toggle('dark');
+      if (isDark) {
+        sunIcon.classList.add('hidden');
+        moonIcon.classList.remove('hidden');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        moonIcon.classList.add('hidden');
+        sunIcon.classList.remove('hidden');
+        localStorage.setItem('theme', 'light');
+      }
+    });
+
+    // 2. Subagent Tabs Switcher
+    const tabs = document.querySelectorAll('.agent-tab');
+    const panels = document.querySelectorAll('.agent-panel');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        tabs.forEach(t => {
+          t.classList.remove('bg-blue-600', 'text-white');
+          t.classList.add('bg-slate-800', 'text-slate-300');
+        });
+        tab.classList.remove('bg-slate-800', 'text-slate-300');
+        tab.classList.add('bg-blue-600', 'text-white');
+
+        panels.forEach(p => {
+          if (p.id === `panel-${target}`) {
+            p.classList.remove('hidden');
+          } else {
+            p.classList.add('hidden');
+          }
+        });
+      });
+    });
+
+    // 3. Search / Filter Highlight
+    const searchInput = document.getElementById('docSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        if (!term) return;
+        const sections = document.querySelectorAll('section');
+        sections.forEach(sec => {
+          if (sec.innerText.toLowerCase().includes(term)) {
+            sec.style.opacity = '1';
+          } else {
+            sec.style.opacity = '0.4';
+          }
+        });
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          document.querySelectorAll('section').forEach(s => s.style.opacity = '1');
+          searchInput.blur();
+        }
+      });
+    }
+
+    // 4. Command + K Shortcut for Search Focus
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput?.focus();
+      }
+    });
+
+    // 5. Scrollspy for Active ToC Navigation Link
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('section[id]');
+      const scrollY = window.pageYOffset;
+      sections.forEach(current => {
+        const sectionHeight = current.offsetHeight;
+        const sectionTop = current.offsetTop - 100;
+        const sectionId = current.getAttribute('id');
+        const tocLink = document.querySelector(`.toc-link[href*="${sectionId}"]`);
+        if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
+          tocLink?.classList.add('bg-blue-600/20', 'text-blue-400', 'font-semibold');
+        } else {
+          tocLink?.classList.remove('bg-blue-600/20', 'text-blue-400', 'font-semibold');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

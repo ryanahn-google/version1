@@ -40,6 +40,7 @@ from app.orchestrator.session_repo import (
 )
 from app.schemas.campaign import (
     CampaignSessionResponse,
+    CampaignSummaryResponse,
     CreateCampaignRequest,
     ParsePromptRequest,
     ParsePromptResponse,
@@ -75,15 +76,15 @@ async def parse_campaign_prompt(
 
 @router.get(
     "",
-    response_model=list[CampaignSessionResponse],
+    response_model=list[CampaignSummaryResponse],
     responses={401: {"model": ErrorResponse}},
 )
 async def list_campaigns(
     limit: int = 50,
     user: UserModel = Depends(get_current_user),
     repo: SessionRepository = Depends(get_session_repo),
-) -> list[CampaignSessionResponse]:
-    """List recent campaigns belonging to authenticated user."""
+) -> list[CampaignSummaryResponse]:
+    """List recent campaigns belonging to authenticated user (lightweight summary)."""
     return await repo.list_user_campaigns(user.user_id, limit=limit)
 
 

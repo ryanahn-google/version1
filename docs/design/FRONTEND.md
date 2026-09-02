@@ -11,17 +11,19 @@
 ---
 
 ## 2. Executive Summary & Goals
-The Marketing Value Creator (MVC) frontend is an enterprise web application designed for Nova Electronics Corp campaign marketing teams. It transforms a complex 4-stage sequential Multi-Agent DAG into an intuitive, real-time interactive **3-Panel Command Center**. 
+The Marketing Value Creator (MVC) frontend is an enterprise web application designed for Nova Electronics Corp campaign marketing teams. It transforms a complex 5-stage sequential Multi-Agent DAG into an intuitive, interactive **Multi-View Application Shell** featuring a 5-stage top stepper, active stage canvas, and collapsible assistant/logs panel. 
 
 ### Primary Capabilities:
-1. **Interactive Campaign Initialization**: Marketers specify Brand, Product, Target Objective, Budget, and Channel Mix.
-2. **Real-Time Streaming Visualizer**: Server-Sent Events (SSE) stream incremental agent thoughts, task progress, and execution milestones across the 4 specialized agents:
-   - `[P1] Market Sensing`
-   - `[P2] Strategy & Brief`
-   - `[P3] Creative Content` (Nano Banana 2 Lite visual synthesis)
+1. **Interactive Campaign Initialization**: Marketers specify Brand, Product, Target Objective, Budget, and Channel Mix (with optional AI prompt parsing via `POST /api/v1/campaigns/parse-prompt`).
+2. **State Synchronization & Activity Logging**: Uses synchronous unary REST JSON transactions (`createCampaign`, `approveStage`, `rollbackStage`) with client-side activity stream logging across the 5 specialized stages:
+   - `[P1] Market Sensing` (Gemini 3.5 Flash Lite)
+   - `[P2] Strategy & Brief` (Gemini 3.5 Flash Lite)
+   - `[P3] Creative Content` (Nano Banana 2 Lite / `gemini-3.1-flash-lite-image` visual synthesis)
    - `[P4] Performance & Insights` (Channel budget allocation & ROAS)
-3. **Multimodal Deliverable Inspection**: Rich interactive syntax-highlighted views for structured JSON deliverables, an image gallery lightbox for high-resolution marketing visual assets, and dynamic budget distribution charts.
-4. **Human-in-the-Loop (HITL) Governance**: Stage-by-stage review gates where marketers can approve continuation or inject text revision feedback to refine agent outputs.
+   - `[P5] Media Execution & Analytics` (Cross-channel synthesis, execution readiness & PDF export)
+   *(Note: The legacy `stream` property on `CampaignCreateRequest` is deprecated and returns `False`; production relies on unary REST).*
+3. **Multimodal Deliverable Inspection**: Rich interactive syntax-highlighted views for structured JSON deliverables, an image gallery lightbox for high-resolution marketing visual assets (stored in GCS and served via 307 temporary redirects to V4 signed URLs), and dynamic budget distribution charts.
+4. **Human-in-the-Loop (HITL) Governance**: Stage-by-stage review gates where marketers can approve continuation, inject text revision feedback to refine agent outputs, or rollback to preceding stages (`POST /api/v1/campaigns/{sessionId}/rollback`).
 5. **Contract-First & Zero Drift**: 100% of data structures are type-synchronized with `api/openapi.yaml` via `openapi-typescript`.
 
 ---
@@ -29,24 +31,25 @@ The Marketing Value Creator (MVC) frontend is an enterprise web application desi
 ## 3. Architecture & Topology
 
 ### 3.1 Single-Origin Deployment
-The frontend is built with React 19, TypeScript, and Vite, compiling into static assets (`frontend/dist/`). The FastAPI backend service (`version1` on Cloud Run in `asia-northeast3`) serves both API routes (`/api/v1/...`, `/run_sse`, `/healthz`) and static UI assets under a single origin:
+The frontend is built with React 19, TypeScript, and Vite, compiling into static assets (`frontend/dist/`). The FastAPI backend service (`app/fast_api_app.py` on Cloud Run in `asia-northeast3`) mounts static UI assets at `/static` (`app.mount("/static", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")`) aligned with Vite's configured `base: '/static/'`. The backend serves the compiled SPA `index.html` at both `GET /` and `GET /mvc` entrypoints (`app/routers/system.py`), alongside modular API routes (`/api/v1/...`, `/healthz`, `/meta`):
 
 ```mermaid
 flowchart LR
-    subgraph Client["Web Browser (Marketer)"]
+    subgraph Client ["Web Browser (Marketer)"]
         SPA["React 19 SPA (Vite)"]
     end
 
-    subgraph CloudRun["Cloud Run: version1 (asia-northeast3)"]
+    subgraph CloudRun ["Cloud Run: version1 (asia-northeast3)"]
         FastAPI["FastAPI Orchestrator (:8000)"]
-        StaticEngine["StaticFiles ('/static') & HTML Fallback"]
-        APIEngine["Campaign REST & SSE Engine ('/api/v1')"]
-        FastAPI --> StaticEngine & APIEngine
+        StaticEngine["StaticFiles ('/static') & HTML Entrypoints ('/', '/mvc')"]
+        APIEngine["Campaign REST Engine ('/api/v1')"]
+        FastAPI --> StaticEngine
+        FastAPI --> APIEngine
     end
 
-    SPA -->|GET / (HTML) & GET /static/* (JS/CSS)| StaticEngine
-    SPA -->|POST /api/v1/campaigns (SSE Stream)| APIEngine
-    SPA -->|POST /api/v1/campaigns/{id}/approve| APIEngine
+    SPA -->|"GET / & GET /mvc (HTML), GET /static/* (JS/CSS)"| StaticEngine
+    SPA -->|"POST /api/v1/campaigns (Unary REST JSON)"| APIEngine
+    SPA -->|"POST /api/v1/campaigns/{sessionId}/approve & rollback"| APIEngine
 ```
 
 **Benefits of Single-Origin Topology:**
@@ -56,7 +59,7 @@ flowchart LR
 
 ---
 
-## 4. UI/UX Design System & 3-Panel Command Center
+## 4. UI/UX Design System & Multi-View Application Shell
 
 ### 4.1 Brand Identity & Color Palette (Nova Electronics Corp)
 - **Primary / Brand Accent**: Cobalt Blue (`#2563EB`, `blue-600`) — action buttons, active tabs, progress bars.
@@ -65,75 +68,123 @@ flowchart LR
 - **Accent Signals**:
   - Emerald Green (`#10B981`): Completed stages, approved deliverables, positive ROAS.
   - Amber Orange (`#F59E0B`): Waiting for Human Review (HITL Gate), warnings.
-  - Indigo / Cyan (`#06B6D4`): Active streaming agents, visual generation.
+  - Indigo / Cyan (`#06B6D4`): Active stage agents, visual generation.
   - Rose Red (`#EF4444`): Model Armor prompt rejection, system errors.
 
-### 4.2 3-Panel Layout Grid
+### 4.2 Application Shell & Layout Architecture
+The frontend architecture (`App.tsx`) is implemented as a multi-view application shell rather than a rigid horizontal grid:
+1. **Global Dark Navy Sidebar (`Sidebar.tsx`)**: Collapsible navigation bar providing view switching:
+   - `HOME`: `HomeDashboard.tsx` — Campaign portfolio list, recent session status, and quick simulation starter cards.
+   - `WORKSPACE`: `CampaignWorkspace.tsx` — Primary multi-agent execution canvas and review cockpit.
+   - `ASSETS`: `AssetLibraryView.tsx` — Visual media gallery and downloadable deliverable archive.
+   - `SETTINGS`: `SettingsView.tsx` — System metadata, model inventory, and environment diagnostics.
+2. **Top Header Bar (`TopHeader.tsx`)**: Displays active campaign title, status badge (`INITIALIZING`, `RUNNING`, `PAUSED_FOR_REVIEW`, `COMPLETED`, `FAILED`), language switcher (`ko` / `en`), and authenticated user profile.
+3. **Model Armor Guardrail Security Alert Banner (`App.tsx`)**: Dismissible top banner triggered when user prompts are rejected by enterprise safety templates with `PROMPT_INJECTION_DETECTED` (HTTP 400).
+4. **Workspace Multi-Agent Cockpit (`CampaignWorkspace.tsx`)**:
+   - **Top 5-Stage Stepper Bar**: Linear progression tracker displaying status and duration:
+     - Step 1: Market Sensing (`MARKET_SENSING`)
+     - Step 2: Strategy Brief (`STRATEGY_BRIEF`)
+     - Step 3: Creative Content (`CREATIVE_CONTENT`)
+     - Step 4: Performance & Insights (`PERFORMANCE_INSIGHTS`)
+     - Step 5: Media Execution & Analytics (`MEDIA_EXECUTION` / `COMPLETED`)
+   - **Main Active Stage Canvas (Center/Left)**: Contextually mounts the active stage view:
+     - `MarketSensingView.tsx`: Campaign initiation form, trend intelligence cards, competitor benchmark signals.
+     - `StrategyBriefView.tsx`: Strategic target audience pillars, core value propositions, channel messaging themes.
+     - `ContentView.tsx`: High-resolution marketing visual mockups (via GCS signed URLs), prompt metadata inspector, and image revision controls.
+     - `MediaPlanMmmView.tsx`: Channel budget allocation matrix (100% exact sum), MMM spend sliders, simulated ROAS curves.
+     - `ExecutionAndAnalyticsView.tsx`: Final multi-channel rollout schedule, synthesis metrics, and executive PDF summary export.
+   - **Collapsible Right Assistant & Logs Panel (`AssistantAndLogsPanel.tsx`)**: Real-time activity log stream, agent execution milestones, and conversational assistant.
+   - **HITL Revision Modal (`RevisionModal.tsx`)**: Structured modal dialogue allowing marketers to provide targeted text feedback or edit deliverable fields before advancing.
+
 ```
 +-----------------------------------------------------------------------------------------------------------------------+
-|  [Nova Logo] Marketing Value Creator (MVC) v1.0   |  Staging: asia-northeast3  |  Model: Gemini 3.1 Pro + Flash Lite  |
-+------------------------------------+------------------------------------+---------------------------------------------+
-| PANEL 1: CAMPAIGN CONFIG & HISTORY | PANEL 2: MULTI-AGENT DAG TIMELINE  | PANEL 3: DELIVERABLE INSPECTOR & HITL GATE  |
-|                                    |                                    |                                             |
-| [Form Inputs]                      | [Stage 1: Market Sensing]          | [Active Stage Deliverable Card]             |
-| - Brand Name                       |   * Completed (1.8s)               | - Market Trends (JSON/Cards)                |
-| - Product Name                     |                                    | - Competitor Benchmarks                     |
-| - Objective                        | [Stage 2: Strategy & Brief]        | - Consumer Sentiment Signal                 |
-| - Budget ($)                       |   * Completed (2.1s)               |                                             |
-| - Target Channels (Checkboxes)     |                                    | [Visual Concept (Stage 3)]                  |
-|                                    | [Stage 3: Creative Content]        | - High-Res Ad Mockup (Lightbox)             |
-| [Launch Simulation CTA]            |   * RUNNING (Pulsing Icon)         | - Prompt Metadata Inspector                 |
-|                                    |   * Generating visual asset...     |                                             |
-| ---------------------------------- |                                    | [Budget Allocation Table (Stage 4)]         |
-| [Recent Sessions History]          | [Stage 4: Performance & Insights]  | - Channel Mix %, Simulated ROAS             |
-| - Galaxy S27 Black Friday (Done)   |   * Pending                        |                                             |
-| - Neo QLED 8K Spring (In Review)   |                                    +---------------------------------------------+
-|                                    | [Streaming Thought Log Console]    | [STICKY BOTTOM: HITL ACTION BAR]            |
-|                                    | > [P3] Rendering visual prompt...  | [Approve & Continue]  [Request Revision]    |
-+------------------------------------+------------------------------------+---------------------------------------------+
+|  [Sidebar]  |  [Nova Logo] Marketing Value Creator (MVC) v1.0   |  Status: PAUSED_FOR_REVIEW  |  Lang: KO/EN  | [User] |
++-------------+---------------------------------------------------------------------------------------------------------+
+| [NAV]       | TOP 5-STAGE STEPPER BAR:                                                                                |
+| - HOME      | (1) Market Sensing -> (2) Strategy Brief -> [3] Creative Content -> (4) Perf Insights -> (5) Execution   |
+| - WORKSPACE +-------------------------------------------------------------------+-------------------------------------+
+| - ASSETS    | MAIN ACTIVE STAGE CANVAS (Center/Left)                            | COLLAPSIBLE RIGHT PANEL             |
+| - SETTINGS  |                                                                   | (AssistantAndLogsPanel.tsx)         |
+|             | [Active Stage: CREATIVE_CONTENT]                                  |                                     |
+|             | +---------------------------------------------------------------+ | [Execution Logs & Agent Thoughts]   |
+|             | | High-Resolution Ad Mockup Preview (GCS Signed URL)            | | > [P3] Prompt verified.           |
+|             | | [ Image Lightbox / Visual Deliverable Preview ]               | | > [P3] Visual synthesis complete. |
+|             | +---------------------------------------------------------------+ | > Session: mvc-20260901-abcd        |
+|             | | Prompt Inspector: "Futuristic Galaxy S27 Hologram Display..." | |                                     |
+|             | +---------------------------------------------------------------+ | [Assistant Chat Input]              |
+|             |                                                                   | "Ask about channel allocation..."   |
+|             | [STAGE ACTION CONTROLS]                                           |                                     |
+|             | [<- Rollback to Step 2]    [Request Revision]    [Approve Step 3] |                                     |
++-------------+-------------------------------------------------------------------+-------------------------------------+
 ```
 
 ---
 
-## 5. State Management & Real-Time SSE Streaming
+## 5. State Management & Workflow Execution
 
 ### 5.1 Campaign Workflow State Machine
-The UI state transitions through well-defined stages:
+The UI state transitions through well-defined stages across the 5-step DAG, supporting iterative human feedback (`action='revise'`) and stage rewind (`rollbackStage`):
 
 ```mermaid
 stateDiagram-v2
-    [*] --> IDLE: Initial load
-    IDLE --> STREAMING_P1: Submit Campaign Form (POST /api/v1/campaigns)
-    STREAMING_P1 --> WAITING_APPROVAL_P1: P1 Completed
-    WAITING_APPROVAL_P1 --> STREAMING_P1: Marketer submits Revision Feedback
-    WAITING_APPROVAL_P1 --> STREAMING_P2: Marketer clicks 'Approve Stage'
-    STREAMING_P2 --> WAITING_APPROVAL_P2: P2 Completed
-    WAITING_APPROVAL_P2 --> STREAMING_P3: Marketer clicks 'Approve Stage'
-    STREAMING_P3 --> WAITING_APPROVAL_P3: P3 Completed (visual rendered)
-    WAITING_APPROVAL_P3 --> STREAMING_P4: Marketer clicks 'Approve Stage'
-    STREAMING_P4 --> WAITING_APPROVAL_P4: P4 Completed
-    WAITING_APPROVAL_P4 --> COMPLETED: Marketer clicks 'Final Approval'
+    [*] --> IDLE: Initial App Load
+
+    IDLE --> Stage1_MarketSensing: Submit Campaign Form (POST /api/v1/campaigns)
+
+    state "Stage 1: MARKET_SENSING" as Stage1_MarketSensing
+    state "Review Gate 1: PAUSED_FOR_REVIEW" as ReviewGate1
+    Stage1_MarketSensing --> ReviewGate1: P1 Execution Completed
+    ReviewGate1 --> Stage1_MarketSensing: Marketer Requests Revision (action='revise')
+    ReviewGate1 --> Stage2_StrategyBrief: Marketer Approves (action='approve')
+
+    state "Stage 2: STRATEGY_BRIEF" as Stage2_StrategyBrief
+    state "Review Gate 2: PAUSED_FOR_REVIEW" as ReviewGate2
+    Stage2_StrategyBrief --> ReviewGate2: P2 Execution Completed
+    ReviewGate2 --> Stage2_StrategyBrief: Marketer Requests Revision (action='revise')
+    ReviewGate2 --> Stage1_MarketSensing: Marketer Rolls Back (POST /rollback)
+    ReviewGate2 --> Stage3_CreativeContent: Marketer Approves (action='approve')
+
+    state "Stage 3: CREATIVE_CONTENT" as Stage3_CreativeContent
+    state "Review Gate 3: PAUSED_FOR_REVIEW" as ReviewGate3
+    Stage3_CreativeContent --> ReviewGate3: P3 Completed (Visual Generated in GCS)
+    ReviewGate3 --> Stage3_CreativeContent: Marketer Requests Revision (action='revise')
+    ReviewGate3 --> Stage2_StrategyBrief: Marketer Rolls Back (POST /rollback)
+    ReviewGate3 --> Stage4_PerformanceInsights: Marketer Approves (action='approve')
+
+    state "Stage 4: PERFORMANCE_INSIGHTS" as Stage4_PerformanceInsights
+    state "Review Gate 4: PAUSED_FOR_REVIEW" as ReviewGate4
+    Stage4_PerformanceInsights --> ReviewGate4: P4 Completed (Budget Allocation & ROAS)
+    ReviewGate4 --> Stage4_PerformanceInsights: Marketer Requests Revision (action='revise')
+    ReviewGate4 --> Stage3_CreativeContent: Marketer Rolls Back (POST /rollback)
+    ReviewGate4 --> Stage5_MediaExecution: Marketer Approves (action='approve')
+
+    state "Stage 5: MEDIA_EXECUTION" as Stage5_MediaExecution
+    Stage5_MediaExecution --> COMPLETED: Cross-Channel Synthesis & Finalization
     COMPLETED --> [*]
 ```
 
-### 5.2 Server-Sent Events (SSE) Protocol
-The orchestrator streams events as newline-delimited JSON envelopes:
-```typescript
-interface StreamEvent {
-  event: "stage_started" | "stage_chunk" | "stage_completed" | "waiting_approval" | "workflow_completed" | "error";
-  data: {
-    sessionId: string;
-    stage: "market_sensing" | "strategy_brief" | "creative_content" | "performance_insights";
-    status: "running" | "waiting_approval" | "completed" | "failed";
-    chunk?: string;
-    deliverables?: Record<string, unknown>;
-    timestamp: string;
-    error?: string;
-  };
-}
-```
+### 5.2 Unary REST State Synchronization & Activity Logging
+While Server-Sent Events (SSE) was initially considered in early prototypes, production MVC is architected on **deterministic unary REST JSON transactions** returning `CampaignSessionResponse`.
 
-The custom `useCampaignStream` hook consumes this stream via standard `fetch` and `ReadableStreamDefaultReader`, parsing chunks and automatically updating local component state.
+#### Architecture Rationale & Implementation:
+1. **Deterministic Transactions**: Campaign initialization (`apiClient.createCampaign`), stage advancement (`apiClient.approveStage`), and stage rollback (`apiClient.rollbackStage`) are discrete HTTP requests that atomically transition the database session state (`orchestrator_sessions` in Cloud SQL).
+2. **Deprecated `stream` Property**: The backend schema in `app/schemas/campaign.py` explicitly marks `stream` as a deprecated backwards-compatibility property returning `False`:
+   ```python
+   @property
+   def stream(self) -> bool:
+       """Deprecated backwards-compatibility accessor."""
+       return False
+   ```
+3. **Synthetic Client-Side Activity Logging**: The custom hook `useCampaignStream.ts` manages simulation UI state and synthesizes real-time activity logs client-side via `addLog(message, level, stage)`. As async REST calls execute, the hook appends connection milestones, sub-agent handoffs, and review gate alerts to the log console:
+   ```typescript
+   // frontend/src/hooks/useCampaignStream.ts
+   addLog('Connecting to [P1] Market Sensing Agent (Gemini 3.5 Flash Lite)...', 'info', 'MARKET_SENSING');
+   const initialSession = await apiClient.createCampaign(req);
+   setSession(initialSession);
+   addLog(`Session created: ${initialSession.sessionId}`, 'success');
+   addLog(`[P1] Market Sensing synthesis completed.`, 'success', 'MARKET_SENSING');
+   ```
+4. **Session Resumption & State Recovery**: Marketers can pause between review stages for hours or days. Calling `apiClient.getSession(sessionId)` fetches the latest persisted state from `GET /api/v1/campaigns/{sessionId}`, enabling seamless resumption across Cloud Run scale-to-zero events.
 
 ---
 
@@ -145,14 +196,30 @@ To guarantee strict adherence to the API contract and eliminate runtime type err
    ```bash
    npx openapi-typescript ../api/openapi.yaml -o src/api/schema.d.ts
    ```
-3. TypeScript exports strongly typed helper interfaces:
+3. TypeScript exports strongly typed helper interfaces from `src/types/campaign.ts`:
    - `CreateCampaignRequest`
    - `CampaignSessionResponse`
-   - `ApproveStageRequest`
+   - `StageApprovalRequest` (corrected from legacy `ApproveStageRequest`)
    - `MarketSensingDeliverable`
    - `CampaignBriefDeliverable`
    - `CreativeContentDeliverable`
    - `PerformanceInsightsDeliverable`
+   - `ParsePromptRequest` / `ParsePromptResponse`
+   - `GoogleAuthRequest` / `DevLoginRequest` / `UserProfileResponse`
+
+4. Canonical API client methods implemented in `src/api/client.ts` using `{sessionId}` route parameters:
+   - `createCampaign(req: CreateCampaignRequest)`: `POST /api/v1/campaigns`
+   - `getSession(sessionId: string)`: `GET /api/v1/campaigns/{sessionId}`
+   - `approveStage(sessionId: string, req: StageApprovalRequest)`: `POST /api/v1/campaigns/{sessionId}/approve`
+   - `rollbackStage(sessionId: string)`: `POST /api/v1/campaigns/{sessionId}/rollback`
+   - `updateSessionDeliverables(sessionId: string, deliverables)`: `PATCH /api/v1/campaigns/{sessionId}`
+   - `parsePrompt(req: ParsePromptRequest)`: `POST /api/v1/campaigns/parse-prompt`
+   - `listUserCampaigns()`: `GET /api/v1/campaigns`
+   - `loginWithGoogle(credential: string)`: `POST /api/v1/auth/google`
+   - `devLogin(email?: string, name?: string)`: `POST /api/v1/auth/dev-login`
+   - `getCurrentUser()`: `GET /api/v1/auth/me`
+   - `logout()`: `POST /api/v1/auth/logout`
+   - `getMeta()`: `GET /meta`
 
 ---
 

@@ -12,7 +12,7 @@ Additionally, enterprise governance requires A2A (Agent-to-Agent) interoperabili
 
 ## Decision
 We will decouple the system into:
-1. **Four Independent Sub-Agents ([P1]~[P4])**: Implemented as modular Google ADK agents and deployed to Google Cloud Agent Runtime via `agents-cli`. Each agent exposes standard A2A JSON-RPC endpoints and an `agent-card.json`.
+1. **Four Independent Sub-Agents ([P1]~[P4])**: Implemented as modular Google ADK agents and deployed to Google Cloud Agent Runtime via `agents-cli`. Each agent exposes standard A2A JSON-RPC endpoints and is configured via `agents-cli-manifest.yaml` (`app/agents/*/agents-cli-manifest.yaml`, target: `agent_runtime`, `is_a2a: true`).
 2. **Centralized FastAPI Orchestrator on Cloud Run**: Serves the React SPA, enforces Google OAuth 2.0 and Model Armor sanitization, and orchestrates the sub-agents via standard A2A protocol client calls with HITL pause/approval states.
 
 ## Alternatives considered
@@ -34,7 +34,7 @@ Chain direct Gemini API calls with function calling inside FastAPI.
 ### Negative / accepted trade-offs
 - Network serialization and latency between Cloud Run Orchestrator and Agent Runtime sub-agents.
 - Need for robust retry policies and circuit breaking over A2A JSON-RPC.
-- Model Armor template focuses on Sensitive Data Protection (SDP/PII) basic enforcement, intentionally deferring prompt injection and jailbreak filters in infrastructure to prevent false positives on marketing brief copy and minimize TTFT inspection latency overhead; defense-in-depth is maintained at the application layer via ADK system instructions and Pydantic validation schemas.
+- Model Armor template (`version1-guardrails` in `deployment/terraform/cicd/model_armor.tf`) actively enforces prompt injection and jailbreak filters (`LOW_AND_ABOVE`), malicious URI filtering, Responsible AI (RAI) filters, and Sensitive Data Protection (SDP/PII) basic enforcement; defense-in-depth is maintained across both infrastructure inspection and application-layer Pydantic validation schemas.
 - Root orchestrator telemetry retains service name "v1" (`OTEL_SERVICE_NAME = "v1"`) matching pre-deployed Cloud Logging sinks (`service_name="v1"`), while subagents use "version1-{agent_name}".
 
 ### Risks (and mitigations)

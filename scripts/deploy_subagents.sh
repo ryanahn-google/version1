@@ -30,7 +30,7 @@ SUBAGENT_SA="version1-subagent@${PROJECT_ID}.iam.gserviceaccount.com"
 ARTIFACTS_BUCKET="${PROJECT_ID}-version1-artifacts"
 
 echo "============================================================"
-echo "Deploying P1-P4 Subagents to Vertex AI Agent Runtime"
+echo "Deploying P1-P4 Subagents to Agent Platform Agent Runtime"
 echo "Project:          ${PROJECT_ID}"
 echo "Region:           ${REGION}"
 echo "Environment:      ${ENV}"
@@ -52,7 +52,7 @@ for agent in "${SUBAGENTS[@]}"; do
     --region "${REGION}"
     --service-account "${SUBAGENT_SA}"
     --agent-identity
-    --update-env-vars="ARTIFACTS_BUCKET_NAME=${ARTIFACTS_BUCKET},PROJECT_ID=${PROJECT_ID},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ENV=${ENV}"
+    --update-env-vars="ARTIFACTS_BUCKET_NAME=${ARTIFACTS_BUCKET},PROJECT_ID=${PROJECT_ID},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ENV=${ENV},GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true,OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental,OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=EVENT_ONLY,OTEL_TO_CLOUD=true"
     --no-wait
   )
   (

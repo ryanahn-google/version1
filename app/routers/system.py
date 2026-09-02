@@ -28,6 +28,8 @@ router = APIRouter(tags=["System"])
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = BASE_DIR / "frontend" / "dist"
 INDEX_HTML = STATIC_DIR / "index.html"
+ARCHITECTURE_HTML = BASE_DIR / "docs" / "architecture.html"
+APP_ARCHITECTURE_HTML = BASE_DIR / "docs" / "app_architecture.html"
 
 
 @router.get("/healthz", tags=["System"])
@@ -78,4 +80,28 @@ async def serve_frontend() -> Response:
             '"detail": "Frontend bundle not compiled."}'
         ),
         media_type="application/json",
+    )
+
+
+@router.get("/architecture", include_in_schema=False)
+async def serve_architecture() -> Response:
+    """Serve interactive system architecture and design documentation."""
+    if ARCHITECTURE_HTML.is_file():
+        return FileResponse(str(ARCHITECTURE_HTML))
+    return Response(
+        content='{"detail": "Architecture documentation not generated."}',
+        media_type="application/json",
+        status_code=404,
+    )
+
+
+@router.get("/app-architecture", include_in_schema=False)
+async def serve_app_architecture() -> Response:
+    """Serve detailed app directory codebase and runtime architecture documentation."""
+    if APP_ARCHITECTURE_HTML.is_file():
+        return FileResponse(str(APP_ARCHITECTURE_HTML))
+    return Response(
+        content='{"detail": "App architecture documentation not generated."}',
+        media_type="application/json",
+        status_code=404,
     )

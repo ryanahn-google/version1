@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Session service factory for Vertex AI Agent Runtime subagents.
+"""Session service factory for Agent Platform Agent Runtime subagents.
 
 Initializes VertexAiSessionService if running on Agent Runtime (Reasoning Engine),
 otherwise gracefully falls back to InMemorySessionService for local testing.

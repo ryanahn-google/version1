@@ -8,5 +8,15 @@
         "timeout": 15
       }
     ]
+  },
+  "enforce-docs-sync": {
+    "enabled": true,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "uv run python .agents/scripts/check_docs_synced.py",
+        "timeout": 15
+      }
+    ]
   }
 }

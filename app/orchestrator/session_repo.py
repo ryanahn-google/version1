@@ -14,13 +14,19 @@
 
 """SQLAlchemy-based hybrid session repository for Campaign state management."""
 
+import asyncio
+import functools
 import json
+import logging
+import random
 import secrets
 import uuid
+from collections.abc import Callable
 from datetime import UTC, timedelta
-from typing import Any
+from typing import Any, TypeVar
 
 from sqlalchemy import desc, select
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -39,7 +45,71 @@ from app.schemas.campaign import (
     CampaignSessionResponse,
     CampaignStage,
     CampaignStatus,
+    CampaignSummaryResponse,
 )
+
+logger = logging.getLogger(__name__)
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def db_retry(
+    max_attempts: int = 3,
+    initial_delay: float = 0.5,
+    max_delay: float = 5.0,
+    backoff_factor: float = 2.0,
+    jitter: float = 0.5,
+) -> Callable[[F], F]:
+    """Decorator to retry async database operations upon transient errors.
+
+    Retries on OperationalError and DBAPIError with exponential backoff and jitter.
+
+    Args:
+        max_attempts: Maximum number of execution attempts.
+        initial_delay: Initial sleep delay in seconds.
+        max_delay: Maximum sleep delay in seconds.
+        backoff_factor: Multiplier for exponential backoff.
+        jitter: Upper bound for added randomized jitter.
+
+    Returns:
+        Decorated async function.
+    """
+
+    def decorator(func: F) -> F:
+        @functools.wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempt = 0
+            while True:
+                try:
+                    return await func(*args, **kwargs)
+                except (OperationalError, DBAPIError) as exc:
+                    attempt += 1
+                    if attempt >= max_attempts:
+                        logger.error(
+                            "Database operation '%s' failed after %d attempts: %s",
+                            func.__name__,
+                            attempt,
+                            exc,
+                        )
+                        raise
+                    delay = min(
+                        max_delay,
+                        initial_delay * (backoff_factor ** (attempt - 1)),
+                    ) + random.uniform(0.0, jitter)
+                    logger.warning(
+                        "Database operation '%s' encountered transient error: %s. "
+                        "Retrying attempt %d/%d in %.2fs...",
+                        func.__name__,
+                        exc,
+                        attempt + 1,
+                        max_attempts,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorator
 
 
 def _get_database_url() -> str:
@@ -96,6 +166,7 @@ class SessionRepository:
             else:
                 self._initialized = True
 
+    @db_retry()
     async def create_or_update_google_user(
         self,
         google_sub: str,
@@ -142,6 +213,7 @@ class SessionRepository:
             await session.refresh(user)
             return user
 
+    @db_retry()
     async def create_auth_session(
         self,
         user_id: str,
@@ -167,6 +239,7 @@ class SessionRepository:
             await session.commit()
         return token
 
+    @db_retry()
     async def get_user_by_session_token(self, token: str) -> UserModel | None:
         """Validate session token, apply sliding-window refresh, and return user."""
         if not token or len(token) > 128:
@@ -195,6 +268,7 @@ class SessionRepository:
             await session.commit()
             return user
 
+    @db_retry()
     async def delete_auth_session(self, token: str) -> None:
         """Invalidate single session token on logout."""
         await self.init_db()
@@ -207,10 +281,11 @@ class SessionRepository:
                 await session.delete(user_session)
                 await session.commit()
 
+    @db_retry()
     async def list_user_campaigns(
         self, user_id: str, limit: int = 20
-    ) -> list[CampaignSessionResponse]:
-        """Fetch list of recent campaigns owned by specific user."""
+    ) -> list[CampaignSummaryResponse]:
+        """Fetch list of recent campaign summaries owned by specific user."""
         await self.init_db()
         async with self.session_factory() as session:
             stmt = (
@@ -223,8 +298,9 @@ class SessionRepository:
                 .limit(limit)
             )
             result = await session.execute(stmt)
-            return [self._to_schema(m) for m in result.scalars().all()]
+            return [self._to_summary_schema(m) for m in result.scalars().all()]
 
+    @db_retry()
     async def create_session(
         self,
         session_id: str,
@@ -263,6 +339,7 @@ class SessionRepository:
             await session.refresh(model)
         return self._to_schema(model)
 
+    @db_retry()
     async def get_session(
         self,
         session_id: str | None = None,
@@ -289,6 +366,7 @@ class SessionRepository:
                 return None
             return self._to_schema(model)
 
+    @db_retry()
     async def update_session(
         self,
         session_id: str,
@@ -335,6 +413,47 @@ class SessionRepository:
             await session.commit()
             await session.refresh(model)
             return self._to_schema(model)
+
+    def _to_summary_schema(
+        self, model: CampaignSessionModel
+    ) -> CampaignSummaryResponse:
+        """Convert database model to lightweight summary schema without deliverables."""
+        deliv_dict = model.deliverables or {}
+        perf = deliv_dict.get("performanceInsights")
+        expected_roas = perf.get("expectedRoas") if isinstance(perf, dict) else None
+        creative = deliv_dict.get("creativeContent")
+        creative_url = None
+        creative_title = None
+        if isinstance(creative, dict):
+            creative_url = creative.get("assetUrl")
+            creative_title = creative.get("visualConceptTitle")
+
+        created_at = model.created_at
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
+        updated_at = model.updated_at
+        if updated_at and updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=UTC)
+
+        return CampaignSummaryResponse(
+            sessionId=model.session_id,
+            userId=model.user_id,
+            tenantId=model.tenant_id,
+            status=CampaignStatus(model.status),
+            currentStage=CampaignStage(model.current_stage),
+            brandName=model.brand_name,
+            productName=model.product_name,
+            campaignObjective=model.campaign_objective,
+            budgetAmount=model.budget_amount,
+            currency=model.currency,
+            channels=model.channels or [],
+            expectedRoas=expected_roas,
+            creativeAssetUrl=creative_url,
+            creativeTitle=creative_title,
+            revisionCount=model.revision_count,
+            createdAt=created_at,
+            updatedAt=updated_at,
+        )
 
     def _to_schema(self, model: CampaignSessionModel) -> CampaignSessionResponse:
         """Convert database model to Pydantic schema."""

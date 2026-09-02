@@ -419,7 +419,7 @@ export const CampaignPdfReport = React.forwardRef<HTMLDivElement, CampaignPdfRep
                 <div>
                   <span className="text-[10px] font-bold text-slate-700 block mb-1 flex items-center gap-1">
                     <ImageIcon className="h-3.5 w-3.5 text-purple-600" />
-                    <span>{isKo ? '생성된 비주얼 에셋 (Imagen 3 / GCS)' : 'Generated Visual Asset'}</span>
+                    <span>{isKo ? '생성된 비주얼 에셋 (Nano Banana 2 Lite / GCS)' : 'Generated Visual Asset'}</span>
                   </span>
                   <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center h-[148px]">
                     {creative?.assetUrl && !imageError ? (

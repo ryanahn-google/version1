@@ -5,12 +5,12 @@ import {
   Layers,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import type { CampaignSessionResponse } from '../../types/campaign';
+import type { CampaignSummaryResponse } from '../../types/campaign';
 
 interface HomeDashboardProps {
-  campaigns: CampaignSessionResponse[];
+  campaigns: CampaignSummaryResponse[];
   isLoadingCampaigns: boolean;
-  onOpenCampaign: (session: CampaignSessionResponse) => void;
+  onOpenCampaign: (session: CampaignSummaryResponse) => void;
   onNewCampaign: (prefillPrompt?: string) => void;
 }
 
@@ -88,7 +88,7 @@ export function HomeDashboard({
     }
   };
 
-  const getProgressPercentage = (campaign: CampaignSessionResponse) => {
+  const getProgressPercentage = (campaign: CampaignSummaryResponse) => {
     if (campaign.status === 'COMPLETED') return 100;
     switch (campaign.currentStage) {
       case 'MARKET_SENSING':
@@ -233,8 +233,8 @@ export function HomeDashboard({
                       ? `${symbol} ${camp.budgetAmount.toLocaleString()}`
                       : `${symbol} 0`;
                     const roas =
-                      camp.deliverables?.performanceInsights?.expectedRoas
-                        ? `${camp.deliverables.performanceInsights.expectedRoas}x`
+                      typeof camp.expectedRoas === 'number'
+                        ? `${camp.expectedRoas}x`
                         : '-';
 
                     return (

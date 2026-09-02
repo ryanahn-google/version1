@@ -6,15 +6,16 @@
 
 ## 1. Overview & Swap Specification
 
-- **Current Models**:
-  - Root Orchestrator & Judge: `gemini-3.1-pro`
-  - Text Sub-Agents (P1, P2, P4): `gemini-3.5-flash-lite`
-  - Creative Visual Sub-Agent (P3): `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite)
+- **Current Models & Multi-Tier Fallback Hierarchy**:
+  - Root Orchestrator & Judge: Primary `gemini-3.1-pro-preview` (`ORCHESTRATOR_MODEL`), Secondary Fallback `gemini-2.5-pro` (`ORCHESTRATOR_FALLBACK_MODEL`), wrapped transparently via `FallbackGemini` composite `BaseLlm` (`app/models_fallback.py`).
+  - Text Sub-Agents (P1, P2, P4): Primary `gemini-3.5-flash-lite` (`SUB_AGENT_MODEL`), Secondary Fallback `gemini-2.5-flash` (`SUB_AGENT_FALLBACK_MODEL`), automatically switched during local A2A invocation.
+  - Creative Visual Sub-Agent (P3): `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite; configured via `IMAGE_MODEL` / `NANO_BANANA_MODEL`) with 2-attempt async retry loop.
 - **Target Candidate**: `<Candidate Model ID>`
 - **Swap Owner**: Ryan Ahn (ryanahn@, FDE Lead)
-- **Rollback Mechanism**:
-  - Primary: Cloud Run revision traffic split rollback in Cloud Run Console.
-  - Secondary: Environment variable update (`DEFAULT_MODEL` / `A2A_MODEL_VERSION`) and container redeploy.
+- **Rollback & Failover Mechanism**:
+  - Zero-Downtime Automatic Failover: If a newly swapped primary model encounters regional quota starvation (429) or transient 503 errors, `FallbackGemini` and A2A fallback loops immediately redirect traffic to the secondary fallback model without requiring redeployment.
+  - Primary Operational Rollback: Cloud Run revision traffic split rollback in Cloud Run Console (`gcloud run services update-traffic`).
+  - Secondary Configuration Rollback: Environment variable update in `.env` (`ORCHESTRATOR_MODEL`, `SUB_AGENT_MODEL`, `IMAGE_MODEL`).
 - **Rollback Availability Window**: Opens at Day 1; closes on final decommission (Day 30).
 
 ---

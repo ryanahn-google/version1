@@ -1,6 +1,7 @@
 import type {
   CreateCampaignRequest,
   CampaignSessionResponse,
+  CampaignSummaryResponse,
   ParsePromptRequest,
   ParsePromptResponse,
   StageApprovalRequest,
@@ -91,11 +92,11 @@ export const apiClient = {
     return handleResponse<LogoutResponse>(res);
   },
 
-  async listUserCampaigns(): Promise<CampaignSessionResponse[]> {
+  async listUserCampaigns(): Promise<CampaignSummaryResponse[]> {
     const res = await fetch(`${API_BASE}/api/v1/campaigns`, {
       credentials: 'include',
     });
-    return handleResponse<CampaignSessionResponse[]>(res);
+    return handleResponse<CampaignSummaryResponse[]>(res);
   },
 
   async createCampaign(req: CreateCampaignRequest): Promise<CampaignSessionResponse> {

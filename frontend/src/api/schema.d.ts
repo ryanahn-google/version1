@@ -333,6 +333,42 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        CampaignSummaryResponse: {
+            /** @example camp-9f8a3c21 */
+            sessionId: string;
+            /** @example a8098c1a-f86e-11da-bd1a-00112444be1e */
+            userId?: string | null;
+            /**
+             * @example PAUSED_FOR_REVIEW
+             * @enum {string}
+             */
+            status: "INITIALIZING" | "RUNNING" | "PAUSED_FOR_REVIEW" | "COMPLETED" | "FAILED";
+            /**
+             * @example MARKET_SENSING
+             * @enum {string}
+             */
+            currentStage: "MARKET_SENSING" | "STRATEGY_BRIEF" | "CREATIVE_CONTENT" | "PERFORMANCE_INSIGHTS" | "MEDIA_EXECUTION" | "COMPLETED";
+            /** @example default */
+            tenantId?: string;
+            channels?: string[];
+            /** @example 0 */
+            revisionCount?: number;
+            brandName: string;
+            productName: string;
+            campaignObjective: string;
+            budgetAmount: number;
+            currency: string;
+            /** @description Expected ROAS summary if performance modeling is complete */
+            expectedRoas?: number | null;
+            /** @description Visual asset URL if creative step is completed */
+            creativeAssetUrl?: string | null;
+            /** @description Creative visual title if available */
+            creativeTitle?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         CampaignSessionResponse: {
             /** @example camp-9f8a3c21 */
             sessionId: string;
@@ -726,13 +762,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of campaigns owned by the current user */
+            /** @description List of campaign summaries owned by the current user */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignSessionResponse"][];
+                    "application/json": components["schemas"]["CampaignSummaryResponse"][];
                 };
             };
             /** @description Unauthenticated */
