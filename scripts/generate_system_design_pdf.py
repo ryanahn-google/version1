@@ -14,11 +14,12 @@
 
 """Publication-grade PDF Generator for Nova Electronics MVC v1.0 System Architecture.
 
-Produces a 10-page comprehensive system design and architecture specification,
+Produces an 11-page comprehensive system design and architecture specification,
 replacing all deprecated references to 'Vertex AI' with 'Agent Platform',
 removing the deprecated Cloud SQL relational schema page, and adding dedicated
-system design sections for GCP Multi-Project Environment Architecture and
-Critical User Journeys (CUJ-1 and CUJ-2).
+system design sections for GCP Multi-Project Environment Architecture,
+Critical User Journeys (CUJ-1 and CUJ-2), and Agent Platform Enterprise Governance,
+Security & Observability.
 """
 
 import io
@@ -1010,13 +1011,318 @@ def build_page_7_cuj2(s):
     return p_title, p_sub, d, t
 
 
-def generate_new_pages_pdf(page_nums: list[int]) -> list[bytes]:
-    """Generates the 3 new pages as individual PDF bytes with accurate page numbering."""
+def build_page_10_governance(s):
+    """Builds Page 10: 9. Agent Platform Enterprise Governance, Security & Observability."""
+    p_title = Paragraph(
+        "9. Agent Platform Enterprise Governance, Security & Observability",
+        s["title"],
+    )
+    p_sub = Paragraph(
+        "Isolated sandbox runtime, Agent Gateway Model Armor integration, SPIFFE cryptographic identity, unified telemetry, and native eval framework.",
+        s["sub"],
+    )
+
+    d = Drawing(770, 215)
+    d.add(
+        Rect(
+            0,
+            0,
+            770,
+            215,
+            rx=8,
+            ry=8,
+            fillColor=colors.HexColor("#F8FAFC"),
+            strokeColor=colors.HexColor("#DADCE0"),
+            strokeWidth=1.5,
+        )
+    )
+    d.add(
+        String(
+            16,
+            195,
+            "Agent Platform Enterprise Governance, Security & Observability Perimeter",
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            fillColor=colors.HexColor("#70757A"),
+        )
+    )
+
+    card_w = 140
+    card_h = 165
+    y_pos = 18
+
+    # Card 1: Sandbox Runtime Isolation
+    draw_card(
+        d,
+        14,
+        y_pos,
+        card_w,
+        card_h,
+        "1. Sandbox Runtime",
+        "#0E7490",
+        "gVisor / Kernel Isolation",
+        [
+            "• Isolated container sandbox",
+            "• Hardened syscall filtering",
+            "• Dynamic tool execution safety",
+            "• Memory & FS containment",
+            "• Zero lateral movement risk",
+            "• Scale-to-zero compute (min=0)",
+        ],
+        badge_text="✓ gVisor Isolated Boundary",
+        badge_color="#0E7490",
+    )
+
+    # Card 2: Gateway & Model Armor Perimeter
+    draw_card(
+        d,
+        166,
+        y_pos,
+        card_w,
+        card_h,
+        "2. Gateway & Guardrails",
+        "#B91C1C",
+        "Model Armor Perimeter",
+        [
+            "• Agent Gateway CLIENT_TO_AGENT",
+            "• Service Extensions CONTENT_AUTHZ",
+            "• Model Armor fail-closed policy",
+            "• Prompt injection & jailbreak block",
+            "• Sensitive data (SDP) PII defense",
+            "• Non-bypassable security ingress",
+        ],
+        badge_text="✓ Zero-Bypass Guardrails",
+        badge_color="#B91C1C",
+    )
+
+    # Card 3: SPIFFE Agent Identity
+    draw_card(
+        d,
+        318,
+        y_pos,
+        card_w,
+        card_h,
+        "3. SPIFFE Identity",
+        "#4338CA",
+        "Per-Agent Authentication",
+        [
+            "• --agent-identity CLI flag",
+            "• Dedicated subagent SA credentials",
+            "• Zero static API keys or secrets",
+            "• Cryptographic mTLS attestation",
+            "• TokenCreator IAM delegation",
+            "• Granular resource permissions",
+        ],
+        badge_text="✓ Cryptographic Identity",
+        badge_color="#4338CA",
+    )
+
+    # Card 4: Unified Telemetry
+    draw_card(
+        d,
+        470,
+        y_pos,
+        card_w,
+        card_h,
+        "4. Unified Telemetry",
+        "#7C3AED",
+        "Single-Pane Observability",
+        [
+            "• Cloud Trace distributed spans",
+            "• End-to-end traceId propagation",
+            "• Cloud Logging structured logs",
+            "• BigQuery completions telemetry",
+            "• Token consumption tracking",
+            "• Per-agent FinOps attribution",
+        ],
+        badge_text="✓ Full-Stack Visibility",
+        badge_color="#7C3AED",
+    )
+
+    # Card 5: Built-in Evaluation
+    draw_card(
+        d,
+        622,
+        y_pos,
+        card_w,
+        card_h,
+        "5. Built-in Evaluation",
+        "#15803D",
+        "Native Eval & Quality Gate",
+        [
+            "• agents-cli eval command suite",
+            "• Trace generation & auto-grading",
+            "• Regression diffs (compare)",
+            "• 9 Golden test scenarios",
+            "• LLM judge (Gemini 3.1 Pro)",
+            "• Automated CI/CD blocking gate",
+        ],
+        badge_text="✓ Continuous Quality Flywheel",
+        badge_color="#15803D",
+    )
+
+    # Connecting arrows between cards
+    for arrow_x in [154, 306, 458, 610]:
+        d.add(
+            Line(
+                arrow_x + 1,
+                110,
+                arrow_x + 11,
+                110,
+                strokeColor=colors.HexColor("#1A73E8"),
+                strokeWidth=1.5,
+            )
+        )
+        d.add(
+            Line(
+                arrow_x + 7,
+                107,
+                arrow_x + 11,
+                110,
+                strokeColor=colors.HexColor("#1A73E8"),
+                strokeWidth=1.5,
+            )
+        )
+        d.add(
+            Line(
+                arrow_x + 7,
+                113,
+                arrow_x + 11,
+                110,
+                strokeColor=colors.HexColor("#1A73E8"),
+                strokeWidth=1.5,
+            )
+        )
+
+    # Bottom guidance text
+    d.add(
+        String(
+            385,
+            4,
+            "Agent Platform Governance Backbone: Isolated Sandbox • Centralized Gateway Guardrails • SPIFFE Attestation • Single-Pane Telemetry • Native Eval Flywheel",
+            fontName="Helvetica",
+            fontSize=6.5,
+            fillColor=colors.HexColor("#64748B"),
+            textAnchor="middle",
+        )
+    )
+
+    # Table
+    headers = [
+        Paragraph("<b>Governance Dimension</b>", s["th"]),
+        Paragraph("<b>Agent Platform Architecture</b>", s["th"]),
+        Paragraph("<b>Security & Governance Enforcement</b>", s["th"]),
+        Paragraph("<b>Enterprise Value & SLA</b>", s["th"]),
+    ]
+    rows = [
+        [
+            Paragraph("1. Sandbox Runtime Isolation", s["td_bold"]),
+            Paragraph(
+                "Agent Platform Agent Runtime (Reasoning Engine in <code>asia-northeast3</code>)",
+                s["td"],
+            ),
+            Paragraph(
+                "Google-managed container sandbox with gVisor kernel-level isolation; restricts system calls; isolates tool invocations (Google Search, code execution) and memory spaces.",
+                s["td"],
+            ),
+            Paragraph(
+                "Zero host compromise; multi-tenant workload safety; scale-to-zero compute efficiency.",
+                s["td"],
+            ),
+        ],
+        [
+            Paragraph("2. Gateway & Model Armor Perimeter", s["td_bold"]),
+            Paragraph(
+                "Agent Gateway (<code>CLIENT_TO_AGENT</code>) + Model Armor (<code>version1-guardrails</code>)",
+                s["td"],
+            ),
+            Paragraph(
+                "Service Extensions Authz Extension (fail_open = false); screens inbound prompts & outbound deliverables for prompt injection, jailbreak, and SDP (Sensitive Data Protection / PII) leaks.",
+                s["td"],
+            ),
+            Paragraph(
+                "Centralized, non-bypassable enterprise security perimeter; blocks malicious payloads before agent compute.",
+                s["td"],
+            ),
+        ],
+        [
+            Paragraph("3. SPIFFE Cryptographic Identity", s["td_bold"]),
+            Paragraph(
+                "<code>--agent-identity</code><br/><code>version1-subagent@</code><br/><code>{project_id}.iam.gserviceaccount.com</code>",
+                s["td"],
+            ),
+            Paragraph(
+                "SPIFFE identity issued per subagent; IAM Workload Identity delegation; mTLS service-to-service authentication; least-privilege role bindings (Storage, Logging, Cloud Trace).",
+                s["td"],
+            ),
+            Paragraph(
+                "Zero long-lived static keys; complete cryptographic auditability; strict least-privilege access control.",
+                s["td"],
+            ),
+        ],
+        [
+            Paragraph("4. Unified Single-Pane Telemetry", s["td_bold"]),
+            Paragraph(
+                "Cloud Trace + Cloud Logging + BigQuery Agent Analytics (<code>version1_telemetry</code>)",
+                s["td"],
+            ),
+            Paragraph(
+                "OpenTelemetry GenAI semantic conventions (<code>OTEL_TO_CLOUD=true</code>); propagates <code>traceId</code> end-to-end; consolidates traces, logs, and token usage into BigQuery sink.",
+                s["td"],
+            ),
+            Paragraph(
+                "Single pane of glass for real-time span debugging, structured audit logs, and turn-level token cost attribution.",
+                s["td"],
+            ),
+        ],
+        [
+            Paragraph("5. Native Agent Evaluation", s["td_bold"]),
+            Paragraph(
+                "Google ADK Evaluation Suite (<code>agents-cli eval</code>) + <code>scripts/eval_gate.py</code>",
+                s["td"],
+            ),
+            Paragraph(
+                "Automated scenario generation, trace grading, regression comparison; pre-prod eval gate on 9 golden scenarios (Judge >= 4.0/5.0 with Gemini 3.1 Pro; 100% budget math & schema).",
+                s["td"],
+            ),
+            Paragraph(
+                "Automated quality flywheel; blocks release regressions automatically before promotion to production.",
+                s["td"],
+            ),
+        ],
+    ]
+
+    t = Table([headers, *rows], colWidths=[130, 180, 270, 190])
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E8F0FE")),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#DADCE0")),
+                (
+                    "LINEBELOW",
+                    (0, 0),
+                    (-1, 0),
+                    1.2,
+                    colors.HexColor("#1A73E8"),
+                ),
+            ]
+        )
+    )
+    return p_title, p_sub, d, t
+
+
+def generate_new_pages_pdf(page_nums: list[int], total_pages: int = 11) -> list[bytes]:
+    """Generates the new pages as individual PDF bytes with accurate page numbering."""
     s = get_styles()
     page_builders = [
         build_page_4_gcp,
         build_page_6_cuj1,
         build_page_7_cuj2,
+        build_page_10_governance,
     ]
 
     page_pdf_bytes = []
@@ -1059,7 +1365,7 @@ def generate_new_pages_pdf(page_nums: list[int]) -> list[bytes]:
                     24,
                     "Confidential • Forward Deployed Engineering • Google Cloud asia-northeast3",
                 )
-                canv.drawRightString(805, 24, f"Page {num} of 10")
+                canv.drawRightString(805, 24, f"Page {num} of {total_pages}")
                 canv.restoreState()
 
             return decorate
@@ -1107,7 +1413,9 @@ def transform_original_streams(input_pdf_path: str) -> list[tuple[any, bytes]]:
                 "(Vertex AI Agent Runtime) Tj T* ET",
                 "(Agent Platform Agent Runtime) Tj T* ET",
             )
-            data = data.replace("(Page 2 of 8)", "(Page 2 of 10)")
+            data = data.replace("(Page 2 of 8)", "(Page 2 of 11)").replace(
+                "(Page 2 of 10)", "(Page 2 of 11)"
+            )
 
         elif idx == 2:
             # Page 3: C4 Level 2 Container Architecture
@@ -1123,7 +1431,9 @@ def transform_original_streams(input_pdf_path: str) -> list[tuple[any, bytes]]:
                 "(Vertex AI Foundation Models) Tj T* ET",
                 "(Agent Platform Foundation Models) Tj T* ET",
             )
-            data = data.replace("(Page 3 of 8)", "(Page 3 of 10)")
+            data = data.replace("(Page 3 of 8)", "(Page 3 of 11)").replace(
+                "(Page 3 of 10)", "(Page 3 of 11)"
+            )
 
         elif idx == 3:
             # Orig Page 4 -> Final Page 5: Multi-Agent DAG (renumbered to 4)
@@ -1131,7 +1441,9 @@ def transform_original_streams(input_pdf_path: str) -> list[tuple[any, bytes]]:
                 "(3. Multi-Agent DAG & Human-in-the-Loop Review Sequence)",
                 "(4. Multi-Agent DAG & Human-in-the-Loop Review Sequence)",
             )
-            data = data.replace("(Page 4 of 8)", "(Page 5 of 10)")
+            data = data.replace("(Page 4 of 8)", "(Page 5 of 11)").replace(
+                "(Page 5 of 10)", "(Page 5 of 11)"
+            )
 
         elif idx == 4:
             # Orig Page 5 -> Final Page 8: Deliverables Pipeline (renumbered to 7)
@@ -1139,7 +1451,9 @@ def transform_original_streams(input_pdf_path: str) -> list[tuple[any, bytes]]:
                 "(4. Deliverables Pipeline & Data Contract Architecture)",
                 "(7. Deliverables Pipeline & Data Contract Architecture)",
             )
-            data = data.replace("(Page 5 of 8)", "(Page 8 of 10)")
+            data = data.replace("(Page 5 of 8)", "(Page 8 of 11)").replace(
+                "(Page 8 of 10)", "(Page 8 of 11)"
+            )
 
         elif idx == 5:
             # Orig Page 6 -> Final Page 9: Security (renumbered to 8)
@@ -1147,15 +1461,22 @@ def transform_original_streams(input_pdf_path: str) -> list[tuple[any, bytes]]:
                 "(5. Security, Zero-Trust Architecture & Model Armor Perimeter)",
                 "(8. Security, Zero-Trust Architecture & Model Armor Perimeter)",
             )
-            data = data.replace("(Page 6 of 8)", "(Page 9 of 10)")
+            data = data.replace("(Page 6 of 8)", "(Page 9 of 11)").replace(
+                "(Page 9 of 10)", "(Page 9 of 11)"
+            )
 
         elif idx == 6:
-            # Orig Page 7 -> Final Page 10: CI/CD Pipeline (renumbered to 9)
+            # Orig Page 7 -> Final Page 11: CI/CD Pipeline (renumbered to 10)
             data = data.replace(
                 "(6. Multi-Project CI/CD Pipeline & Automated Dual Quality Gate)",
+                "(10. Multi-Project CI/CD Pipeline & Automated Dual Quality Gate)",
+            ).replace(
                 "(9. Multi-Project CI/CD Pipeline & Automated Dual Quality Gate)",
+                "(10. Multi-Project CI/CD Pipeline & Automated Dual Quality Gate)",
             )
-            data = data.replace("(Page 7 of 8)", "(Page 10 of 10)")
+            data = data.replace("(Page 7 of 8)", "(Page 11 of 11)").replace(
+                "(Page 10 of 10)", "(Page 11 of 11)"
+            )
 
         # Update filter and data
         raw_c[NameObject("/Filter")] = NameObject("/FlateDecode")
@@ -1169,7 +1490,7 @@ def build_system_design_pdf(
     output_filename: str = "MVC_System_Design_and_Architecture.pdf",
     base_pdf_path: str | None = None,
 ):
-    """Assembles all 10 pages and generates the publication-grade PDF."""
+    """Assembles all 11 pages and generates the publication-grade PDF."""
     target_path = Path(output_filename).resolve()
     if base_pdf_path is None:
         candidate_paths = [
@@ -1187,11 +1508,11 @@ def build_system_design_pdf(
     print(f"Loading base PDF from {base_pdf_path}...")
     transformed_orig_pages = transform_original_streams(str(base_pdf_path))
 
-    print("Generating 3 new architectural pages (Pages 4, 6, 7)...")
-    new_pages_bytes = generate_new_pages_pdf(page_nums=[4, 6, 7])
+    print("Generating 4 new architectural pages (Pages 4, 6, 7, 10)...")
+    new_pages_bytes = generate_new_pages_pdf(page_nums=[4, 6, 7, 10], total_pages=11)
     new_page_readers = [PdfReader(io.BytesIO(b)) for b in new_pages_bytes]
 
-    # Assembly sequence:
+    # Assembly sequence (11 pages total):
     # Page 1: transformed_orig_pages[0] (Exec Summary)
     # Page 2: transformed_orig_pages[1] (1. System Context C4-1)
     # Page 3: transformed_orig_pages[2] (2. Container Arch C4-2)
@@ -1201,7 +1522,8 @@ def build_system_design_pdf(
     # Page 7: new_page_readers[2].pages[0] (6. CUJ-2 Revision & Rollback)
     # Page 8: transformed_orig_pages[4] (7. Deliverables Pipeline C4-4)
     # Page 9: transformed_orig_pages[5] (8. Security & Zero-Trust)
-    # Page 10: transformed_orig_pages[6] (9. CI/CD Pipeline)
+    # Page 10: new_page_readers[3].pages[0] (9. Agent Platform Governance & Security)
+    # Page 11: transformed_orig_pages[6] (10. CI/CD Pipeline)
 
     writer = PdfWriter()
     writer.add_page(transformed_orig_pages[0])  # Page 1
@@ -1213,14 +1535,15 @@ def build_system_design_pdf(
     writer.add_page(new_page_readers[2].pages[0])  # Page 7 (CUJ-2)
     writer.add_page(transformed_orig_pages[4])  # Page 8 (Deliverables Pipeline)
     writer.add_page(transformed_orig_pages[5])  # Page 9 (Security)
-    writer.add_page(transformed_orig_pages[6])  # Page 10 (CI/CD)
+    writer.add_page(new_page_readers[3].pages[0])  # Page 10 (Agent Platform Governance)
+    writer.add_page(transformed_orig_pages[6])  # Page 11 (CI/CD)
 
     temp_out = str(target_path) + ".tmp"
     with open(temp_out, "wb") as f:
         writer.write(f)
 
     os.replace(temp_out, str(target_path))
-    print(f"Successfully generated 10-page PDF report: {target_path}")
+    print(f"Successfully generated 11-page PDF report: {target_path}")
 
 
 if __name__ == "__main__":
