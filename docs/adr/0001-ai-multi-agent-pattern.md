@@ -14,6 +14,7 @@ Additionally, enterprise governance requires A2A (Agent-to-Agent) interoperabili
 We will decouple the system into:
 1. **Four Independent Sub-Agents ([P1]~[P4])**: Implemented as modular Google ADK agents and deployed to Google Cloud Agent Runtime via `agents-cli`. Each agent exposes standard A2A JSON-RPC endpoints and is configured via `agents-cli-manifest.yaml` (`app/agents/*/agents-cli-manifest.yaml`, target: `agent_runtime`, `is_a2a: true`).
 2. **Centralized FastAPI Orchestrator on Cloud Run**: Serves the React SPA, enforces Google OAuth 2.0 and Model Armor sanitization, and orchestrates the sub-agents via standard A2A protocol client calls with HITL pause/approval states.
+3. **Asynchronous Creative Content Pipeline ([P3])**: Decouples textual copywriting and visual prompt engineering (`gemini-3.5-flash-lite`) from image rendering (`gemini-3.1-flash-lite-image` / Nano Banana 2 Lite). Copywriting and concepts return synchronously to unblock review gates, while visual rendering executes asynchronously in the background via `asyncio.create_task`, updating session deliverables upon completion.
 
 ## Alternatives considered
 ### Alternative A: Monolithic Single-Container In-Process Agents
@@ -52,3 +53,4 @@ Chain direct Gemini API calls with function calling inside FastAPI.
 
 ## Changelog
 - 2026-08-27: Initial proposal and acceptance.
+- 2026-09-02: Added Decision 3 documenting asynchronous background visual asset synthesis in P3 Creative Content Agent.

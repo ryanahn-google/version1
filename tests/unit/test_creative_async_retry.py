@@ -14,11 +14,16 @@
 
 """Unit tests for asynchronous Nano Banana image generation with retries."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.agents.creative_content.agent import synthesize_nano_banana_image
+from app.agents.creative_content.agent import (
+    run_creative_content_pipeline,
+    synthesize_nano_banana_image,
+)
+from app.schemas.deliverables import CampaignBriefDeliverable
 
 
 @pytest.mark.asyncio
@@ -102,3 +107,56 @@ async def test_synthesize_nano_banana_image_exhaustion_returns_none():
             )
 
             assert result is None
+
+
+@pytest.mark.asyncio
+async def test_run_creative_content_pipeline_async_image():
+    """Verify that run_creative_content_pipeline with async_image=True returns immediately and triggers background synthesis."""
+    brief = CampaignBriefDeliverable(
+        campaignTitle="Test Campaign",
+        coreValueProposition="Test Value",
+        targetPersonas=[],
+        messagingPillars=[],
+        toneAndVoice=["Bold"],
+    )
+
+    with (
+        patch("app.agents.creative_content.agent.get_settings") as mock_settings,
+        patch(
+            "app.agents.creative_content.agent.synthesize_nano_banana_image"
+        ) as mock_synth,
+        patch("app.orchestrator.session_repo.get_session_repo") as mock_repo_fn,
+    ):
+        settings_obj = MagicMock(
+            integration_test=True,
+            google_cloud_project="test-project",
+            google_cloud_location="global",
+            image_model="gemini-3.1-flash-lite-image",
+            user_id="u1",
+        )
+        mock_settings.return_value = settings_obj
+        mock_synth.return_value = "/api/v1/campaigns/sess-bg1/draft-image"
+
+        mock_repo = MagicMock()
+        mock_sess = MagicMock()
+        mock_sess.deliverables.creativeContent = MagicMock()
+        mock_sess.deliverables.creativeContent.model_dump.return_value = {}
+        mock_repo.get_session = AsyncMock(return_value=mock_sess)
+        mock_repo.update_session = AsyncMock()
+        mock_repo_fn.return_value = mock_repo
+
+        deliv = await run_creative_content_pipeline(
+            brief=brief,
+            session_id="sess-bg1",
+            user_id="u1",
+            async_image=True,
+        )
+
+        assert deliv is not None
+        assert deliv.visualConceptTitle is not None
+        assert deliv.assetUrl is None
+
+        await asyncio.sleep(0.1)
+
+        mock_synth.assert_awaited_once()
+        mock_repo.update_session.assert_awaited_once()

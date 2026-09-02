@@ -118,6 +118,12 @@ The frontend architecture (`App.tsx`) is implemented as a multi-view application
 +-------------+-------------------------------------------------------------------+-------------------------------------+
 ```
 
+### 4.3 Asynchronous Visual Asset Polling in Stage 3 (ContentView)
+To eliminate perceived latency when advancing to Stage 3 or revising creative content:
+- **Synchronous Copy & Immediate Render**: Step 3a text copywriting (headline, body copy, CTA, visual concept) returns synchronously in sub-2 seconds, immediately mounting `ContentView.tsx` in `PAUSED_FOR_REVIEW`.
+- **Background Visual Synthesis & Skeleton Loader**: Step 3b image synthesis via Nano Banana 2 Lite runs asynchronously in the background. While `assetUrl` is absent, `ContentView.tsx` renders an animated visual skeleton loader indicating background rendering.
+- **Client-Side Polling**: An automated polling loop checks `apiClient.getSession(sessionId)` at 2.5s intervals (up to 25 attempts / ~60s) until `deliverables.creativeContent.assetUrl` is populated, automatically displaying the high-resolution marketing asset without requiring user refresh.
+
 ---
 
 ## 5. State Management & Workflow Execution

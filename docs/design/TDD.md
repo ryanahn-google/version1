@@ -164,9 +164,9 @@ Sub-agents are provisioned as independent Reasoning Engine instances via Terrafo
   3. **[P3] Creative Content Agent**:
      - Model: `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) + `gemini-3.5-flash-lite` (location="global")
      - Pipeline: Self-contained sequential generation within the `creative_content` subagent:
-       - *Step 3a (Prompt Translation & Copy)*: `gemini-3.5-flash-lite` synthesizes headline, body copy, CTA, and studio-grade 16:9 photographic prompt.
-       - *Step 3b (Visual Asset Synthesis)*: `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) renders 16:9 marketing visual binary via native `generate_content`.
-       - *Step 3c (In-Memory Draft & GCS Persistence)*: Subagent retains an in-memory draft visual during review. Upon Stage 3 approval, the asset is committed exclusively to Google Cloud Storage under strict per-user directory isolation: `users/{user_id}/campaigns/{session_id}/{filename}` in `gs://{project_id}-version1-artifacts/` (`app/storage_service.py:102, 123`). Never persists to local container disk.
+        - *Step 3a (Prompt Translation & Copy)*: `gemini-3.5-flash-lite` synthesizes headline, body copy, CTA, and studio-grade 16:9 photographic prompt.
+        - *Step 3b (Asynchronous Visual Asset Synthesis)*: `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) renders 16:9 marketing visual binary. Under interactive execution (`async_image=True`), copy and concept are returned immediately to unblock human review while visual rendering runs in the background via `asyncio.create_task`, updating session deliverables upon completion.
+        - *Step 3c (In-Memory Draft & GCS Persistence)*: Subagent retains an in-memory draft visual during review. Upon Stage 3 approval, the asset is committed exclusively to Google Cloud Storage under strict per-user directory isolation: `users/{user_id}/campaigns/{session_id}/{filename}` in `gs://{project_id}-version1-artifacts/` (`app/storage_service.py:102, 123`). Never persists to local container disk.
      - Deliverable: `CreativeContentDeliverable` (JSON with image metadata)
        - `visualConceptTitle: str` — Title of the visual concept
        - `visualPromptUsed: str` — High-detail prompt dispatched to image generation model
@@ -218,6 +218,10 @@ The campaign planning workflow implements a deterministic state machine defined 
     - `STRATEGY_BRIEF` $\to$ `MARKET_SENSING`
   - Boundary Protection: Attempting to roll back from `MARKET_SENSING` raises `HTTP 400 Bad Request` ("Cannot roll back from stage 'MARKET_SENSING'. Stage 1 is the initial stage.").
   - Rollback State Update: The session's `current_stage` is updated to the target stage, and `status` is reset to `PAUSED_FOR_REVIEW`, allowing the marketer to revise parameters or re-trigger stage execution.
+
+- **Dual-Path Execution Architecture (Deterministic REST vs Conversational Tool Calling)**:
+  - **Deterministic REST UI Endpoints (`createCampaign`, `approveStage`, `rollbackStage`)**: Explicit UI actions execute directly against `CampaignOrchestrationEngine` without wrapping in conversational ADK `root_agent` LLM turns. This eliminates redundant ~7-10s Gemini 3.1 Pro tool-calling hops and compresses HITL review transition latency to sub-2 seconds.
+  - **Autonomous & Conversational Ingress (`/a2a/mvc_orchestrator`, `POST /parse-prompt`, ADK Playground)**: Retains full Google ADK `root_agent` (`Gemini 3.1 Pro`) tool calling over `ORCHESTRATOR_TOOLS` (`create_campaign_session`, `approve_campaign_stage`, `rollback_campaign_stage`, `get_campaign_status`, `parse_campaign_prompt`), enabling autonomous agent-to-agent collaboration and natural language instruction parsing.
 
 ### 8.4 CI/CD & Multi-Project Topology
 The deployment pipeline spans three dedicated GCP projects:

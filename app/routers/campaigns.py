@@ -18,12 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.orchestrator.agent_runner import (
-    agent_approve_stage,
-    agent_create_campaign,
-    agent_parse_prompt,
-    agent_rollback_stage,
-)
+from app.orchestrator.agent_runner import agent_parse_prompt
 from app.orchestrator.engine import (
     CampaignOrchestrationEngine,
     get_orchestration_engine,
@@ -101,15 +96,12 @@ async def create_campaign(
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
     repo: SessionRepository = Depends(get_session_repo),
 ) -> CampaignSessionResponse:
-    """Start a new multi-agent campaign planning DAG via ADK root_agent."""
+    """Start a new multi-agent campaign planning DAG."""
     await security.inspect_prompt_safety(payload.campaignObjective)
-    runner = getattr(request.app.state, "runner", None)
-    return await agent_create_campaign(
-        runner=runner,
-        user=user,
-        payload=payload,
-        engine=engine,
-        repo=repo,
+    return await engine.create_campaign(
+        payload,
+        principal=user.email,
+        user_id=user.user_id,
     )
 
 
@@ -151,18 +143,15 @@ async def approve_stage(
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
     repo: SessionRepository = Depends(get_session_repo),
 ) -> CampaignSessionResponse:
-    """Submit human review approval or revision feedback via ADK root_agent."""
+    """Submit human review approval or revision feedback."""
     if payload.feedback:
         await security.inspect_prompt_safety(payload.feedback)
 
-    runner = getattr(request.app.state, "runner", None)
-    updated = await agent_approve_stage(
-        runner=runner,
-        user=user,
-        session_id=sessionId,
-        payload=payload,
-        engine=engine,
-        repo=repo,
+    updated = await engine.approve_stage(
+        sessionId,
+        payload,
+        principal=user.email,
+        user_id=user.user_id,
     )
     if not updated:
         raise HTTPException(
@@ -188,15 +177,8 @@ async def rollback_stage(
     engine: CampaignOrchestrationEngine = Depends(get_orchestration_engine),
     repo: SessionRepository = Depends(get_session_repo),
 ) -> CampaignSessionResponse:
-    """Rollback session strictly to the immediately preceding stage via ADK root_agent."""
-    runner = getattr(request.app.state, "runner", None)
-    return await agent_rollback_stage(
-        runner=runner,
-        user=user,
-        session_id=sessionId,
-        engine=engine,
-        repo=repo,
-    )
+    """Rollback session strictly to the immediately preceding stage (N - 1)."""
+    return await engine.rollback_stage(sessionId, user_id=user.user_id)
 
 
 @router.patch(
