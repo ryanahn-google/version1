@@ -74,23 +74,121 @@
     /* Code & Pre styling */
     pre, code { font-family: 'JetBrains Mono', monospace; }
 
-    /* Mermaid Container */
+    /* Mermaid Container & Interactive Viewer */
     .mermaid-box {
       background: #0B1120;
       border: 1px solid #1E293B;
       border-radius: 0.75rem;
-      padding: 1.5rem;
+      padding: 1.25rem;
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+    .mermaid-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #1E293B;
+    }
+    .mermaid-toolbar-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94A3B8;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .mermaid-toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .mermaid-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #E2E8F0;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      user-select: none;
+    }
+    .mermaid-btn:hover {
+      background: #2563EB;
+      border-color: #38BDF8;
+      color: #FFFFFF;
+      transform: translateY(-1px);
+    }
+    .mermaid-btn-primary {
+      background: #1E3A8A;
+      border-color: #3B82F6;
+      color: #93C5FD;
+    }
+    .mermaid-btn-primary:hover {
+      background: #2563EB;
+      color: #FFFFFF;
+    }
+    .mermaid-viewport {
       overflow-x: auto;
+      overflow-y: hidden;
       display: flex;
       justify-content: center;
+      align-items: flex-start;
+      min-height: 480px;
+      padding: 1.5rem 0.5rem;
+      background: #070D1E;
+      border-radius: 0.5rem;
+      border: 1px solid #151F38;
+      cursor: grab;
     }
-    .mermaid-box svg {
-      max-width: 100%;
-      height: auto;
+    .mermaid-viewport:active {
+      cursor: grabbing;
+    }
+    /* SVG Scaling: Render large, high-res diagrams without aggressive downscaling */
+    .mermaid-box svg, .mermaid svg {
+      max-width: none !important;
+      min-width: 1100px;
+      width: 100%;
+      height: auto !important;
+      display: block;
+      margin: 0 auto;
+      transform-origin: top center;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @media (min-width: 1536px) {
+      .mermaid-box svg, .mermaid svg {
+        min-width: 1280px;
+      }
     }
     .light .mermaid-box {
       background: #F8FAFC;
       border-color: #E2E8F0;
+    }
+    .light .mermaid-viewport {
+      background: #FFFFFF;
+      border-color: #E2E8F0;
+    }
+    .light .mermaid-toolbar {
+      border-bottom-color: #E2E8F0;
+    }
+    .light .mermaid-btn {
+      background: #F1F5F9;
+      border-color: #CBD5E1;
+      color: #1E293B;
+    }
+    .light .mermaid-btn:hover {
+      background: #3B82F6;
+      color: #FFFFFF;
     }
   </style>
 </head>
@@ -1873,6 +1971,391 @@ flowchart LR
         }
       });
     });
+  </script>
+
+  <!-- ================= MERMAID LIGHTBOX MODAL ================= -->
+  <div id="mermaidModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/95 backdrop-blur-md flex flex-col p-3 md:p-6 transition-all duration-200" role="dialog" aria-modal="true">
+    <div class="flex flex-wrap items-center justify-between pb-3 border-b border-slate-800 text-white gap-2">
+      <div class="flex items-center space-x-3">
+        <span class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></span>
+        <h3 id="mermaidModalTitle" class="text-sm md:text-base font-bold text-cyan-300">다이어그램 전체화면 보기</h3>
+        <span class="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 font-mono">드래그(Pan) & 휠 줌(Zoom) 지원</span>
+      </div>
+      <div class="flex items-center flex-wrap gap-1.5">
+        <button id="modalZoomIn" class="px-2.5 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 flex items-center gap-1 cursor-pointer transition-colors">➕ 확대</button>
+        <button id="modalZoomOut" class="px-2.5 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 flex items-center gap-1 cursor-pointer transition-colors">➖ 축소</button>
+        <button id="modalZoomReset" class="px-2.5 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 flex items-center gap-1 cursor-pointer transition-colors">↺ 100%</button>
+        <button id="modalOpenNewTab" class="px-2.5 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded border border-blue-500 flex items-center gap-1 cursor-pointer font-medium transition-colors">↗ 새 창에서 열기</button>
+        <button id="modalDownloadSvg" class="px-2.5 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded border border-emerald-600 flex items-center gap-1 cursor-pointer font-medium transition-colors">💾 SVG 저장</button>
+        <button id="modalClose" class="px-3 py-1.5 text-xs bg-rose-600/90 hover:bg-rose-600 text-white font-bold rounded ml-1 flex items-center gap-1 cursor-pointer transition-colors">✕ 닫기 (ESC)</button>
+      </div>
+    </div>
+    <div id="modalViewport" class="flex-1 overflow-auto flex items-center justify-center p-4 md:p-8 cursor-grab relative select-none bg-[#070D1E] rounded-b-xl border border-t-0 border-slate-800">
+      <div id="modalSvgContainer" class="transform origin-center transition-transform duration-100 flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- ================= MERMAID VIEWER ENHANCER SCRIPT ================= -->
+  <script>
+    (function() {
+      // 1. Standalone New Window Viewer
+      window.openDiagramInNewTab = function(svgElement, title) {
+        if (!svgElement) return;
+        const svgClone = svgElement.cloneNode(true);
+        svgClone.removeAttribute('style');
+        svgClone.setAttribute('width', '100%');
+        svgClone.setAttribute('height', '100%');
+        const svgHtml = svgClone.outerHTML;
+
+        const newWin = window.open('', '_blank');
+        if (!newWin) {
+          alert('팝업이 차단되었습니다. 브라우저 팝업 허용을 활성화해주세요.');
+          return;
+        }
+
+        newWin.document.write(`<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title || 'MVC Architecture Diagram'} | High-Resolution Viewer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #0A1128;
+      color: #F8FAFC;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header-bar {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(12px);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 12px;
+      z-index: 1000;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+    }
+    .title-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #38BDF8; display: inline-block; }
+    h1 { font-size: 15px; margin: 0; font-weight: 700; color: #E2E8F0; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      background: #1E293B;
+      color: #F1F5F9;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #2563EB;
+      border-color: #38BDF8;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .canvas-card {
+      flex: 1;
+      background: #0B1120;
+      border: 1px solid #1E293B;
+      border-radius: 16px;
+      padding: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow: auto;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+    }
+    .canvas-wrapper {
+      transform-origin: top center;
+      transition: transform 0.15s ease;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+    svg {
+      max-width: none !important;
+      min-width: 1100px;
+      width: 100% !important;
+      height: auto !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-bar">
+    <div class="title-area">
+      <span class="dot"></span>
+      <h1>${title || '시스템 아키텍처 다이어그램'}</h1>
+    </div>
+    <div class="btn-group">
+      <button onclick="zoom(1.2)">➕ 확대 (+20%)</button>
+      <button onclick="zoom(0.8)">➖ 축소 (-20%)</button>
+      <button onclick="resetZoom()">↺ 100% 원본</button>
+      <button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+      <button onclick="window.close()" style="background:#881337;border-color:#F43F5E;">✕ 창 닫기</button>
+    </div>
+  </div>
+  <div class="canvas-card" id="card">
+    <div class="canvas-wrapper" id="wrapper">
+      ${svgHtml}
+    </div>
+  </div>
+  <script>
+    let scale = 1.0;
+    const wrapper = document.getElementById('wrapper');
+    function zoom(f) {
+      scale *= f;
+      if (scale < 0.2) scale = 0.2;
+      if (scale > 4.0) scale = 4.0;
+      wrapper.style.transform = 'scale(' + scale + ')';
+    }
+    function resetZoom() {
+      scale = 1.0;
+      wrapper.style.transform = 'scale(1)';
+    }
+  <\/script>
+</body>
+</html>`);
+        newWin.document.close();
+      };
+
+      // 2. SVG Vector Download
+      window.downloadDiagramSvg = function(svgElement, title) {
+        if (!svgElement) return;
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svgElement);
+        if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+          source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const safeTitle = (title || "architecture-diagram").replace(/[^a-zA-Z0-9가-힣_-]/g, "_");
+        link.href = url;
+        link.download = `${safeTitle}.svg`;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // 3. Lightbox Modal Controller
+      let currentModalSvg = null;
+      let modalScale = 1.0;
+      const modal = document.getElementById('mermaidModal');
+      const modalTitle = document.getElementById('mermaidModalTitle');
+      const modalContainer = document.getElementById('modalSvgContainer');
+      const modalViewport = document.getElementById('modalViewport');
+
+      window.openMermaidModal = function(svgElement, title) {
+        if (!modal || !svgElement) return;
+        modalTitle.textContent = title || '아키텍처 다이어그램 전체화면 보기';
+        modalContainer.innerHTML = '';
+        const clone = svgElement.cloneNode(true);
+        clone.removeAttribute('style');
+        clone.style.minWidth = '1350px';
+        clone.style.width = '100%';
+        clone.style.height = 'auto';
+        modalContainer.appendChild(clone);
+        currentModalSvg = svgElement;
+
+        modalScale = 1.0;
+        modalContainer.style.transform = 'scale(1)';
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        setTimeout(() => {
+          modalViewport.scrollLeft = (modalContainer.offsetWidth - modalViewport.clientWidth) / 2;
+        }, 50);
+      };
+
+      window.closeMermaidModal = function() {
+        if (modal) {
+          modal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+      };
+
+      // Modal Button Bindings
+      document.getElementById('modalClose')?.addEventListener('click', closeMermaidModal);
+      document.getElementById('modalZoomIn')?.addEventListener('click', () => {
+        modalScale = Math.min(modalScale + 0.25, 4.0);
+        modalContainer.style.transform = `scale(${modalScale})`;
+      });
+      document.getElementById('modalZoomOut')?.addEventListener('click', () => {
+        modalScale = Math.max(modalScale - 0.25, 0.3);
+        modalContainer.style.transform = `scale(${modalScale})`;
+      });
+      document.getElementById('modalZoomReset')?.addEventListener('click', () => {
+        modalScale = 1.0;
+        modalContainer.style.transform = 'scale(1)';
+      });
+      document.getElementById('modalOpenNewTab')?.addEventListener('click', () => {
+        window.openDiagramInNewTab(currentModalSvg, modalTitle.textContent);
+      });
+      document.getElementById('modalDownloadSvg')?.addEventListener('click', () => {
+        window.downloadDiagramSvg(currentModalSvg, modalTitle.textContent);
+      });
+
+      // ESC key to close modal
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+          closeMermaidModal();
+        }
+      });
+
+      // Modal Drag / Pan
+      let mDown = false, mStartX = 0, mStartY = 0, mScrollLeft = 0, mScrollTop = 0;
+      modalViewport?.addEventListener('mousedown', (e) => {
+        mDown = true;
+        modalViewport.classList.add('cursor-grabbing');
+        mStartX = e.pageX - modalViewport.offsetLeft;
+        mStartY = e.pageY - modalViewport.offsetTop;
+        mScrollLeft = modalViewport.scrollLeft;
+        mScrollTop = modalViewport.scrollTop;
+      });
+      modalViewport?.addEventListener('mouseleave', () => { mDown = false; modalViewport.classList.remove('cursor-grabbing'); });
+      modalViewport?.addEventListener('mouseup', () => { mDown = false; modalViewport.classList.remove('cursor-grabbing'); });
+      modalViewport?.addEventListener('mousemove', (e) => {
+        if (!mDown) return;
+        e.preventDefault();
+        const x = e.pageX - modalViewport.offsetLeft;
+        const y = e.pageY - modalViewport.offsetTop;
+        modalViewport.scrollLeft = mScrollLeft - (x - mStartX) * 1.5;
+        modalViewport.scrollTop = mScrollTop - (y - mStartY) * 1.5;
+      });
+
+      // Modal Wheel Zoom
+      modalViewport?.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.15 : -0.15;
+        modalScale = Math.min(Math.max(modalScale + delta, 0.3), 4.0);
+        modalContainer.style.transform = `scale(${modalScale})`;
+      }, { passive: false });
+
+      // 4. Auto-Enhance All Mermaid Boxes
+      function enhanceAllDiagrams() {
+        const boxes = document.querySelectorAll('.mermaid-box');
+        boxes.forEach((box, idx) => {
+          if (box.dataset.enhanced === 'true') return;
+          const svg = box.querySelector('svg');
+          if (!svg) return;
+
+          box.dataset.enhanced = 'true';
+
+          // Extract Title
+          let title = `시스템 아키텍처 다이어그램 #${idx + 1}`;
+          const prevEl = box.previousElementSibling;
+          if (prevEl) {
+            const span = prevEl.querySelector('.font-semibold, span:first-child');
+            if (span && span.textContent.trim()) {
+              title = span.textContent.trim();
+            }
+          }
+
+          // Create Toolbar
+          const toolbar = document.createElement('div');
+          toolbar.className = 'mermaid-toolbar';
+          toolbar.innerHTML = `
+            <div class="mermaid-toolbar-title">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              <span>${title}</span>
+            </div>
+            <div class="mermaid-toolbar-actions">
+              <button type="button" class="mermaid-btn btn-zoom-in" title="다이어그램 확대 (+20%)">➕ 확대</button>
+              <button type="button" class="mermaid-btn btn-zoom-out" title="다이어그램 축소 (-20%)">➖ 축소</button>
+              <button type="button" class="mermaid-btn btn-zoom-reset" title="100% 원본 크기">↺ 100%</button>
+              <button type="button" class="mermaid-btn mermaid-btn-primary btn-modal" title="모달 전체화면으로 크게 보기">🔍 전체화면 확대</button>
+              <button type="button" class="mermaid-btn btn-new-tab" title="새 탭/새 창에서 고해상도로 보기">↗ 새 창에서 보기</button>
+              <button type="button" class="mermaid-btn btn-download" title="SVG 벡터 이미지 파일 저장">💾 SVG 저장</button>
+            </div>
+          `;
+
+          // Wrap mermaid inside viewport
+          const pre = box.querySelector('.mermaid') || svg;
+          const viewport = document.createElement('div');
+          viewport.className = 'mermaid-viewport';
+          
+          pre.parentNode.insertBefore(viewport, pre);
+          viewport.appendChild(pre);
+          box.insertBefore(toolbar, viewport);
+
+          // Inline Zoom
+          let localScale = 1.0;
+          toolbar.querySelector('.btn-zoom-in')?.addEventListener('click', () => {
+            localScale = Math.min(localScale + 0.2, 2.8);
+            svg.style.transform = `scale(${localScale})`;
+          });
+          toolbar.querySelector('.btn-zoom-out')?.addEventListener('click', () => {
+            localScale = Math.max(localScale - 0.2, 0.4);
+            svg.style.transform = `scale(${localScale})`;
+          });
+          toolbar.querySelector('.btn-zoom-reset')?.addEventListener('click', () => {
+            localScale = 1.0;
+            svg.style.transform = 'scale(1)';
+          });
+          toolbar.querySelector('.btn-modal')?.addEventListener('click', () => {
+            window.openMermaidModal(svg, title);
+          });
+          toolbar.querySelector('.btn-new-tab')?.addEventListener('click', () => {
+            window.openDiagramInNewTab(svg, title);
+          });
+          toolbar.querySelector('.btn-download')?.addEventListener('click', () => {
+            window.downloadDiagramSvg(svg, title);
+          });
+
+          // Inline Drag / Pan
+          let down = false, sX = 0, sL = 0;
+          viewport.addEventListener('mousedown', (e) => {
+            down = true;
+            viewport.classList.add('cursor-grabbing');
+            sX = e.pageX - viewport.offsetLeft;
+            sL = viewport.scrollLeft;
+          });
+          viewport.addEventListener('mouseleave', () => { down = false; viewport.classList.remove('cursor-grabbing'); });
+          viewport.addEventListener('mouseup', () => { down = false; viewport.classList.remove('cursor-grabbing'); });
+          viewport.addEventListener('mousemove', (e) => {
+            if (!down) return;
+            e.preventDefault();
+            const x = e.pageX - viewport.offsetLeft;
+            viewport.scrollLeft = sL - (x - sX) * 1.5;
+          });
+        });
+      }
+
+      // Retry mechanism to guarantee attachment after Mermaid async render
+      let checkCount = 0;
+      const interval = setInterval(() => {
+        enhanceAllDiagrams();
+        checkCount++;
+        const total = document.querySelectorAll('.mermaid-box').length;
+        const enhanced = document.querySelectorAll('.mermaid-box[data-enhanced="true"]').length;
+        if ((total > 0 && enhanced === total) || checkCount > 30) {
+          clearInterval(interval);
+        }
+      }, 300);
+
+      window.addEventListener('load', () => {
+        setTimeout(enhanceAllDiagrams, 200);
+      });
+    })();
   </script>
 </body>
 </html>

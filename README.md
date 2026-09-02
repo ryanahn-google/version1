@@ -154,19 +154,72 @@ Every Pull Request to `main` runs `.cloudbuild/pr_checks.yaml`:
 git clone https://github.com/ryanahn-google/version1.git
 cd version1
 
-# 2. Install all dependencies
+# 2. Configure environment variables
+cp .env.example .env
+
+# 3. Install all dependencies
 make install
 cd frontend && npm install && cd ..
 
-# 3. Run full quality gate (Lint, format-check, typecheck, 119 tests)
+# 4. Run full quality gate (Lint, format-check, typecheck, 119 tests)
 make quality
 
-# 4. Run local full-stack server (FastAPI backend + React SPA at http://localhost:8000/mvc)
+# 5. Run local full-stack server (FastAPI backend + React SPA at http://localhost:8000/mvc)
 make dev
 
-# 5. Alternatively, run with live hot-reload (Backend :8000 + Vite :5173)
+# 6. Alternatively, run with live hot-reload (Backend :8000 + Vite :5173)
 make dev-live
 ```
+
+---
+
+## ⚙️ Environment Variables & Configuration
+
+MVC manages all runtime configuration via a single [`.env`](file:///usr/local/google/home/ryanahn/capstone/version1/.env.example) file, strictly validated at startup using Pydantic `BaseSettings` classes in [`app/settings.py`](file:///usr/local/google/home/ryanahn/capstone/version1/app/settings.py). Direct access via `os.getenv` or `os.environ` is strictly prohibited across the codebase and enforced by automated AST linting in [`tests/unit/test_settings.py`](file:///usr/local/google/home/ryanahn/capstone/version1/tests/unit/test_settings.py#L420-L457).
+
+To initialize your local environment:
+```bash
+cp .env.example .env
+```
+
+The application runs locally out-of-the-box with default values (using SQLite fallback persistence and in-process sub-agent execution). Staging and production environments override these variables via Cloud Run container environment variables and Google Secret Manager.
+
+### Core Configuration Reference
+
+| Variable | Class | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `APP_URL` | `ApplicationSettings` | `http://0.0.0.0:8000` | Base URL where FastAPI backend and SPA assets are served |
+| `AGENT_VERSION` | `ApplicationSettings` | `0.1.0` | Semantic version of the agent service |
+| `INTEGRATION_TEST` | `ApplicationSettings` | `false` | When `true`, mocks remote LLM calls for CI/automated test suites |
+| `USER_ID` | `ApplicationSettings` | *(None)* | Default or fallback user identifier for campaign sessions |
+| `ENV` | `SecuritySettings` | `development` | Deployment environment (`development`, `staging`, `production`) |
+| `GOOGLE_OAUTH_CLIENT_ID` | `SecuritySettings` | *(None)* | Google OAuth 2.0 Client ID for frontend OIDC ID token validation |
+| `MODEL_ARMOR_TEMPLATE` | `SecuritySettings` | *(None)* | Resource path to Google Cloud Model Armor template in `us` region |
+| `SESSION_COOKIE_NAME` | `SecuritySettings` | `mvc_session` | Name of the HTTP session cookie for browser state |
+| `SESSION_EXPIRE_DAYS` | `SecuritySettings` | `7` | Session cookie expiration duration in days |
+| `GOOGLE_CLOUD_PROJECT` | `GoogleCloudSettings` | `capstone-staging-506811` | Target Google Cloud Project ID |
+| `GOOGLE_CLOUD_LOCATION` | `GoogleCloudSettings` | `global` | Regional API endpoint location for Vertex AI foundation models |
+| `GOOGLE_GENAI_USE_ENTERPRISE` | `GoogleCloudSettings` | `true` | Enables Agent Platform Enterprise / Vertex AI backend |
+| `GEMINI_API_KEY` | `GoogleCloudSettings` | *(None)* | Fallback Google AI Studio API key (if Enterprise mode is disabled) |
+| `ORCHESTRATOR_MODEL` | `GoogleCloudSettings` | `gemini-3.1-pro-preview` | Primary foundation model for Root Orchestrator |
+| `ORCHESTRATOR_FALLBACK_MODEL` | `GoogleCloudSettings` | `gemini-2.5-pro` | Failover model during quota exhaustion or regional incidents |
+| `SUB_AGENT_MODEL` | `GoogleCloudSettings` | `gemini-3.5-flash-lite` | Foundation model for structured subagents (P1, P2, P4) |
+| `SUB_AGENT_FALLBACK_MODEL` | `GoogleCloudSettings` | `gemini-2.5-flash` | Subagent failover model during quota exhaustion |
+| `IMAGE_MODEL` | `GoogleCloudSettings` | `gemini-3.1-flash-lite-image` | Nano Banana 2 Lite model for marketing visual generation (P3b) |
+| `SERVICE_ACCOUNT_EMAIL` | `GoogleCloudSettings` | *(None)* | SA email used for signing GCS V4 Signed URLs |
+| `A2A_P{1..4}_URL` | `A2AClientSettings` | *(None)* | JSON-RPC 2.0 URLs for remote subagents; falls back to in-process execution |
+| `LOCAL_DB_PATH` | `DatabaseSettings` | `campaign_sessions.db` | Local SQLite database filepath for local development |
+| `INSTANCE_CONNECTION_NAME` | `DatabaseSettings` | *(None)* | Cloud SQL instance connection string (`project:region:instance`) |
+| `DB_USER` / `DB_PASS` / `DB_NAME` | `DatabaseSettings` | `postgres` / *(None)* / `postgres` | Database credentials for Cloud SQL or PostgreSQL |
+| `DATABASE_URL` | `DatabaseSettings` | *(None)* | Direct PostgreSQL asyncpg connection URL override |
+| `ARTIFACTS_BUCKET_NAME` | `StorageSettings` | `capstone-staging-506811-version1-artifacts` | GCS bucket for generated visual deliverables and drafts |
+| `LOGS_BUCKET_NAME` | `StorageSettings` | `capstone-staging-506811-version1-logs` | GCS bucket for test logs, load test results, and eval reports |
+| `OTEL_TO_CLOUD` | `TelemetrySettings` | `false` (local) / `true` (staging) | Export distributed traces to Google Cloud Trace |
+| `OTEL_SERVICE_NAME` | `TelemetrySettings` | `mvc-orchestrator` | Service name displayed in Cloud Trace spans |
+| `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | `TelemetrySettings` | `EVENT_ONLY` | Message content capture policy (`NO_CONTENT`, `EVENT_ONLY`, `SPAN_ONLY`) |
+| `OTEL_INSTRUMENTATION_GENAI_UPLOAD_BASE_PATH` | `TelemetrySettings` | `gs://{LOGS_BUCKET}/completions` | GCS base path for full prompt-response telemetry logs |
+
+See [`.env.example`](file:///usr/local/google/home/ryanahn/capstone/version1/.env.example) for detailed comments and inline configuration templates for each setting.
 
 ---
 
