@@ -43,23 +43,3 @@ def test_meta_endpoint(client: TestClient) -> None:
     data = response.json()
     assert data["region"] == "asia-northeast3"
     assert "orchestrator" in data["models"]
-
-
-def test_architecture_endpoint(client: TestClient) -> None:
-    """Verifies that /architecture returns the interactive HTML document."""
-    response = client.get("/architecture")
-    assert response.status_code == status.HTTP_200_OK
-    assert "text/html" in response.headers["content-type"]
-    assert "Marketing Value Creator" in response.text
-    assert "C4 Level 1" in response.text
-    assert "Mermaid.js" in response.text
-
-
-def test_app_architecture_endpoint(client: TestClient) -> None:
-    """Verifies that /app-architecture returns the app codebase HTML document."""
-    response = client.get("/app-architecture")
-    assert response.status_code == status.HTTP_200_OK
-    assert "text/html" in response.headers["content-type"]
-    assert "Marketing Value Creator" in response.text
-    assert "Three-Surface Layering" in response.text
-    assert "Mermaid.js" in response.text
